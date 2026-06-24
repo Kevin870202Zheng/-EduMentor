@@ -3,50 +3,40 @@ import { Card, Tag, Typography, Spin, Steps, Button, Empty, Radio } from 'antd';
 import { CheckCircleOutlined, ClockCircleOutlined, RightCircleOutlined } from '@ant-design/icons';
 import { pathAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useOutletContext } from 'react-router-dom';
 
 const { Title, Text } = Typography;
 
-const DEMO_COURSE_ID = '1';
-
-const DEMO_DATA = {
-  strategy: 'balanced',
-  total_kps: 15,
-  total_estimated_minutes: 360,
-  path: [
-    { kp_id: 'kp-1', name: '函数基本概念', priority: 0.85, mastery: 0.35, estimated_minutes: 25 },
-    { kp_id: 'kp-2', name: '极限与连续', priority: 0.82, mastery: 0.40, estimated_minutes: 30 },
-    { kp_id: 'kp-3', name: '导数与微分', priority: 0.78, mastery: 0.50, estimated_minutes: 35 },
-    { kp_id: 'kp-4', name: '积分基本定理', priority: 0.70, mastery: 0.55, estimated_minutes: 30 },
-    { kp_id: 'kp-5', name: '不定积分', priority: 0.65, mastery: 0.60, estimated_minutes: 25 },
-  ]
-};
-
 export default function LearningPath() {
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [pathData, setPathData] = useState(null);
   const [strategy, setStrategy] = useState('balanced');
+  const [error, setError] = useState(null);
   const { user } = useAuth();
-  const studentId = user?.id || '2';
+  const { selectedCourseId } = useOutletContext();
+  const studentId = user?.id;
 
   useEffect(() => {
-    loadPath();
-  }, [strategy]);
+    if (selectedCourseId) loadPath();
+    else setLoading(false);
+  }, [strategy, selectedCourseId]);
 
   const loadPath = async () => {
+    if (!selectedCourseId) return;
     setLoading(true);
+    setError(null);
     try {
-      const res = await pathAPI.getPlan(studentId, DEMO_COURSE_ID, strategy);
+      const res = await pathAPI.getPlan(studentId, selectedCourseId, strategy);
       setPathData(res.data || res);
     } catch (err) {
-      setPathData({
-        ...DEMO_DATA,
-        strategy,
-      });
+      setError('暂无学习路径数据');
     }
     setLoading(false);
   };
 
   if (loading) return <Spin size="large" style={{ display: 'flex', justifyContent: 'center', marginTop: 100 }} />;
+  if (!selectedCourseId) return <Empty description="请先选择一门课程" />;
+  if (error) return <Empty description={error} />;
 
   return (
     <div>

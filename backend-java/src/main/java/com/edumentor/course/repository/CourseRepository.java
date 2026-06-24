@@ -6,6 +6,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -61,4 +63,28 @@ public interface CourseRepository extends JpaRepository<Course, UUID> {
      * @return true 如果已存在
      */
     boolean existsByName(String name);
+
+    /**
+     * 按课程编号查询。
+     *
+     * @param courseCode 课程编号（唯一）
+     * @return 课程（可能为空）
+     */
+    Optional<Course> findByCourseCode(String courseCode);
+
+    /**
+     * 判断课程编号是否已存在。
+     *
+     * @param courseCode 课程编号
+     * @return true 表示已存在
+     */
+    boolean existsByCourseCode(String courseCode);
+
+    /**
+     * 按创建人查询课程列表（按创建时间降序）。
+     *
+     * @param createdBy 创建人 ID（教师用户 ID）
+     * @return 课程列表
+     */
+    List<Course> findByCreatedByOrderByCreatedAtDesc(UUID createdBy);
 }

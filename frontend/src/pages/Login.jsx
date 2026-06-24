@@ -119,10 +119,10 @@ export default function Login() {
           </Text>
           <Space direction="vertical" style={{ width: '100%', fontSize: 13 }}>
             <Text type="secondary">
-              <TeamOutlined /> 学生：<Text code>student1</Text> / <Text code>123456</Text>
+              <TeamOutlined /> 学生：<Text code>student01</Text> / <Text code>student123</Text>
             </Text>
             <Text type="secondary">
-              <UserOutlined /> 教师：<Text code>teacher1</Text> / <Text code>123456</Text>
+              <UserOutlined /> 教师：<Text code>teacher01</Text> / <Text code>teacher123</Text>
             </Text>
           </Space>
         </div>

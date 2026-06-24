@@ -12,6 +12,7 @@ import java.util.UUID;
  * </p>
  *
  * @param id          课程 ID
+ * @param courseCode  课程编号（业务唯一标识）
  * @param name        课程名称
  * @param description 课程描述
  * @param subject     学科分类
@@ -27,6 +28,7 @@ import java.util.UUID;
  */
 public record CourseDto(
         UUID id,
+        String courseCode,
         String name,
         String description,
         String subject,
@@ -46,6 +48,7 @@ public record CourseDto(
     public static CourseDto fromEntity(Course entity) {
         return new CourseDto(
                 entity.getId(),
+                entity.getCourseCode(),
                 entity.getName(),
                 entity.getDescription(),
                 entity.getSubject(),

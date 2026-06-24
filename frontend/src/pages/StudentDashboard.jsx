@@ -8,42 +8,25 @@ import { CanvasRenderer } from 'echarts/renderers';
 import { diagnosisAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { BookOutlined, TrophyOutlined, ThunderboltOutlined, WarningOutlined } from '@ant-design/icons';
-import { useSearchParams } from 'react-router-dom';
+import { useOutletContext } from 'react-router-dom';
 
 echarts.use([RadarChart, TooltipComponent, LegendComponent, CanvasRenderer]);
 
 const { Title, Text } = Typography;
 
-// TODO: 支持多课程 — 当前从 URL 查询参数 ?courseId=xxx 获取课程 ID，
-//       后续可从用户设置/课程选择器中动态获取
-const DEFAULT_COURSE_ID = '1';
-
-// 默认雷达数据
-const DEFAULT_RADAR = {
-  dimensions: [
-    { name: '知识掌握度', value: 65 },
-    { name: '认知能力', value: 70 },
-    { name: '元认知水平', value: 55 },
-    { name: '学习投入度', value: 60 },
-  ]
-};
-
-// 默认画像
-const DEFAULT_PROFILE = {
-  cognitive_profile: { avg_mastery: 0.65, total_kps: 20, weak_kps: 8, mastered_kps: 12 },
-  knowledge_details: [],
-  weak_points: [],
-  alert_status: { level: 'none', composite_score: 0.7 }
-};
-
 export default function StudentDashboard() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
   const [radarData, setRadarData] = useState(null);
+  const [error, setError] = useState(null);
   const { user } = useAuth();
-  const [searchParams] = useSearchParams();
-  const studentId = user?.id || '2';
-  const courseId = searchParams.get('courseId') || DEFAULT_COURSE_ID;
+  const { selectedCourseId } = useOutletContext();
+  const studentId = user?.id;
+
+  useEffect(() => {
+    if (selectedCourseId) loadData();
+    else setLoading(false);
+  }, [selectedCourseId]);
 
   useEffect(() => {
     loadData();
@@ -52,17 +35,14 @@ export default function StudentDashboard() {
   const loadData = async () => {
     try {
       const [profileRes, radarRes] = await Promise.all([
-        diagnosisAPI.analyze({ student_id: String(studentId), course_id: courseId })
-          .catch(() => ({ data: DEFAULT_PROFILE })),
-        diagnosisAPI.getRadar(studentId)
-          .catch(() => ({ data: DEFAULT_RADAR })),
+        diagnosisAPI.analyze({ student_id: studentId, course_id: selectedCourseId }),
+        diagnosisAPI.getRadar(studentId),
       ]);
       setProfile(profileRes.data || profileRes);
       setRadarData(radarRes.data || radarRes);
+      setError(null);
     } catch (err) {
-      console.log('Using demo data');
-      setProfile(DEFAULT_PROFILE);
-      setRadarData(DEFAULT_RADAR);
+      setError('暂无学情数据，请先完成一些练习');
     }
     setLoading(false);
   };
@@ -84,6 +64,8 @@ export default function StudentDashboard() {
   } : {};
 
   if (loading) return <Spin size="large" style={{ display: 'flex', justifyContent: 'center', marginTop: 100 }} />;
+  if (!selectedCourseId) return <Empty description="请先选择一门课程" />;
+  if (error) return <Alert type="info" message={error} style={{ margin: 24 }} />;
 
   const cp = profile?.cognitive_profile || { avg_mastery: 0, weak_kps: 0, mastered_kps: 0, total_kps: 0 };
 

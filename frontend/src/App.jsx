@@ -7,26 +7,20 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 import MainLayout from './components/common/MainLayout';
 
 // ============ 路由级懒加载 ============
-// 每个页面组件独立打包为单独的 chunk，按需加载
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
 const StudentDashboard = lazy(() => import('./pages/StudentDashboard'));
 const LearningPath = lazy(() => import('./pages/LearningPath'));
 const QATutoring = lazy(() => import('./pages/QATutoring'));
 const ErrorReview = lazy(() => import('./pages/ErrorReview'));
+const StudentCourses = lazy(() => import('./pages/StudentCourses'));
 const TeacherDashboard = lazy(() => import('./pages/TeacherDashboard'));
+const TeacherCourseManage = lazy(() => import('./pages/TeacherCourseManage'));
+const TeacherCourseList = lazy(() => import('./pages/TeacherCourseList'));
 
-// 全局加载占位组件
 function PageLoading() {
   return (
-    <div style={{
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      minHeight: '100vh',
-      flexDirection: 'column',
-      gap: 16,
-    }}>
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', flexDirection: 'column', gap: 16 }}>
       <Spin size="large" />
       <span style={{ color: '#999' }}>页面加载中...</span>
     </div>
@@ -55,7 +49,7 @@ function App() {
               {/* 根路径重定向 */}
               <Route path="/" element={<Navigate to="/student/dashboard" replace />} />
 
-              {/* 学生路由（受保护，仅允许 student 角色） */}
+              {/* 学生路由 */}
               <Route
                 path="/student"
                 element={
@@ -69,9 +63,10 @@ function App() {
                 <Route path="learning-path" element={<LearningPath />} />
                 <Route path="qa" element={<QATutoring />} />
                 <Route path="error-review" element={<ErrorReview />} />
+                <Route path="courses" element={<StudentCourses />} />
               </Route>
 
-              {/* 教师路由（受保护，仅允许 teacher 角色） */}
+              {/* 教师路由 */}
               <Route
                 path="/teacher"
                 element={
@@ -82,9 +77,11 @@ function App() {
               >
                 <Route index element={<Navigate to="dashboard" replace />} />
                 <Route path="dashboard" element={<TeacherDashboard />} />
+                <Route path="courses" element={<TeacherCourseList />} />
+                <Route path="courses/:courseCode/manage" element={<TeacherCourseManage />} />
               </Route>
 
-              {/* 404 - 未知路由重定向到首页 */}
+              {/* 404 */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>

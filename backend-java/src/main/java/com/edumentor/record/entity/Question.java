@@ -5,6 +5,8 @@ import com.edumentor.entity.enums.QuestionType;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -32,6 +34,7 @@ public class Question extends BaseEntity {
     @Column(nullable = false, columnDefinition = "text")
     private String content;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private String options;
 
@@ -44,11 +47,15 @@ public class Question extends BaseEntity {
     @Column(nullable = false)
     private Integer difficulty = 3;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private String tags;
 
     @Column(name = "created_by")
     private UUID createdBy;
+
+    @Column(name = "is_published")
+    private Boolean isPublished = false;
 
     @Override
     public Map<String, Object> toDto() {
@@ -59,8 +66,10 @@ public class Question extends BaseEntity {
         dto.put("questionType", questionType != null ? questionType.name() : null);
         dto.put("content", content);
         dto.put("options", options);
+        dto.put("correctAnswer", correctAnswer);
         dto.put("explanation", explanation);
         dto.put("difficulty", difficulty);
+        dto.put("isPublished", isPublished);
         dto.put("tags", tags);
         dto.put("createdBy", createdBy);
         dto.put("createdAt", getCreatedAt());

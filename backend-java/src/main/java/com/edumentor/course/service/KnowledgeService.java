@@ -69,13 +69,17 @@ public class KnowledgeService {
      */
     @Transactional
     public CourseDto createCourse(CourseCreateRequest request, UUID userId) {
-        log.info("创建课程: name={}, userId={}", request.getName(), userId);
+        log.info("创建课程: name={}, courseCode={}, userId={}", request.getName(), request.getCourseCode(), userId);
 
         if (courseRepository.existsByName(request.getName())) {
             throw new DuplicateResourceException("课程名称", request.getName());
         }
+        if (courseRepository.existsByCourseCode(request.getCourseCode())) {
+            throw new DuplicateResourceException("课程编号", request.getCourseCode());
+        }
 
         Course course = new Course();
+        course.setCourseCode(request.getCourseCode());
         course.setName(request.getName());
         course.setDescription(request.getDescription());
         course.setSubject(request.getSubject());
@@ -85,7 +89,7 @@ public class KnowledgeService {
         course.setCreatedBy(userId);
 
         Course saved = courseRepository.save(course);
-        log.info("课程创建成功: id={}, name={}", saved.getId(), saved.getName());
+        log.info("课程创建成功: id={}, courseCode={}, name={}", saved.getId(), saved.getCourseCode(), saved.getName());
         return CourseDto.fromEntity(saved);
     }
 
@@ -105,6 +109,13 @@ public class KnowledgeService {
         Course course = courseRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("课程", id));
 
+        if (request.getCourseCode() != null) {
+            if (!course.getCourseCode().equals(request.getCourseCode())
+                    && courseRepository.existsByCourseCode(request.getCourseCode())) {
+                throw new DuplicateResourceException("课程编号", request.getCourseCode());
+            }
+            course.setCourseCode(request.getCourseCode());
+        }
         if (request.getName() != null) {
             if (!course.getName().equals(request.getName())
                     && courseRepository.existsByName(request.getName())) {
@@ -145,6 +156,45 @@ public class KnowledgeService {
         Course course = courseRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("课程", id));
         return CourseDto.fromEntity(course);
+    }
+
+    /**
+     * 按课程编号获取课程详情。
+     *
+     * @param courseCode 课程编号
+     * @return 课程 DTO
+     * @throws ResourceNotFoundException 如果课程不存在
+     */
+    @Transactional(readOnly = true)
+    public CourseDto getCourseByCode(String courseCode) {
+        Course course = courseRepository.findByCourseCode(courseCode)
+                .orElseThrow(() -> new ResourceNotFoundException("课程", "编号 " + courseCode));
+        return CourseDto.fromEntity(course);
+    }
+
+    /**
+     * 判断课程编号是否已存在。
+     *
+     * @param courseCode 课程编号
+     * @return true 表示已存在
+     */
+    @Transactional(readOnly = true)
+    public boolean existsByCourseCode(String courseCode) {
+        return courseRepository.existsByCourseCode(courseCode);
+    }
+
+    /**
+     * 获取教师创建的课程列表。
+     *
+     * @param teacherId 教师用户 ID
+     * @return 课程 DTO 列表
+     */
+    @Transactional(readOnly = true)
+    public List<CourseDto> listCoursesByTeacher(UUID teacherId) {
+        return courseRepository.findByCreatedByOrderByCreatedAtDesc(teacherId)
+                .stream()
+                .map(CourseDto::fromEntity)
+                .toList();
     }
 
     /**

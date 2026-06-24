@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>EduMentor 生产化优化方案</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 1000px; margin: 0 auto; padding: 20px; background: #f5f5f5; color: #333; }
+  h1 { color: #1a1a2e; border-bottom: 3px solid #e94560; padding-bottom: 8px; }
+  h2 { color: #16213e; margin-top: 32px; border-left: 4px solid #1677ff; padding-left: 12px; }
+  h3 { color: #333; margin-top: 24px; }
+  .meta { color: #666; font-size: 14px; margin-bottom: 24px; }
+  .summary-card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin: 16px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  th, td { border: 1px solid #dee2e6; padding: 10px 14px; text-align: left; }
+  th { background: #16213e; color: white; }
+  tr:nth-child(even) { background: #f8f9fa; }
+  .severity-P0 { background: #e94560; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+  .severity-P1 { background: #f39c12; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+  .severity-P2 { background: #1677ff; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+  .severity-P3 { background: #95a5a6; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+  .demo-tag { background: #fff3cd; color: #856404; padding: 2px 6px; border-radius: 3px; font-size: 11px; }
+  .real-tag { background: #d4edda; color: #155724; padding: 2px 6px; border-radius: 3px; font-size: 11px; }
+  .partial-tag { background: #fff3cd; color: #856404; padding: 2px 6px; border-radius: 3px; font-size: 11px; }
+  .section { background: white; border-radius: 8px; padding: 16px 20px; margin: 12px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  .good { background: #e8f5e9; border-left: 4px solid #4caf50; padding: 12px 16px; margin: 8px 0; border-radius: 4px; }
+  .warn { background: #fff3e0; border-left: 4px solid #ff9800; padding: 12px 16px; margin: 8px 0; border-radius: 4px; }
+  .bad { background: #fce4ec; border-left: 4px solid #e94560; padding: 12px 16px; margin: 8px 0; border-radius: 4px; }
+  .phase { background: white; border-radius: 8px; padding: 16px 20px; margin: 12px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-top: 4px solid #1677ff; }
+  .phase.p1 { border-top-color: #e94560; }
+  .phase.p2 { border-top-color: #f39c12; }
+  .phase.p3 { border-top-color: #1677ff; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 13px; font-family: 'SF Mono', Menlo, monospace; }
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 16px 0; }
+  .stat-box { text-align: center; padding: 16px; border-radius: 8px; }
+  .stat-number { font-size: 32px; font-weight: bold; }
+  .stat-label { font-size: 13px; margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<h1>📋 EduMentor 生产化优化方案</h1>
+<div class="meta">生成日期: 2026-06-24 | 分析范围: 全栈代码审查 + 架构评估</div>
+
+<!-- ============================================ -->
+<div class="summary-card">
+  <h2>现状快照</h2>
+  <div class="stats-grid">
+    <div class="stat-box" style="background: #d4edda;">
+      <div class="stat-number" style="color: #155724;">6</div>
+      <div class="stat-label">✅ 完整实现<br>模块</div>
+    </div>
+    <div class="stat-box" style="background: #fff3cd;">
+      <div class="stat-number" style="color: #856404;">4</div>
+      <div class="stat-label">⚠️ 硬编码 Demo<br>页面</div>
+    </div>
+    <div class="stat-box" style="background: #f8d7da;">
+      <div class="stat-number" style="color: #721c24;">3</div>
+      <div class="stat-label">🔴 严重缺失<br>模块</div>
+    </div>
+    <div class="stat-box" style="background: #e2e3e5;">
+      <div class="stat-number" style="color: #383d41;">18</div>
+      <div class="stat-label">📝 待优化项<br>总数</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<h2>1. 🧩 模块实现现状分析</h2>
+
+<h3>1.1 前端页面 — Demo 数据分布</h3>
+<table>
+  <tr><th>页面</th><th>文件</th><th>硬编码数据</th><th>风险</th></tr>
+  <tr>
+    <td>学生仪表盘</td><td><code>StudentDashboard.jsx</code></td>
+    <td><span class="demo-tag">DEFAULT_RADAR</span> <span class="demo-tag">DEFAULT_PROFILE</span> <span class="demo-tag">DEFAULT_COURSE_ID='1'</span></td>
+    <td class="warn">API 失败静默降级，用户看不到错误</td>
+  </tr>
+  <tr>
+    <td>教师驾驶舱</td><td><code>TeacherDashboard.jsx</code></td>
+    <td><span class="demo-tag">DEMO_SUMMARY</span> <span class="demo-tag">DEMO_STUDENTS</span> <span class="demo-tag">硬编码教学建议</span></td>
+    <td class="bad">API 异常全部被吞，永远显示假数据</td>
+  </tr>
+  <tr>
+    <td>学习路径</td><td><code>LearningPath.jsx</code></td>
+    <td><span class="demo-tag">DEMO_DATA</span> <span class="demo-tag">DEMO_COURSE_ID='1'</span></td>
+    <td class="warn">5 个硬编码的高数知识点</td>
+  </tr>
+  <tr>
+    <td>智能答疑</td><td><code>QATutoring.jsx</code></td>
+    <td><span class="demo-tag">DEMO_RESPONSES</span> (3 条预置答案)</td>
+    <td class="warn">API 失败时用预置回复，学生可能混淆</td>
+  </tr>
+  <tr>
+    <td>错题复盘</td><td><code>ErrorReview.jsx</code></td>
+    <td><span class="demo-tag">DEMO_RECORDS</span> (4 条硬编码)</td>
+    <td class="warn">初始化直接使用假数据，从未请求 API</td>
+  </tr>
+  <tr>
+    <td><strong>所有页面</strong></td><td>公共问题</td>
+    <td><code>student_id: '2'</code> 硬编码，<code>course_id: '1'</code> 硬编码</td>
+    <td class="bad">多课程/多学生场景完全不可用</td>
+  </tr>
+</table>
+
+<h3>1.2 后端模块 — 实现完整度</h3>
+<table>
+  <tr><th>模块</th><th>代码量</th><th>状态</th><th>评估</th></tr>
+  <tr>
+    <td><strong>LLM Service</strong></td><td>646 行</td><td><span class="real-tag">✅ 完整</span></td>
+    <td>多供应商(OpenAI/Ollama/智谱/文心)、流式、速率限制、重试、RAG增强、Token追踪</td>
+  </tr>
+  <tr>
+    <td><strong>PathService</strong></td><td>825 行</td><td><span class="real-tag">✅ 完整</span></td>
+    <td>Kahn拓扑排序、4种适配策略(REORDER/SHORTEN/EXPAND/FOCUS_WEAK)、状态机管理</td>
+  </tr>
+  <tr>
+    <td><strong>DiagnosisService</strong></td><td>737 行</td><td><span class="real-tag">✅ 完整</span></td>
+    <td>真实SQL聚合分析、薄弱识别、雷达图、热力图、趋势分析</td>
+  </tr>
+  <tr>
+    <td><strong>DashboardService</strong></td><td>530 行</td><td><span class="real-tag">✅ 完整</span></td>
+    <td>班级总览SQL、学情列表、薄弱点分析、每日简报</td>
+  </tr>
+  <tr>
+    <td><strong>BKT Engine</strong></td><td>275 行</td><td><span class="real-tag">✅ 完整</span></td>
+    <td>贝叶斯更新公式、批量更新、置信区间、趋势方向、掌握度预测</td>
+  </tr>
+  <tr>
+    <td><strong>AlertService</strong></td><td>—</td><td><span class="real-tag">✅ 完整</span></td>
+    <td>多级预警计算、统计</td>
+  </tr>
+  <tr>
+    <td><strong>ReviewService</strong></td><td>—</td><td><span class="real-tag">✅ 完整</span></td>
+    <td>错题复盘、复习计划</td>
+  </tr>
+  <tr>
+    <td><strong>RAG Engine</strong></td><td>160 行</td><td><span class="partial-tag">⚠️ 接口定义</span></td>
+    <td>接口定义完整但仅 <code>MockRAGEngine</code> 实现，无真实向量库</td>
+  </tr>
+  <tr>
+    <td><strong>WebSocket</strong></td><td>—</td><td><span class="partial-tag">⚠️ 有基础实现</span></td>
+    <td>认证拦截器、会话管理、聊天处理器，但未集成到业务模块</td>
+  </tr>
+  <tr>
+    <td><strong>Notification</strong></td><td>—</td><td><span class="demo-tag">❌ 未实现</span></td>
+    <td>有 controller 和 entity 定义，但无真实的推送/邮件/短信集成</td>
+  </tr>
+  <tr>
+    <td><strong>LLM Provider 适配器</strong></td><td>—</td><td><span class="partial-tag">⚠️ 部分实现</span></td>
+    <td>OpenAI/Ollama 适配器完整，智谱和文心为 stub（需 API key 和真实测试）</td>
+  </tr>
+</table>
+
+<!-- ============================================ -->
+<h2>2. 🔴 生产化关键差距</h2>
+
+<div class="section">
+<h3>P0 — 必须修复（影响核心用户体验）</h3>
+<table>
+  <tr><th>#</th><th>问题</th><th>当前行为</th><th>影响</th></tr>
+  <tr>
+    <td>1</td>
+    <td><strong>前端静默降级到假数据</strong></td>
+    <td>所有页面用 <code>.catch(() => DEMO_DATA)</code> 模式，API 失败时不报错</td>
+    <td>用户永远不会知道系统有问题，也看不到真实数据</td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td><strong>硬编码 student_id / course_id</strong></td>
+    <td><code>student_id: String(user?.id || '2')</code>，<code>course_id: '1'</code></td>
+    <td>多学生/多课程场景完全瘫痪</td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td><strong>RAG 引擎无真实实现</strong></td>
+    <td><code>MockRAGEngine</code> 返回空列表</td>
+    <td>知识检索功能为零，答疑只能靠 LLM 自身知识</td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td><strong>错误复盘页面从不请求 API</strong></td>
+    <td><code>useState(DEMO_RECORDS)</code> 直接初始化</td>
+    <td>用户提交的错题永远不会显示</td>
+  </tr>
+</table>
+</div>
+
+<div class="section">
+<h3>P1 — 高优先级（运维和安全性）</h3>
+<table>
+  <tr><th>#</th><th>问题</th><th>当前状态</th><th>风险</th></tr>
+  <tr><td>5</td><td>无 HTTPS/SSL</td><td>纯 HTTP 传输</td><td>JWT Token 和密码明文传输</td></tr>
+  <tr><td>6</td><td>无密码重置/邮箱验证</td><td>仅支持 seeder 预置账号</td><td>无法自助注册和找回密码</td></tr>
+  <tr><td>7</td><td>无全局 API 速率限制</td><td>仅 LLM 模块有限制</td><td>暴力破解、DDoS 无防护</td></tr>
+  <tr><td>8</td><td>无数据备份策略</td><td>PostgreSQL 无自动备份</td><td>数据丢失风险</td></tr>
+  <tr><td>9</td><td>无生产级日志采集</td><td>仅控制台日志</td><td>故障排查困难</td></tr>
+  <tr><td>10</td><td>无 CI/CD 管道</td><td>纯手动部署</td><td>发布风险高、效率低</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h3>P2 — 中优先级（功能完整性和性能）</h3>
+<table>
+  <tr><th>#</th><th>问题</th><th>建议</th></tr>
+  <tr><td>11</td><td>前端无 Error Boundary</td><td>任何组件崩溃会导致整个页面白屏</td></tr>
+  <tr><td>12</td><td>无数据分页</td><td>教师端学生列表、错题列表无分页</td></tr>
+  <tr><td>13</td><td>无 Redis 缓存层</td><td>每次页面加载都查库，高频数据无缓存</td></tr>
+  <tr><td>14</td><td>种子数据量太少</td><td>仅 1 门课、3 个用户、少量知识点</td></tr>
+  <tr><td>15</td><td>LLM 供应商配置未测试</td><td>智谱/文心适配器未经过真实测试</td></tr>
+  <tr><td>16</td><td>WebSocket 未与业务集成</td><td>有技术实现但无实际业务事件推送</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h3>P3 — 低优先级（体验优化）</h3>
+<table>
+  <tr><th>#</th><th>问题</th><th>建议</th></tr>
+  <tr><td>17</td><td>移动端适配不完整</td><td>Ant Design 响应式，但雷达图和小屏幕未专门优化</td></tr>
+  <tr><td>18</td><td>无国际化（i18n）</td><td>全部中文硬编码，无法切换语言</td></tr>
+  <tr><td>19</td><td>前端构建体积过大</td><td>echarts 全量引入，可按需加载</td></tr>
+  <tr><td>20</td><td>无 dark mode</td><td>全部白色背景，长时间使用有视觉疲劳</td></tr>
+</table>
+</div>
+
+<!-- ============================================ -->
+<h2>3. 🎯 核心后端模块完整度评估</h2>
+
+<div class="section">
+<h3>✅ BKT 贝叶斯知识追踪 — 真实算法实现</h3>
+<div class="good">
+  <ul>
+    <li><strong>update()</strong>: 完整的贝叶斯更新公式：<code>P(Lₙ|obs) = P(obs|Lₙ) * P(Lₙ) / P(obs)</code></li>
+    <li><strong>batchUpdate()</strong>: 批量更新（多次观测）</li>
+    <li><strong>predictCorrectProbability()</strong>: 预测下次答题正确概率</li>
+    <li><strong>predictMasteryAfterAttempts()</strong>: 预测 N 次练习后的掌握度</li>
+    <li><strong>estimateAttemptsToMastery()</strong>: 估算达到掌握阈值所需的练习次数</li>
+    <li><strong>evaluateOverallMastery()</strong>: 综合评估当前掌握水平</li>
+    <li><strong>findWeakKnowledgePoints()</strong>: 识别薄弱知识点</li>
+    <li><strong>trendDirection()</strong>: 学习趋势方向判断</li>
+    <li><strong>confidenceInterval()</strong>: 置信区间计算</li>
+  </ul>
+  <strong>结论：</strong> 真实 BKT 算法，参数可通过配置调整，可直接用于生产。
+</div>
+
+<h3>✅ LLM 多模型网关 — 生产级实现</h3>
+<div class="good">
+  <ul>
+    <li>4 个供应商适配器（OpenAI/Ollama/智谱/文心）</li>
+    <li>流式输出（SSE 兼容）</li>
+    <li>RAG 增强提示词模板</li>
+    <li>Token 使用追踪</li>
+    <li>速率限制（每分钟请求数 + 每分钟 Token 数）</li>
+    <li>自动重试（指数退避）</li>
+    <li>供应商热切换</li>
+    <li>结构化输出（JSON Schema）</li>
+  </ul>
+  <strong>结论：</strong> 开箱即用，只需配置 API Key。
+</div>
+
+<h3>✅ PathService 学习路径 — 生产级实现</h3>
+<div class="good">
+  <ul>
+    <li>Kahn 拓扑排序（含环检测）</li>
+    <li>4 种智能适配策略</li>
+    <li>完整的路径状态机（DRAFT→ACTIVE→PAUSED→COMPLETED）</li>
+    <li>跨模块查询（EntityManager 解耦）</li>
+  </ul>
+  <strong>结论：</strong> 算法完整，可直接用于生产。
+</div>
+
+<h3>✅ DiagnosisService 学情诊断 — 生产级实现</h3>
+<div class="good">
+  <ul>
+    <li>基于 answer_records 表的真实 SQL 聚合</li>
+    <li>薄弱/优势知识点自动识别</li>
+    <li>6 维雷达图数据生成</li>
+    <li>学习热力图（Heatmap）</li>
+    <li>正确率趋势分析</li>
+    <li>自然语言诊断总结</li>
+  </ul>
+  <strong>结论：</strong> 算法完整，数据驱动，可直接用于生产。
+</div>
+
+<h3>⚠️ RAG 引擎 — 仅接口定义</h3>
+<div class="warn">
+  <ul>
+    <li>RAGEngine 接口：8 个方法定义完整</li>
+    <li>MockRAGEngine：返回空列表的桩实现</li>
+    <li>缺少：向量数据库集成（PGVector / Milvus）、文本嵌入(embeddings)、文档分块(Chunking)</li>
+  </ul>
+  <strong>结论：</strong> 需补充真实实现才能用于生产。
+</div>
+</div>
+
+<!-- ============================================ -->
+<h2>4. 📅 分阶段优化路线图</h2>
+
+<div class="phase p1">
+<h3>Phase 1 — 立即修复（1-2 天）</h3>
+<table>
+  <tr><th>任务</th><th>说明</th><th>涉及文件</th></tr>
+  <tr>
+    <td><strong>P0-1: 移除前端静默降级</strong></td>
+    <td>所有页面去掉 <code>.catch(() => DEMO_DATA)</code>，改用真实 Error UI</td>
+    <td>StudentDashboard, TeacherDashboard, LearningPath, QATutoring, ErrorReview</td>
+  </tr>
+  <tr>
+    <td><strong>P0-2: 修复硬编码 ID</strong></td>
+    <td>所有 <code>student_id: '2'</code> 和 <code>course_id: '1'</code> 改为真实值</td>
+    <td>所有页面组件 + AuthContext</td>
+  </tr>
+  <tr>
+    <td><strong>P0-4: ErrorReview 对接真实 API</strong></td>
+    <td>去掉 <code>useState(DEMO_RECORDS)</code>，改为 <code>useEffect</code> 请求 API</td>
+    <td>ErrorReview.jsx + errorAPI</td>
+  </tr>
+  <tr>
+    <td><strong>添加 Error Boundary</strong></td>
+    <td>顶层包裹 ErrorBoundary 防止白屏</td>
+    <td>App.tsx / MainLayout</td>
+  </tr>
+  <tr>
+    <td><strong>增加种子数据量</strong></td>
+    <td>至少 3 门课程、每个课程 30+ 知识点</td>
+    <td>seeder/DataSeeder.java</td>
+  </tr>
+</table>
+</div>
+
+<div class="phase p2">
+<h3>Phase 2 — 功能补全（3-5 天）</h3>
+<table>
+  <tr><th>任务</th><th>说明</th></tr>
+  <tr>
+    <td><strong>P0-3: 实现真实 RAG 引擎</strong></td>
+    <td>集成 PGVector 或内存向量库，实现文本嵌入 + 向量检索 + 关键词检索混合</td>
+  </tr>
+  <tr>
+    <td><strong>HTTPS + Nginx 反向代理</strong></td>
+    <td>Nginx 配置 SSL 证书，代理到后端 8080 和前端 3000</td>
+  </tr>
+  <tr>
+    <td><strong>密码重置流程</strong></td>
+    <td>注册（邮箱验证）→ 登录 → 忘记密码 → 重置密码，完整链路</td>
+  </tr>
+  <tr>
+    <td><strong>全局 API 速率限制</strong></td>
+    <td>Spring Cloud Gateway 或 Spring 拦截器 + Token Bucket 算法</td>
+  </tr>
+  <tr>
+    <td><strong>数据库自动备份</strong></td>
+    <td>cron 定时 pg_dump + 云端备份（COS / S3）</td>
+  </tr>
+  <tr>
+    <td><strong>数据分页</strong></td>
+    <td>教师学情列表、错题列表添加后端分页参数</td>
+  </tr>
+</table>
+</div>
+
+<div class="phase p3">
+<h3>Phase 3 — 基础设施完善（持续）</h3>
+<table>
+  <tr><th>任务</th><th>说明</th></tr>
+  <tr><td><strong>CI/CD 管道</strong></td><td>GitHub Actions: 自动化测试 → 构建镜像 → 部署到服务器（仅在打 tag 时构建）</td></tr>
+  <tr><td><strong>Redis 缓存层</strong></td><td>缓存知识图谱、雷达图、热力图等高频查询数据</td></tr>
+  <tr><td><strong>结构化日志 + 监控</strong></td><td>集成 Prometheus + Grafana，设置关键指标告警</td></tr>
+  <tr><td><strong>WebSocket 业务集成</strong></td><td>预警推送、学情更新通知、教师实时提醒</td></tr>
+  <tr><td><strong>单元测试覆盖</strong></td><td>核心服务（BKT/Diagnosis/Path）添加单元测试</td></tr>
+  <tr><td><strong>智谱/文心适配器测试</strong></td><td>使用真实 API Key 测试，修复兼容性问题</td></tr>
+</table>
+</div>
+
+<!-- ============================================ -->
+<h2>5. 💡 架构层面的建议</h2>
+
+<div class="section">
+<h3>5.1 前端降级策略重构</h3>
+<p>当前 <code>.catch(() => DEMO_DATA)</code> 模式在 demo 阶段有用，但进入生产后应改为分层降级策略：</p>
+<table>
+  <tr><th>层级</th><th>策略</th><th>说明</th></tr>
+  <tr><td>L1: API 请求</td><td>请求真实数据</td><td>正常业务流程</td></tr>
+  <tr><td>L2: API 错误</td><td>显示错误提示 + 重试按钮</td><td>网络错误、服务器 500</td></tr>
+  <tr><td>L3: 应用崩溃</td><td>Error Boundary 捕获 + 刷新提示</td><td>JS 运行时错误</td></tr>
+  <tr><td>L4: 完全离线</td><td>显示"服务不可用"页面</td><td>后端完全宕机</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h3>5.2 后端缓存策略</h3>
+<table>
+  <tr><th>数据</th><th>缓存策略</th><th>TTL</th></tr>
+  <tr><td>雷达图数据</td><td>Redis 缓存 key: <code>radar:{studentId}</code></td><td>5 分钟</td></tr>
+  <tr><td>知识图谱</td><td>Redis 缓存 key: <code>graph:{courseId}:{studentId}</code></td><td>10 分钟</td></tr>
+  <tr><td>班级总览</td><td>Redis 缓存 key: <code>dashboard:class:{courseId}</code></td><td>5 分钟</td></tr>
+  <tr><td>学习路径</td><td>数据库持久化（不缓存）</td><td>-</td></tr>
+  <tr><td>BKT 状态</td><td>内存缓存（ConcurrentHashMap）</td><td>跟随 session</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h3>5.3 生产环境网络拓扑建议</h3>
+<pre>
+Internet
+   │
+   ▼
+HTTPS (443) ──► Nginx (反向代理 + SSL 终止)
+   │
+   ├──► /api/* ──► backend:8080 (Spring Boot)
+   ├──► /ws/*  ──► backend:8080 (WebSocket)
+   └──► /*     ──► frontend:3000 (React SPA)
+   
+后端还暴露:
+   └──► /actuator/* ──► 仅内网访问 (8081)
+</pre>
+</div>
+
+<!-- ============================================ -->
+<h2>6. 📊 总结</h2>
+
+<div class="good">
+<h3>好消息：核心引擎成熟</h3>
+<ul>
+  <li>BKT 知识追踪、LLM 多模型网关、学习路径规划、学情诊断 <strong>四个核心算法模块都是真实实现</strong></li>
+  <li>后端代码质量高：分层清晰、异常处理完善、防御性编程</li>
+  <li>Docker Compose 部署方案成熟，含健康检查</li>
+</ul>
+</div>
+
+<div class="bad">
+<h3>坏消息：前端 Demo 数据掩盖了对接问题</h3>
+<ul>
+  <li>前端静默降级机制导致大部分页面 <strong>从未真正使用后端 API</strong></li>
+  <li>所有硬编码 ID 需要替换为真实用户/课程上下文</li>
+  <li>RAG 引擎和 WebSocket 业务集成是缺失的关键能力</li>
+</ul>
+</div>
+
+<div class="warn">
+<h3>立即行动建议（优先级排序）</h3>
+<ol>
+  <li><strong>Phase 1（1-2天）</strong>：移除前端静默降级 + 修复硬编码 ID + ErrorReview 对接 API → 让系统真正跑通</li>
+  <li><strong>Phase 2（3-5天）</strong>：实现 RAG 引擎 + HTTPS + 用户自助注册 → 达到基本生产可用</li>
+  <li><strong>Phase 3（持续）</strong>：CI/CD + 缓存 + 监控 → 运维自动化</li>
+</ol>
+</div>
+
+</body>
+</html>

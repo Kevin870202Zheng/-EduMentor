@@ -4,6 +4,7 @@ import com.edumentor.record.entity.Question;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -22,4 +23,20 @@ public interface QuestionRepository extends JpaRepository<Question, UUID> {
      * @return true 如果已存在
      */
     boolean existsByContentAndKnowledgePointId(String content, UUID knowledgePointId);
+
+    /**
+     * 按课程 ID 查询所有题目。
+     *
+     * @param courseId 课程 ID
+     * @return 题目列表
+     */
+    List<Question> findByCourseId(UUID courseId);
+
+    /**
+     * 按知识点 ID 查询所有题目。
+     *
+     * @param knowledgePointId 知识点 ID
+     * @return 题目列表
+     */
+    List<Question> findByKnowledgePointId(UUID knowledgePointId);
 }

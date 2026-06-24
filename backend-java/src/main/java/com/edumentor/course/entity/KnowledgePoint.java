@@ -4,6 +4,8 @@ import com.edumentor.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -44,6 +46,7 @@ public class KnowledgePoint extends BaseEntity {
     @Column(length = 64)
     private String subject;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private String tags;
 

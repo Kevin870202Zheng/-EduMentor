@@ -33,6 +33,9 @@ public class Course extends BaseEntity {
     @Column(name = "cover_url", length = 512)
     private String coverUrl;
 
+    @Column(name = "course_code", nullable = false, unique = true, length = 32)
+    private String courseCode;
+
     @Column(name = "is_published")
     private Boolean isPublished = false;
 
@@ -43,6 +46,7 @@ public class Course extends BaseEntity {
     public Map<String, Object> toDto() {
         Map<String, Object> dto = new HashMap<>();
         dto.put("id", getId());
+        dto.put("courseCode", courseCode);
         dto.put("name", name);
         dto.put("description", description);
         dto.put("subject", subject);

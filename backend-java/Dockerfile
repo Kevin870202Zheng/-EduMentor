@@ -62,5 +62,5 @@ ENV JAVA_OPTS="-XX:+UseContainerSupport \
 # 暴露端口
 EXPOSE 8080 8081
 
-# 启动命令
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar --spring.profiles.active=prod"]
+# 启动命令（profile 由环境变量 SPRING_PROFILES_ACTIVE 控制）
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

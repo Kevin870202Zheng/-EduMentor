@@ -105,6 +105,17 @@ public class KnowledgeController {
     }
 
     /**
+     * 获取教师创建的课程列表。
+     */
+    @GetMapping("/courses/teacher/{teacherId}")
+    @Operation(summary = "教师课程列表", description = "获取指定教师创建的所有课程")
+    public ApiResponse<List<CourseDto>> listCoursesByTeacher(
+            @Parameter(description = "教师用户 ID") @PathVariable UUID teacherId) {
+        List<CourseDto> courses = knowledgeService.listCoursesByTeacher(teacherId);
+        return ApiResponse.success(courses);
+    }
+
+    /**
      * 删除课程（教师/管理员权限）。
      */
     @DeleteMapping("/courses/{id}")

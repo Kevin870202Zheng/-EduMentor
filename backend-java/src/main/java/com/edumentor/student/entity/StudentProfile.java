@@ -4,6 +4,8 @@ import com.edumentor.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
@@ -31,9 +33,11 @@ public class StudentProfile extends BaseEntity {
     @Column(name = "exam_date")
     private java.time.LocalDate examDate;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "weak_areas", columnDefinition = "jsonb")
     private String weakAreas;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "strengths", columnDefinition = "jsonb")
     private String strengths;
 
@@ -46,9 +50,11 @@ public class StudentProfile extends BaseEntity {
     @Column(name = "learning_efficiency", precision = 5, scale = 2)
     private BigDecimal learningEfficiency;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "bkt_state", columnDefinition = "jsonb")
     private String bktState;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private String metadata;
 

@@ -154,4 +154,54 @@ export const dashboardAPI = {
     api.get('/dashboard/strategy-suggestions', { params: { course_id: courseId } }),
 };
 
+// ============ 模块六：课程内容管理（教师端） ============
+export const courseContentAPI = {
+  // 获取课程信息（按 courseCode）
+  getCourseInfo: (courseCode) => api.get(`/courses/${courseCode}`),
+
+  // 获取课程资料列表
+  listMaterials: (courseCode) => api.get(`/courses/${courseCode}/materials`),
+
+  // 上传课程资料
+  uploadMaterial: (courseCode, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post(`/courses/${courseCode}/materials`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+
+  // AI 提取
+  extractMaterial: (courseCode, materialId) =>
+    api.post(`/courses/${courseCode}/materials/${materialId}/extract`),
+
+  // 获取提取结果
+  getExtractionResult: (courseCode, materialId) =>
+    api.get(`/courses/${courseCode}/materials/${materialId}/extraction`),
+
+  // 发布提取结果
+  publishExtraction: (courseCode, materialId) =>
+    api.post(`/courses/${courseCode}/materials/${materialId}/publish`),
+};
+
+// ============ 模块七：课程管理（通用） ============
+export const courseAPI = {
+  list: (params) => api.get('/knowledge/courses', { params }),
+  get: (id) => api.get(`/knowledge/courses/${id}`),
+  create: (data) => api.post('/knowledge/courses', data),
+  update: (id, data) => api.put(`/knowledge/courses/${id}`, data),
+  delete: (id) => api.delete(`/knowledge/courses/${id}`),
+  publish: (id, published) => api.put(`/knowledge/courses/${id}/publish`, null, { params: { published } }),
+  listByTeacher: (teacherId) => api.get(`/knowledge/courses/teacher/${teacherId}`),
+  getByCode: (courseCode) => api.get(`/courses/${courseCode}`),
+};
+
+// ============ 模块八：选课管理 ============
+export const enrollmentAPI = {
+  enroll: (data) => api.post('/enrollments', data),
+  drop: (id) => api.delete(`/enrollments/${id}`),
+  listByStudent: (studentId) => api.get(`/enrollments/student/${studentId}`),
+  countByCourse: (courseId) => api.get(`/enrollments/course/${courseId}/count`),
+};
+
 export default api;

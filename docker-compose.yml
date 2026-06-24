@@ -60,9 +60,9 @@ services:
     networks:
       - edumentor-net
 
-  # ---- PostgreSQL 数据库 ----
+  # ---- PostgreSQL 数据库（含 PGVector 向量扩展） ----
   db:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:0.8.0-pg16
     container_name: edumentor-postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-edumentor}

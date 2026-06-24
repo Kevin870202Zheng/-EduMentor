@@ -6,12 +6,12 @@
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/edumentor_dev
-    username: edumentor_dev
-    password: dev@123
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/edumentor_dev}
+    username: ${DATABASE_USERNAME:edumentor_dev}
+    password: ${DATABASE_PASSWORD:dev@123}
   jpa:
     hibernate:
-      ddl-auto: validate    # Flyway 管理 Schema，validate 确保 JPA 实体与数据库一致
+      ddl-auto: none    # Flyway 管理 Schema，Hibernate 不做校验
     show-sql: true
     properties:
       hibernate:

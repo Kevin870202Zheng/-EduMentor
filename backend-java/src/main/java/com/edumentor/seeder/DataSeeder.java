@@ -8,6 +8,8 @@ import com.edumentor.course.entity.enums.RelationType;
 import com.edumentor.course.repository.CourseRepository;
 import com.edumentor.course.repository.KnowledgePointRepository;
 import com.edumentor.course.repository.KnowledgeRelationRepository;
+import com.edumentor.enrollment.entity.StudentCourse;
+import com.edumentor.enrollment.repository.StudentCourseRepository;
 import com.edumentor.entity.enums.QuestionType;
 import com.edumentor.entity.enums.UserRole;
 import com.edumentor.record.entity.Question;
@@ -47,19 +49,22 @@ public class DataSeeder implements CommandLineRunner {
     private final KnowledgePointRepository knowledgePointRepository;
     private final KnowledgeRelationRepository knowledgeRelationRepository;
     private final QuestionRepository questionRepository;
+    private final StudentCourseRepository studentCourseRepository;
 
     public DataSeeder(UserRepository userRepository,
                       StudentProfileRepository studentProfileRepository,
                       CourseRepository courseRepository,
                       KnowledgePointRepository knowledgePointRepository,
                       KnowledgeRelationRepository knowledgeRelationRepository,
-                      QuestionRepository questionRepository) {
+                      QuestionRepository questionRepository,
+                      StudentCourseRepository studentCourseRepository) {
         this.userRepository = userRepository;
         this.studentProfileRepository = studentProfileRepository;
         this.courseRepository = courseRepository;
         this.knowledgePointRepository = knowledgePointRepository;
         this.knowledgeRelationRepository = knowledgeRelationRepository;
         this.questionRepository = questionRepository;
+        this.studentCourseRepository = studentCourseRepository;
     }
 
     @Override
@@ -71,6 +76,7 @@ public class DataSeeder implements CommandLineRunner {
             seedCourses();
             seedKnowledgePoints();
             seedQuestions();
+            seedEnrollments();
             log.info("✓ 所有初始数据填充完成");
         } catch (Exception e) {
             log.error("数据填充失败: {}", e.getMessage(), e);
@@ -139,7 +145,8 @@ public class DataSeeder implements CommandLineRunner {
 
     @Transactional
     public void seedCourses() {
-        if (!courseRepository.existsByName("高等数学（上）")) {
+        if (!courseRepository.existsByName("高等数学（上）")
+                && !courseRepository.existsByCourseCode("MATH101")) {
             User teacher = userRepository.findByUsername("teacher01").orElse(null);
             UUID teacherId = teacher != null ? teacher.getId() : null;
 
@@ -149,9 +156,9 @@ public class DataSeeder implements CommandLineRunner {
             }
 
             List<Course> courses = List.of(
-                    createCourse("高等数学（上）", "函数、极限、导数与微分、不定积分与定积分", "数学", teacherId),
-                    createCourse("线性代数", "矩阵理论、向量空间、线性变换、特征值与特征向量", "数学", teacherId),
-                    createCourse("Python程序设计", "Python基础语法、数据结构、面向对象编程、常用库", "计算机", teacherId)
+                    createCourse("高等数学（上）", "函数、极限、导数与微分、不定积分与定积分", "数学", "MATH101", teacherId),
+                    createCourse("线性代数", "矩阵理论、向量空间、线性变换、特征值与特征向量", "数学", "MATH201", teacherId),
+                    createCourse("Python程序设计", "Python基础语法、数据结构、面向对象编程、常用库", "计算机", "CS101", teacherId)
             );
 
             courseRepository.saveAll(courses);
@@ -160,8 +167,9 @@ public class DataSeeder implements CommandLineRunner {
         log.info("✓ 课程数据填充完成");
     }
 
-    private Course createCourse(String name, String description, String subject, UUID teacherId) {
+    private Course createCourse(String name, String description, String subject, String courseCode, UUID teacherId) {
         Course course = new Course();
+        course.setCourseCode(courseCode);
         course.setName(name);
         course.setDescription(description);
         course.setSubject(subject);
@@ -362,4 +370,30 @@ public class DataSeeder implements CommandLineRunner {
 
     private record QuestionData(String kpName, String content, String options,
                                  String answer, String explanation, double difficulty) {}
+
+    @Transactional
+    public void seedEnrollments() {
+        User student01 = userRepository.findByUsername("student01").orElse(null);
+        User student02 = userRepository.findByUsername("student02").orElse(null);
+        if (student01 == null || student02 == null) return;
+
+        List<Course> courses = courseRepository.findByCreatedByOrderByCreatedAtDesc(
+                userRepository.findByUsername("teacher01").get().getId());
+        if (courses.isEmpty()) return;
+
+        for (Course course : courses) {
+            for (User student : List.of(student01, student02)) {
+                if (!studentCourseRepository.existsByStudentIdAndCourseId(student.getId(), course.getId())) {
+                    StudentCourse sc = new StudentCourse();
+                    sc.setStudentId(student.getId());
+                    sc.setCourseId(course.getId());
+                    sc.setCourseCode(course.getCourseCode());
+                    sc.setStatus("active");
+                    sc.setEnrolledAt(java.time.LocalDateTime.now());
+                    studentCourseRepository.save(sc);
+                }
+            }
+        }
+        log.info("✓ 选课数据填充完成");
+    }
 }
