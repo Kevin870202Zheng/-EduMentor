@@ -204,4 +204,10 @@ export const enrollmentAPI = {
   countByCourse: (courseId) => api.get(`/enrollments/course/${courseId}/count`),
 };
 
+// ============ 模块九：学生信息 ============
+export const studentAPI = {
+  getProfile: (userId) => api.get(`/students/${userId}/profile`),
+  updateProfile: (userId, data) => api.put(`/students/${userId}/profile`, data),
+};
+
 export default api;

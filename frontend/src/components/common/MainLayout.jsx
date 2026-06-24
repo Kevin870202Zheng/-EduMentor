@@ -18,6 +18,7 @@ const studentMenuItems = [
   { key: '/student/qa', icon: <QuestionCircleOutlined />, label: '智能答疑' },
   { key: '/student/error-review', icon: <FileExclamationOutlined />, label: '错题复盘' },
   { key: '/student/courses', icon: <ReadOutlined />, label: '我的课程' },
+  { key: '/student/profile', icon: <UserOutlined />, label: '个人信息' },
 ];
 
 const teacherMenuItems = [

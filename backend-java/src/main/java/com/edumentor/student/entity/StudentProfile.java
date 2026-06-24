@@ -47,6 +47,18 @@ public class StudentProfile extends BaseEntity {
     @Column(name = "daily_study_minutes")
     private Integer dailyStudyMinutes;
 
+    @Column(name = "class_name", length = 64)
+    private String className;
+
+    @Column(length = 64)
+    private String major;
+
+    @Column(length = 64)
+    private String department;
+
+    @Column(length = 64)
+    private String college;
+
     @Column(name = "learning_efficiency", precision = 5, scale = 2)
     private BigDecimal learningEfficiency;
 
@@ -71,6 +83,10 @@ public class StudentProfile extends BaseEntity {
         dto.put("strengths", strengths);
         dto.put("learningStyle", learningStyle);
         dto.put("dailyStudyMinutes", dailyStudyMinutes);
+        dto.put("className", className);
+        dto.put("major", major);
+        dto.put("department", department);
+        dto.put("college", college);
         dto.put("learningEfficiency", learningEfficiency);
         dto.put("createdAt", getCreatedAt());
         dto.put("updatedAt", getUpdatedAt());

@@ -8,6 +8,8 @@ import com.edumentor.course.entity.enums.RelationType;
 import com.edumentor.course.repository.CourseRepository;
 import com.edumentor.course.repository.KnowledgePointRepository;
 import com.edumentor.course.repository.KnowledgeRelationRepository;
+import com.edumentor.courseteacher.entity.CourseTeacher;
+import com.edumentor.courseteacher.repository.CourseTeacherRepository;
 import com.edumentor.enrollment.entity.StudentCourse;
 import com.edumentor.enrollment.repository.StudentCourseRepository;
 import com.edumentor.entity.enums.QuestionType;
@@ -50,6 +52,7 @@ public class DataSeeder implements CommandLineRunner {
     private final KnowledgeRelationRepository knowledgeRelationRepository;
     private final QuestionRepository questionRepository;
     private final StudentCourseRepository studentCourseRepository;
+    private final CourseTeacherRepository courseTeacherRepository;
 
     public DataSeeder(UserRepository userRepository,
                       StudentProfileRepository studentProfileRepository,
@@ -57,7 +60,8 @@ public class DataSeeder implements CommandLineRunner {
                       KnowledgePointRepository knowledgePointRepository,
                       KnowledgeRelationRepository knowledgeRelationRepository,
                       QuestionRepository questionRepository,
-                      StudentCourseRepository studentCourseRepository) {
+                      StudentCourseRepository studentCourseRepository,
+                      CourseTeacherRepository courseTeacherRepository) {
         this.userRepository = userRepository;
         this.studentProfileRepository = studentProfileRepository;
         this.courseRepository = courseRepository;
@@ -65,6 +69,7 @@ public class DataSeeder implements CommandLineRunner {
         this.knowledgeRelationRepository = knowledgeRelationRepository;
         this.questionRepository = questionRepository;
         this.studentCourseRepository = studentCourseRepository;
+        this.courseTeacherRepository = courseTeacherRepository;
     }
 
     @Override
@@ -77,6 +82,7 @@ public class DataSeeder implements CommandLineRunner {
             seedKnowledgePoints();
             seedQuestions();
             seedEnrollments();
+            seedTeacherAssignments();
             log.info("✓ 所有初始数据填充完成");
         } catch (Exception e) {
             log.error("数据填充失败: {}", e.getMessage(), e);
@@ -113,9 +119,9 @@ public class DataSeeder implements CommandLineRunner {
 
         // 学生
         List<Map<String, String>> studentsData = List.of(
-                Map.of("username", "student01", "displayName", "李明", "grade", "大一"),
-                Map.of("username", "student02", "displayName", "王芳", "grade", "大一"),
-                Map.of("username", "student03", "displayName", "赵强", "grade", "大二")
+                Map.of("username", "student01", "displayName", "李明", "grade", "大一", "class", "计科2101", "major", "计算机科学与技术", "dept", "计算机系", "college", "信息与计算机学院"),
+                Map.of("username", "student02", "displayName", "王芳", "grade", "大一", "class", "计科2101", "major", "计算机科学与技术", "dept", "计算机系", "college", "信息与计算机学院"),
+                Map.of("username", "student03", "displayName", "赵强", "grade", "大二", "class", "数科2101", "major", "数据科学", "dept", "统计系", "college", "理学院")
         );
 
         for (Map<String, String> s : studentsData) {
@@ -127,11 +133,15 @@ public class DataSeeder implements CommandLineRunner {
                 student.setRole(UserRole.STUDENT);
                 userRepository.save(student);
 
-                // 创建学生画像
+                // 创建学生画像（含组织维度）
                 StudentProfile profile = new StudentProfile();
                 profile.setUserId(student.getId());
                 profile.setGrade(s.get("grade"));
                 profile.setLearningStyle("visual");
+                profile.setClassName(s.get("class"));
+                profile.setMajor(s.get("major"));
+                profile.setDepartment(s.get("dept"));
+                profile.setCollege(s.get("college"));
                 studentProfileRepository.save(profile);
             }
         }
@@ -395,5 +405,23 @@ public class DataSeeder implements CommandLineRunner {
             }
         }
         log.info("✓ 选课数据填充完成");
+    }
+
+    @Transactional
+    public void seedTeacherAssignments() {
+        User teacher = userRepository.findByUsername("teacher01").orElse(null);
+        if (teacher == null) return;
+
+        List<Course> courses = courseRepository.findByCreatedByOrderByCreatedAtDesc(teacher.getId());
+        for (Course course : courses) {
+            if (!courseTeacherRepository.existsByCourseIdAndTeacherId(course.getId(), teacher.getId())) {
+                CourseTeacher ct = new CourseTeacher();
+                ct.setCourseId(course.getId());
+                ct.setTeacherId(teacher.getId());
+                ct.setRole("lecturer");
+                courseTeacherRepository.save(ct);
+            }
+        }
+        log.info("✓ 教师分配数据填充完成");
     }
 }
