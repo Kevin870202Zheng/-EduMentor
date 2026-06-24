@@ -1,0 +1,51 @@
+# =============================================================================
+# EduMentor — Docker 构建上下文忽略文件
+# =============================================================================
+
+# 版本控制
+.git
+.gitignore
+.gitattributes
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+*~
+
+# 构建产物
+target/
+*.class
+*.jar
+*.war
+*.log
+
+# Maven Wrapper (build 阶段已包含)
+.mvn/wrapper/maven-wrapper.properties
+
+# 文档
+README.md
+*.md
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+.env
+.env.docker
+.env.example
+docker/
+
+# 数据
+data/
+logs/
+
+# 操作系统
+.DS_Store
+Thumbs.db
+
+# 测试报告
+test-output/
+jacoco.exec

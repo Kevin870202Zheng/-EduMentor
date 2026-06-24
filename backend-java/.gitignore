@@ -1,0 +1,61 @@
+# =============================================================================
+# EduMentor Backend — .gitignore
+# =============================================================================
+
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.properties
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.settings/
+.project
+.classpath
+.factorypath
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+
+# Data directories
+data/
+!data/.gitkeep
+
+# Uploads
+uploads/
+!uploads/.gitkeep
+
+# Docker
+.docker/
+
+# Test reports
+test-output/
+surefire-reports/
+
+# JaCoCo
+*.exec
+*.ec

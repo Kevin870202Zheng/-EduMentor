@@ -1,0 +1,48 @@
+# ==========================================================
+# 智学导师 EduMentor — 生产环境 Docker Compose 覆盖配置
+# 用法：docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# ==========================================================
+
+version: "3.9"
+
+services:
+  backend:
+    build:
+      target: runtime
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+    # 生产环境下仅挂载数据卷
+    volumes:
+      - edumentor-rag:/app/data/rag
+      - edumentor-bkt:/app/data/bkt
+      - edumentor-logs:/app/logs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+
+  frontend:
+    build:
+      target: production
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  edumentor-rag:
+    driver: local
+  edumentor-bkt:
+    driver: local
+  edumentor-logs:
+    driver: local

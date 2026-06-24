@@ -1,0 +1,157 @@
+import axios from 'axios';
+
+const API_BASE = import.meta.env.VITE_API_BASE || '/api/v1';
+
+const api = axios.create({
+  baseURL: API_BASE,
+  timeout: 30000,
+  headers: { 'Content-Type': 'application/json' },
+});
+
+// ============ 请求拦截器：注入 Token ============
+api.interceptors.request.use(
+  config => {
+    const token = localStorage.getItem('edumentor_access_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  error => Promise.reject(error)
+);
+
+// ============ 响应拦截器：统一错误处理 + Token 刷新 ============
+let isRefreshing = false;
+let refreshSubscribers = [];
+
+function onRefreshed(newToken) {
+  refreshSubscribers.forEach(callback => callback(newToken));
+  refreshSubscribers = [];
+}
+
+function addRefreshSubscriber(callback) {
+  refreshSubscribers.push(callback);
+}
+
+api.interceptors.response.use(
+  response => response.data,
+  async error => {
+    const originalRequest = error.config;
+    const status = error.response?.status;
+
+    // 401 未授权 - 尝试刷新令牌
+    if (status === 401 && !originalRequest._retry) {
+      const refreshToken = localStorage.getItem('edumentor_refresh_token');
+
+      if (refreshToken && !isRefreshing) {
+        originalRequest._retry = true;
+        isRefreshing = true;
+
+        try {
+          const res = await axios.post(`${API_BASE}/auth/refresh`, {
+            refreshToken: refreshToken,
+          });
+          const newToken = res.data?.data?.accessToken || res.data?.accessToken;
+
+          if (newToken) {
+            localStorage.setItem('edumentor_access_token', newToken);
+            onRefreshed(newToken);
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+            return api(originalRequest);
+          }
+        } catch (refreshError) {
+          // 刷新失败 -> 清除登录状态
+          localStorage.removeItem('edumentor_access_token');
+          localStorage.removeItem('edumentor_refresh_token');
+          localStorage.removeItem('edumentor_user');
+          window.location.href = '/login';
+          return Promise.reject({ message: '登录已过期，请重新登录', status: 401 });
+        } finally {
+          isRefreshing = false;
+        }
+      } else if (refreshToken && isRefreshing) {
+        // 正在刷新中，排队等待
+        return new Promise(resolve => {
+          addRefreshSubscriber(newToken => {
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+            resolve(api(originalRequest));
+          });
+        });
+      } else {
+        // 没有 refresh token，跳转登录
+        localStorage.removeItem('edumentor_access_token');
+        localStorage.removeItem('edumentor_user');
+        window.location.href = '/login';
+      }
+    }
+
+    const message = error.response?.data?.message || error.message || '请求失败';
+    console.error('API Error:', message);
+    return Promise.reject({ message, status });
+  }
+);
+
+// ============ 模块零：认证 ============
+export const authAPI = {
+  login: (data) => api.post('/auth/login', data),
+  register: (data) => api.post('/auth/register', data),
+  refresh: (refreshToken) => api.post('/auth/refresh', { refreshToken }),
+  getProfile: (userId) => api.get('/auth/profile', { params: { user_id: userId } }),
+  updateProfile: (data) => api.put('/auth/profile', data),
+};
+
+// ============ 模块一：学情分析诊断 ============
+// 后端 DiagnosisController — 全部使用 GET，参数为 query params
+export const diagnosisAPI = {
+  analyze: (params) => api.get('/diagnosis/analyze', { params: { student_id: params.student_id, course_id: params.course_id } }),
+  getRadar: (studentId) =>
+    api.get('/diagnosis/radar', { params: { studentId } }),
+  getHeatmap: (studentId) =>
+    api.get('/diagnosis/heatmap', { params: { studentId } }),
+  getProfile: (studentId) =>
+    api.get('/diagnosis/profile', { params: { studentId } }),
+};
+
+// ============ 模块二：学习路径规划 ============
+export const pathAPI = {
+  getPlan: (studentId, courseId, strategy = 'balanced') =>
+    api.get('/path/plan', { params: { student_id: studentId, course_id: courseId, strategy } }),
+  getNext: (studentId, courseId) =>
+    api.get('/path/next', { params: { student_id: studentId, course_id: courseId } }),
+  getKnowledgeGraph: (courseId) =>
+    api.get(`/path/knowledge-graph/${courseId}`),
+  adapt: (data) => api.post('/path/adapt', data),
+};
+
+// ============ 模块三：智能答疑辅导 ============
+export const qaAPI = {
+  ask: (data) => api.post('/qa/ask', data),
+  getLevels: () => api.get('/qa/levels'),
+};
+
+// ============ 模块四：错题复盘与反思 ============
+export const errorAPI = {
+  analyze: (data) => api.post('/review/error-analysis', data),
+  getRecords: (studentId, params = {}) =>
+    api.get(`/review/records/${studentId}`, { params }),
+  getDetail: (recordId) => api.get(`/review/records/${recordId}`),
+  submitReview: (data) => api.post('/review/review', data),
+  getSchedule: (studentId) => api.get(`/review/schedule/${studentId}`),
+  getReflectionGuide: () => api.get('/review/reflection-guide'),
+};
+
+// ============ 模块五：教师驾驶舱 ============
+export const dashboardAPI = {
+  getSummary: (courseId) =>
+    api.get('/dashboard/summary', { params: { course_id: courseId } }),
+  getStudentList: (courseId, page = 1) =>
+    api.get('/dashboard/student-list', { params: { course_id: courseId, page } }),
+  getWeakKnowledge: (courseId) =>
+    api.get('/dashboard/weak-knowledge', { params: { course_id: courseId } }),
+  getDailyBrief: (courseId) =>
+    api.get('/dashboard/daily-brief', { params: { course_id: courseId } }),
+  getSuggestions: (courseId) =>
+    api.get('/dashboard/strategy-suggestions', { params: { course_id: courseId } }),
+};
+
+export default api;

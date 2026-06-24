@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<title>EduMentor 代码审查报告 — 2026-06-23</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 960px; margin: 0 auto; padding: 20px; background: #f5f5f5; color: #333; }
+  h1 { color: #1a1a2e; border-bottom: 3px solid #e94560; padding-bottom: 8px; }
+  h2 { color: #16213e; margin-top: 32px; }
+  .meta { color: #666; font-size: 14px; margin-bottom: 24px; }
+  .severity-critical { background: #e94560; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+  .severity-high { background: #f39c12; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+  .severity-medium { background: #3498db; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+  .severity-low { background: #95a5a6; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+  .issue { background: white; border-radius: 8px; padding: 16px 20px; margin: 12px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  .issue-title { font-weight: 600; font-size: 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .issue-location { font-family: 'SF Mono', 'Menlo', monospace; font-size: 12px; color: #666; margin: 4px 0; }
+  .issue-desc { margin: 8px 0; line-height: 1.5; }
+  .issue-code { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 4px; padding: 8px 12px; font-family: 'SF Mono', 'Menlo', monospace; font-size: 13px; overflow-x: auto; margin: 8px 0; }
+  .issue-fix { background: #e8f5e9; border-left: 3px solid #4caf50; padding: 8px 12px; border-radius: 4px; margin: 8px 0; font-size: 14px; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  th, td { border: 1px solid #dee2e6; padding: 8px 12px; text-align: left; }
+  th { background: #16213e; color: white; }
+  tr:nth-child(even) { background: #f8f9fa; }
+  .summary-card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin: 16px 0; }
+  .summary-stats { display: flex; gap: 16px; margin: 12px 0; }
+  .stat-box { text-align: center; padding: 12px 24px; border-radius: 8px; min-width: 80px; }
+  .stat-box.critical { background: #fce4ec; color: #e94560; }
+  .stat-box.high { background: #fff3e0; color: #f39c12; }
+  .stat-box.medium { background: #e3f2fd; color: #3498db; }
+  .stat-box.low { background: #f5f5f5; color: #95a5a6; }
+  .stat-number { font-size: 28px; font-weight: bold; }
+  .stat-label { font-size: 12px; }
+  .good { background: #e8f5e9; border-radius: 8px; padding: 16px 20px; margin: 8px 0; }
+</style>
+</head>
+<body>
+
+<h1>📋 EduMentor 代码审查报告</h1>
+<div class="meta">审查日期: 2026-06-23 | 审查范围: 部署相关 + 认证/安全/API 全栈 | 审查人: YouCoder</div>
+
+<div class="summary-card">
+  <h2>审查概要</h2>
+  <p>共审查 <strong>14 个文件</strong>，发现 <strong>11 个问题</strong>，其中：</p>
+  <div class="summary-stats">
+    <div class="stat-box high"><div class="stat-number">1</div><div class="stat-label">🔴 严重</div></div>
+    <div class="stat-box medium"><div class="stat-number">3</div><div class="stat-label">🟡 中等</div></div>
+    <div class="stat-box low"><div class="stat-number">7</div><div class="stat-label">🔵 建议</div></div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<h2>🔴 严重问题</h2>
+
+<!-- Issue 1 -->
+<div class="issue">
+  <div class="issue-title"><span class="severity-high">严重</span> Token 刷新逻辑中字段名不匹配，刷新完全不可用</div>
+  <div class="issue-location">📄 <code>frontend/src/services/api.jsx</code> 第 54 行</div>
+  <div class="issue-desc">
+    Token 刷新时，从响应中提取新 token 的字段名错误。后端 refresh 端返回 <code>{ code, data: { accessToken, refreshToken } }</code>，
+    但前端读取 <code>res.data?.data?.token</code>（应为 <code>accessToken</code>）。
+  </div>
+  <div class="issue-code"><pre>// ❌ 当前代码（读取不到 token）
+const newToken = res.data?.data?.token || res.data?.token;</pre></div>
+  <div class="issue-fix"><strong>修复建议：</strong>
+    <pre>// ✅ 修正后
+const newToken = res.data?.data?.accessToken || res.data?.accessToken;</pre>
+  </div>
+  <div class="issue-desc">
+    <strong>影响：</strong>Token 过期后前端尝试自动刷新，但永远获取不到新 token，导致用户被强制登出。
+  </div>
+</div>
+
+<!-- ============================================ -->
+<h2>🟡 中等问题</h2>
+
+<!-- Issue 2 -->
+<div class="issue">
+  <div class="issue-title"><span class="severity-medium">中等</span> 后端存在两套重复的 CORS 配置</div>
+  <div class="issue-location">📄 <code>CorsConfig.java</code> + <code>SecurityConfig.java</code></div>
+  <div class="issue-desc">
+    <code>CorsConfig</code> 通过 <code>WebMvcConfigurer</code> 和 <code>CorsFilter</code> Bean 配置了 CORS，
+    同时 <code>SecurityConfig</code> 也通过 <code>corsConfigurationSource()</code> Bean 配置了 CORS。
+    这会导致 Spring Security 和 Spring MVC 各处理一次，可能造成意外行为。
+  </div>
+  <div class="issue-code"><pre>// CorsConfig.java — 方式1: WebMvcConfigurer
+@Configuration
+public class CorsConfig implements WebMvcConfigurer {
+    @Override
+    public void addCorsMappings(CorsRegistry registry) { ... }
+    
+    @Bean
+    public CorsFilter corsFilter() { ... }  // 方式2: Filter
+}
+
+// SecurityConfig.java — 方式3: CorsConfigurationSource Bean
+@Bean
+public CorsConfigurationSource corsConfigurationSource() { ... }</pre></div>
+  <div class="issue-fix"><strong>修复建议：</strong>删除 <code>CorsConfig.java</code> 中的 <code>@Configuration</code> 和 <code>addCorsMappings</code> 方法，
+    仅保留 <code>SecurityConfig</code> 中的 <code>corsConfigurationSource()</code>，因为 Spring Security 会优先使用它。
+    <code>CorsFilter</code> Bean 也可删除，因为它与 Spring Security 的 CORS 处理会冲突。</div>
+</div>
+
+<!-- Issue 3 -->
+<div class="issue">
+  <div class="issue-title"><span class="severity-medium">中等</span> JwtAuthFilter 每次请求都查询数据库，影响性能</div>
+  <div class="issue-location">📄 <code>JwtAuthFilter.java</code> 第 54 行</div>
+  <div class="issue-desc">
+    新修改的代码在每次认证请求时都通过 <code>userRepository.findById(userId)</code> 查询数据库获取 User 实体。
+    对于高并发场景，这会额外增加数据库压力。
+  </div>
+  <div class="issue-code"><pre>// 每次请求都查库
+Optional&lt;User&gt; userOpt = userRepository.findById(userId);
+User user = userOpt.get();</pre></div>
+  <div class="issue-fix"><strong>修复建议（二选一）：</strong>
+    <ol>
+      <li><strong>方案A（推荐）：</strong>JWT 中已包含 userId + role，可将 principal 设为 <code>UserSummary</code> 轻量对象（仅 id + role + username），无需查库</li>
+      <li><strong>方案B：</strong>引入 <code>Caffeine</code> 缓存 User 实体，设置合适的过期时间</li>
+    </ol>
+  </div>
+</div>
+
+<!-- Issue 4 -->
+<div class="issue">
+  <div class="issue-title"><span class="severity-medium">中等</span> 前端两套 API Client 系统并存，Token Key 不统一</div>
+  <div class="issue-location">📄 <code>api.jsx</code> vs <code>apiClient.ts</code></div>
+  <div class="issue-desc">
+    <table>
+      <tr><th>系统</th><th>Token Key</th><th>使用方</th></tr>
+      <tr><td><code>services/api.jsx</code>（旧）</td><td><code>edumentor_token</code></td><td>AuthContext, 所有页面组件</td></tr>
+      <tr><td><code>api/apiClient.ts</code>（新）</td><td><code>edumentor_access_token</code></td><td>TypeScript API 模块（未被使用）</td></tr>
+    </table>
+    两套系统互不兼容，新 apiClient 写的 token 不会被旧系统读取到。目前旧系统在使用中，新系统（TypeScript）处于"死代码"状态。
+  </div>
+  <div class="issue-fix"><strong>建议：</strong>统一使用一套系统。如果计划使用 TypeScript 版，需要逐步迁移；
+    如果继续用旧系统，建议删除未使用的 TypeScript API 模块减少维护成本。</div>
+</div>
+
+<!-- ============================================ -->
+<h2>🔵 建议/低优先级</h2>
+
+<!-- Issue 5 -->
+<div class="issue">
+  <div class="issue-title"><span class="severity-low">建议</span> api.jsx refresh 请求参数名与后端不一致</div>
+  <div class="issue-location">📄 <code>frontend/src/services/api.jsx</code> 第 51-52 行</div>
+  <div class="issue-desc">
+    前端发送 <code>{ refresh_token: refreshToken }</code>（snake_case），
+    需确认后端 <code>RefreshTokenRequest</code> DTO 的字段名。如后端使用 <code>refreshToken</code>（camelCase），会导致参数绑定失败。
+  </div>
+  <div class="issue-fix"><strong>建议：</strong>查看后端 <code>RefreshTokenRequest</code> DTO 确认字段名，保持一致。</div>
+</div>
+
+<!-- Issue 6 -->
+<div class="issue">
+  <div class="issue-title"><span class="severity-low">建议</span> StudentDashboard 硬编码课程 ID</div>
+  <div class="issue-location">📄 <code>frontend/src/pages/StudentDashboard.jsx</code> 第 16 行</div>
+  <div class="issue-code"><pre>const DEMO_COURSE_ID = '1';</pre></div>
+  <div class="issue-desc">课程 ID 是硬编码字符串，在真实多课程场景下不可用。建议从 URL 参数或用户设置中获取。</div>
+</div>
+
+<!-- Issue 7 -->
+<div class="issue">
+  <div class="issue-title"><span class="severity-low">建议</span> Login 页面缺少对登录错误的展示</div>
+  <div class="issue-location">📄 <code>frontend/src/pages/Login.jsx</code> + <code>AuthContext.jsx</code></div>
+  <div class="issue-desc">
+    <code>AuthContext.login</code> 中的错误直接向外抛出，但 Login 页面的 <code>handleLogin</code> 没有 catch 错误并展示给用户。
+    如果用户输入错误密码，页面没有反馈。
+  </div>
+</div>
+
+<!-- Issue 8 -->
+<div class="issue">
+  <div class="issue-title"><span class="severity-low">建议</span> nginx.conf 注释写的是 "Flask 后端"</div>
+  <div class="issue-location">📄 <code>frontend/nginx.conf</code> 第 57 行</div>
+  <div class="issue-code"><pre># API 反向代理到 Flask 后端</pre></div>
+  <div class="issue-desc">实际后端是 Spring Boot，应修正注释。另外第 56 行的标题也提到 Flask，应同步修改。</div>
+</div>
+
+<!-- Issue 9 -->
+<div class="issue">
+  <div class="issue-title"><span class="severity-low">建议</span> SecurityConfig 中 JWT 访问令牌过期时间冲突</div>
+  <div class="issue-location">📄 <code>application.yml</code> 第 41-42 行 vs <code>docker-compose.yml</code> 第 28 行</div>
+  <div class="issue-code"><pre># application.yml（默认值）
+jwt:
+  access-token-expiration: 1800   # 30分钟
+  refresh-token-expiration: 604800  # 7天
+
+# docker-compose.yml（默认值，会覆盖）
+JWT_ACCESS_TOKEN_EXPIRATION: ${JWT_ACCESS_TOKEN_EXPIRATION:-3600}  # 1小时</pre></div>
+  <div class="issue-desc">
+    application.yml 默认 token 有效期 30 分钟，但 docker-compose 默认 1 小时。
+    部署时实际使用的是 docker-compose 的值（1 小时），与配置文件不一致。建议统一。
+  </div>
+</div>
+
+<!-- Issue 10 -->
+<div class="issue">
+  <div class="issue-title"><span class="severity-low">建议</span> GlobalExceptionHandler 日志级别不统一</div>
+  <div class="issue-location">📄 <code>GlobalExceptionHandler.java</code></div>
+  <div class="issue-desc">
+    大部分异常处理使用 <code>log.warn</code>，但最后的兜底 <code>Exception.class</code> 使用 <code>log.error</code>。
+    JwtAuthFilter 的异常（如 JWT 过期）是预期行为，建议也将日志级别从 <code>log.debug</code> 调整为 <code>log.warn</code> 以便排查问题。
+  </div>
+</div>
+
+<!-- Issue 11 -->
+<div class="issue">
+  <div class="issue-title"><span class="severity-low">建议</span> DiagnosisController resolveStudentId 缺乏防御性检查</div>
+  <div class="issue-location">📄 <code>DiagnosisController.java</code> 第 203-213 行</div>
+  <div class="issue-code"><pre>private UUID resolveStudentId(UUID studentId, User currentUser) {
+    if (studentId == null || studentId.equals(currentUser.getId())) {
+        return currentUser.getId();
+    }
+    UserRole role = currentUser.getRole();
+    ...</pre></div>
+  <div class="issue-desc">
+    如果 <code>currentUser</code> 为 null，第 204 行会 NPE。虽然 JwtAuthFilter 已保证 currentUser 不为 null，
+    但防御性编程建议在最前加上 <code>if (currentUser == null) throw new UnauthorizedException("未认证")</code>。
+  </div>
+</div>
+
+<!-- ============================================ -->
+<h2>✅ 做得好的方面</h2>
+
+<div class="good">
+  <ul>
+    <li><strong>JwtAuthFilter 重构方案正确：</strong>注入 UserRepository 从 DB 获取实体设为主体的思路是标准做法，虽然可以优化性能但没有设计缺陷</li>
+    <li><strong>前端兜底数据设计良好：</strong>StudentDashboard 在 API 接口不可用时使用 DEFAULT_PROFILE / DEFAULT_RADAR 兜底，用户体验友好</li>
+    <li><strong>AuthContext 从 JWT 解码用户信息：</strong>避免了对后端 profile 接口的依赖，减少了一次额外的 HTTP 调用</li>
+    <li><strong>GlobalExceptionHandler 覆盖全面：</strong>处理了 15+ 种异常类型，错误响应格式统一</li>
+    <li><strong>Flyway 数据库迁移：</strong>使用 Flyway 管理 schema 变更，生产部署安全可靠</li>
+    <li><strong>Docker Compose 健康检查：</strong>PostgreSQL 用了 healthcheck 确保完全启动后后端才连接</li>
+  </ul>
+</div>
+
+<!-- ============================================ -->
+<h2>📊 文件审查清单</h2>
+
+<table>
+  <tr><th>文件</th><th>状态</th><th>备注</th></tr>
+  <tr><td><code>JwtAuthFilter.java</code></td><td>🟡 需优化</td><td>性能问题：每次请求查库</td></tr>
+  <tr><td><code>SecurityConfig.java</code></td><td>🟡 需修正</td><td>CORS 配置与 CorsConfig 重复</td></tr>
+  <tr><td><code>CorsConfig.java</code></td><td>🟡 需删除</td><td>与 SecurityConfig 中的 CORS 配置重复</td></tr>
+  <tr><td><code>JwtTokenProvider.java</code></td><td>✅ 良好</td><td>Token 生成/验证逻辑清晰</td></tr>
+  <tr><td><code>AuthController.java</code></td><td>✅ 良好</td><td>简洁明了</td></tr>
+  <tr><td><code>DiagnosisController.java</code></td><td>🔵 建议</td><td>缺少防御性 null 检查</td></tr>
+  <tr><td><code>GlobalExceptionHandler.java</code></td><td>✅ 良好</td><td>覆盖全面</td></tr>
+  <tr><td><code>application.yml</code></td><td>🔵 建议</td><td>token 过期时间与 docker-compose 不一致</td></tr>
+  <tr><td><code>api.jsx</code></td><td>🔴 需修复</td><td>Token 刷新字段名错误</td></tr>
+  <tr><td><code>apiClient.ts</code></td><td>🔵 建议</td><td>未被使用，与旧系统不兼容</td></tr>
+  <tr><td><code>AuthContext.jsx</code></td><td>✅ 良好</td><td>JWT 解码方案正确</td></tr>
+  <tr><td><code>StudentDashboard.jsx</code></td><td>🔵 建议</td><td>硬编码课程 ID</td></tr>
+  <tr><td><code>nginx.conf</code></td><td>🔵 建议</td><td>注释写错为 "Flask"</td></tr>
+  <tr><td><code>docker-compose.yml</code></td><td>✅ 良好</td><td>配置合理</td></tr>
+</table>
+
+</body>
+</html>
+

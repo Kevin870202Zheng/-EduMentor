@@ -1,0 +1,172 @@
+# =============================================================================
+# EduMentor — Docker Compose 部署配置
+# =============================================================================
+# 服务:
+#   app       — Spring Boot 3 后端 (单体 JAR)
+#   postgres  — PostgreSQL 16 数据库
+# =============================================================================
+
+version: "3.9"
+
+services:
+  # ---- PostgreSQL 数据库 ----
+  postgres:
+    image: postgres:16-alpine
+    container_name: edumentor-postgres
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-edumentor} -d ${POSTGRES_DB:-edumentor}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-edumentor}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-edumentor}
+      TZ: Asia/Shanghai
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      # PostgreSQL 端口仅在需要外部访问时取消注释
+      # - "5432:5432"
+    networks:
+      - edumentor-net
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 256M
+
+  # ---- Spring Boot 应用 ----
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - MAVEN_OPTS=-Dmaven.test.skip=true
+    container_name: edumentor-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    environment:
+      # ---- Spring Profile ----
+      SPRING_PROFILES_ACTIVE: prod
+
+      # ---- 数据库 (对应 application-prod.yml 中的配置) ----
+      DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-edumentor}
+      DATABASE_USERNAME: ${POSTGRES_USER:-edumentor}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+
+      # ---- JWT 认证 ----
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}
+      JWT_ACCESS_TOKEN_EXPIRATION: ${JWT_ACCESS_TOKEN_EXPIRATION:-3600}
+      JWT_REFRESH_TOKEN_EXPIRATION: ${JWT_REFRESH_TOKEN_EXPIRATION:-2592000}
+
+      # ---- LLM 服务 ----
+      LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
+      LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0.7}
+      LLM_MAX_TOKENS: ${LLM_MAX_TOKENS:-4096}
+      LLM_TIMEOUT: ${LLM_TIMEOUT:-60}
+
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_API_BASE: ${OPENAI_API_BASE:-https://api.openai.com/v1}
+
+      ZHIPUAI_API_KEY: ${ZHIPUAI_API_KEY:-}
+      WENXIN_API_KEY: ${WENXIN_API_KEY:-}
+      WENXIN_SECRET_KEY: ${WENXIN_SECRET_KEY:-}
+
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+
+      # ---- RAG 引擎 ----
+      RAG_ENABLED: ${RAG_ENABLED:-true}
+      RAG_TOP_K: ${RAG_TOP_K:-5}
+      RAG_EMBEDDING_MODEL: ${RAG_EMBEDDING_MODEL:-text-embedding-3-small}
+      RAG_VECTOR_DB_PATH: /app/data/rag/vectors
+      RAG_DATA_DIR: /app/data/rag/documents
+
+      # ---- BKT 贝叶斯知识追踪 ----
+      BKT_P_LEARN: ${BKT_P_LEARN:-0.3}
+      BKT_P_GUESS: ${BKT_P_GUESS:-0.2}
+      BKT_P_SLIP: ${BKT_P_SLIP:-0.1}
+      BKT_P_INIT: ${BKT_P_INIT:-0.4}
+      BKT_MASTERY_THRESHOLD: ${BKT_MASTERY_THRESHOLD:-0.95}
+      BKT_DATA_PATH: /app/data/bkt
+
+      # ---- 学情诊断 ----
+      DIAGNOSIS_MASTERY_THRESHOLD: ${DIAGNOSIS_MASTERY_THRESHOLD:-0.8}
+      DIAGNOSIS_ZPD_RANGE: ${DIAGNOSIS_ZPD_RANGE:-0.2}
+      DIAGNOSIS_FORGETTING_CURVE_INTERVALS: ${DIAGNOSIS_FORGETTING_CURVE_INTERVALS:-"1,7,30,90"}
+
+      # ---- 预警系统 ----
+      ALERT_CHECK_INTERVAL: ${ALERT_CHECK_INTERVAL:-3600000}
+      ALERT_BLUE_THRESHOLD: ${ALERT_BLUE_THRESHOLD:-0.7}
+      ALERT_YELLOW_THRESHOLD: ${ALERT_YELLOW_THRESHOLD:-0.5}
+      ALERT_ORANGE_THRESHOLD: ${ALERT_ORANGE_THRESHOLD:-0.4}
+      ALERT_RED_THRESHOLD: ${ALERT_RED_THRESHOLD:-0.3}
+
+      # ---- WebSocket ----
+      WEBSOCKET_ENDPOINT: ${WEBSOCKET_ENDPOINT:-/ws/chat}
+      WEBSOCKET_HEARTBEAT_INTERVAL: ${WEBSOCKET_HEARTBEAT_INTERVAL:-30000}
+      WEBSOCKET_MAX_TEXT_MESSAGE_SIZE: ${WEBSOCKET_MAX_TEXT_MESSAGE_SIZE:-65536}
+      WEBSOCKET_MAX_SESSION_IDLE_TIMEOUT: ${WEBSOCKET_MAX_SESSION_IDLE_TIMEOUT:-600000}
+
+      # ---- CORS ----
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:3000}
+
+      # ---- 日志 ----
+      LOGGING_LEVEL_COM_EDUMENTOR: ${LOGGING_LEVEL_COM_EDUMENTOR:-INFO}
+
+      # ---- 时区 ----
+      TZ: Asia/Shanghai
+
+    volumes:
+      - rag_data:/app/data/rag
+      - bkt_data:/app/data/bkt
+      - app_logs:/app/logs
+    ports:
+      - "${APP_PORT:-8080}:8080"     # REST API
+      - "${ACTUATOR_PORT:-8081}:8081" # Actuator 监控
+    networks:
+      - edumentor-net
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+
+# ---- 数据卷 ----
+volumes:
+  postgres_data:
+    driver: local
+    name: edumentor_postgres_data
+  rag_data:
+    driver: local
+    name: edumentor_rag_data
+  bkt_data:
+    driver: local
+    name: edumentor_bkt_data
+  app_logs:
+    driver: local
+    name: edumentor_app_logs
+
+# ---- 网络 ----
+networks:
+  edumentor-net:
+    driver: bridge
+    name: edumentor_network

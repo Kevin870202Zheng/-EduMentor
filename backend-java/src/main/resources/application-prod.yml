@@ -1,0 +1,89 @@
+# =============================================================================
+# EduMentor — 生产环境配置
+# =============================================================================
+# 激活方式: --spring.profiles.active=prod 或 SPRING_PROFILES_ACTIVE=prod
+# 所有敏感值通过环境变量注入
+# =============================================================================
+
+spring:
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
+    hikari:
+      maximum-pool-size: 30
+      minimum-idle: 5
+  jpa:
+    hibernate:
+      ddl-auto: none        # Flyway 管理 Schema，Hibernate 不做校验
+    show-sql: false
+  flyway:
+    clean-disabled: true
+
+jwt:
+  secret-key: ${JWT_SECRET_KEY}
+  access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:3600}
+  refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:2592000}
+
+llm:
+  provider: ${LLM_PROVIDER:MOCK}
+  temperature: ${LLM_TEMPERATURE:0.7}
+  max-tokens: ${LLM_MAX_TOKENS:4096}
+  timeout: ${LLM_TIMEOUT:60}
+  openai:
+    api-key: ${OPENAI_API_KEY:}
+    api-base: ${OPENAI_API_BASE:https://api.openai.com/v1}
+  zhipu:
+    api-key: ${ZHIPUAI_API_KEY:}
+  wenxin:
+    api-key: ${WENXIN_API_KEY:}
+    secret-key: ${WENXIN_SECRET_KEY:}
+  ollama:
+    base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+  rate-limit:
+    max-requests-per-minute: ${LLM_RATE_LIMIT:120}
+    max-tokens-per-minute: ${LLM_MAX_TOKENS_PER_MINUTE:200000}
+
+rag:
+  enabled: ${RAG_ENABLED:true}
+  top-k: ${RAG_TOP_K:5}
+  embedding-model: ${RAG_EMBEDDING_MODEL:text-embedding-3-small}
+  vector-db:
+    path: ${RAG_VECTOR_DB_PATH:data/vector_store.json}
+  data-dir: ${RAG_DATA_DIR:data/rag}
+
+bkt:
+  enabled: ${BKT_ENABLED:true}
+  default-p-init: ${BKT_P_INIT:0.15}
+  default-p-learn: ${BKT_P_LEARN:0.25}
+  default-p-guess: ${BKT_P_GUESS:0.15}
+  default-p-slip: ${BKT_P_SLIP:0.10}
+  mastery-threshold: ${BKT_MASTERY_THRESHOLD:0.95}
+
+diagnosis:
+  mastery-threshold: ${DIAGNOSIS_MASTERY_THRESHOLD:0.80}
+  weak-threshold: ${DIAGNOSIS_WEAK_THRESHOLD:0.50}
+  zpd-range: ${DIAGNOSIS_ZPD_RANGE:0.15}
+  forgetting-curve-intervals: ${DIAGNOSIS_FORGETTING_CURVE_INTERVALS:1,3,7,14,30,60,120}
+
+alert:
+  check-interval: ${ALERT_CHECK_INTERVAL:3600}
+  blue-threshold: ${ALERT_BLUE_THRESHOLD:0.60}
+  yellow-threshold: ${ALERT_YELLOW_THRESHOLD:0.50}
+  orange-threshold: ${ALERT_ORANGE_THRESHOLD:0.40}
+  red-threshold: ${ALERT_RED_THRESHOLD:0.30}
+
+logging:
+  level:
+    com.edumentor: ${LOGGING_LEVEL_COM_EDUMENTOR:INFO}
+    org.springframework: WARN
+    org.hibernate: WARN
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+
+websocket:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:https://edumentor.example.com}

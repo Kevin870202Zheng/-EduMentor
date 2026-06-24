@@ -1,0 +1,42 @@
+# =============================================================================
+# EduMentor — 开发环境配置
+# =============================================================================
+# 激活方式: --spring.profiles.active=dev 或 SPRING_PROFILES_ACTIVE=dev
+# =============================================================================
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/edumentor_dev
+    username: edumentor_dev
+    password: dev@123
+  jpa:
+    hibernate:
+      ddl-auto: validate    # Flyway 管理 Schema，validate 确保 JPA 实体与数据库一致
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    clean-disabled: true
+    baseline-on-migrate: true
+
+jwt:
+  secret-key: edumentor-dev-secret-key-minimum-256-bits-please-replace-in-production
+
+llm:
+  provider: MOCK
+
+logging:
+  level:
+    com.edumentor: DEBUG
+    org.hibernate.SQL: TRACE
+    org.hibernate.type.descriptor.sql: TRACE
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+
+websocket:
+  allowed-origins: http://localhost:5173,http://localhost:3000
