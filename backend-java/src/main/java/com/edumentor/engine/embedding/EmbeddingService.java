@@ -123,10 +123,8 @@ public class EmbeddingService {
                 List<Map<String, Object>> dataList = (List<Map<String, Object>>) dataObj;
                 return dataList.stream()
                         .map(item -> {
-                            List<Double> embedding = (List<Double>) item.get("embedding");
-                            if (embedding == null) return new float[0];
-                            float[] result = new float[embedding.size()];
-                            for (int i = 0; i < embedding.size(); i++) result[i] = embedding.get(i).floatValue();
+                            float[] result = toFloatArray(item.get("embedding"));
+                            if (result.length > 0) return result;
                             return result;
                         })
                         .toList();
@@ -168,11 +166,10 @@ public class EmbeddingService {
             // 火山引擎返回格式: {"data": {"embedding": [...]}}
             Object dataObj = response.get("data");
             if (dataObj instanceof Map) {
-                List<Double> embedding = (List<Double>) ((Map<String, Object>) dataObj).get("embedding");
-                if (embedding == null) return new float[0];
-                float[] result = new float[embedding.size()];
-                for (int i = 0; i < embedding.size(); i++) result[i] = embedding.get(i).floatValue();
-                return result;
+                Object embObj = ((Map<String, Object>) dataObj).get("embedding");
+                if (embObj == null) return new float[0];
+                float[] result = toFloatArray(embObj);
+                if (result.length > 0) return result;
             }
 
             return new float[0];
@@ -213,15 +210,31 @@ public class EmbeddingService {
                     return new float[0];
                 }
 
-                List<Double> embedding = (List<Double>) response.get("embedding");
-                if (embedding == null) return new float[0];
-                float[] result = new float[embedding.size()];
-                for (int i = 0; i < embedding.size(); i++) result[i] = embedding.get(i).floatValue();
+                float[] result = toFloatArray(response.get("embedding"));
+                if (result.length > 0) return result;
                 return result;
             } catch (Exception e) {
                 log.error("Ollama Embedding 调用失败: {}", e.getMessage());
                 return new float[0];
             }
         }).toList();
+    }
+
+    /**
+     * 将 Object（List&lt;Number&gt; 或 List&lt;Double&gt;）转为 float[]。
+     */
+    private float[] toFloatArray(Object obj) {
+        if (obj == null) return new float[0];
+        if (obj instanceof List<?> list) {
+            float[] result = new float[list.size()];
+            for (int i = 0; i < list.size(); i++) {
+                Object val = list.get(i);
+                if (val instanceof Number n) {
+                    result[i] = n.floatValue();
+                }
+            }
+            return result;
+        }
+        return new float[0];
     }
 }

@@ -54,7 +54,7 @@ public class KpEmbedding {
     @Column(name = "course_code", nullable = false, length = 32)
     private String courseCode;
 
-    @Column(columnDefinition = "jsonb")
+    @Column(columnDefinition = "jsonb", insertable = false, updatable = false)
     private String metadata;
 
     @Column(name = "created_at", nullable = false, updatable = false)

@@ -45,6 +45,13 @@ public class VectorizationService {
     }
 
     /**
+     * 判断 Embedding 引擎是否可用。
+     */
+    public boolean isEmbeddingAvailable() {
+        return embeddingService.isAvailable();
+    }
+
+    /**
      * 向量化指定课程的所有知识点内容。
      *
      * @param courseId   课程 ID
