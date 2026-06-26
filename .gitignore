@@ -43,3 +43,4 @@ logs/
 .youcoder/backups/
 .youcoder/workspace/references/
 .youcoder/workspace/artifacts/
+.youcoder/workspace/
