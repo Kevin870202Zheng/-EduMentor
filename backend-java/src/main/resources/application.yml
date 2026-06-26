@@ -89,6 +89,14 @@ rag:
     stop-words: []
   data-dir: data/rag
 
+# Embedding Configuration（独立于 LLM，可单独配置 embedding 供应商）
+embedding:
+  provider: openai     # openai / ollama
+  model: ${ARK_EMBEDDING_MODEL:ep-REPLACED_MODEL}
+  base-url: ${ARK_EMBEDDING_BASE_URL:https://ark.cn-beijing.volces.com/api/v3}
+  api-key: ${ARK_API_KEY:}
+  dimension: 1024
+
 # BKT Configuration
 bkt:
   enabled: true
