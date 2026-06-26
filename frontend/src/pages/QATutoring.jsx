@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Card, Input, Button, Typography, Tag, Space, Spin, Empty } from 'antd';
 import { SendOutlined, RobotOutlined, UserOutlined, BulbOutlined } from '@ant-design/icons';
 import { qaAPI } from '../services/api';
-import { useAuth } from '../context/AuthContext';
 import { useOutletContext } from 'react-router-dom';
 
 const { Title, Text } = Typography;
@@ -22,7 +21,6 @@ export default function QATutoring() {
     { role: 'assistant', content: '你好！我是智学导师 EduMentor。有什么学习问题需要我帮忙吗？我会引导你思考，而不是直接给答案哦！😊', level: null }
   ]);
   const [loading, setLoading] = useState(false);
-  const { user } = useAuth();
   const { selectedCourseId } = useOutletContext();
 
   const handleAsk = async (q) => {
@@ -36,21 +34,21 @@ export default function QATutoring() {
     try {
       const res = await qaAPI.ask({
         question: query,
-        student_id: String(user?.id || ''),
-        course_id: selectedCourseId || '',
+        courseId: selectedCourseId || undefined,
       });
-      const data = res.data || res;
+      const data = res.data?.data || res.data || res;
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: data.answer || '这是一个很好的问题！让我们一步步来分析...',
+        content: data.answer || '让我思考一下这个问题...',
         level: data.level,
         related: data.related_knowledge
       }]);
     } catch (err) {
+      console.error('QA API error:', err);
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: `很好的问题！关于「${query}」，让我来分析一下当前的知识点体系。\n\n建议你先回顾一下相关的基础概念，然后逐步深入理解。如果遇到具体的难点，可以进一步提问。`,
-        level: 'L2',
+        content: '抱歉，我现在无法回答这个问题。请稍后再试。',
+        level: null,
         related: []
       }]);
     }
