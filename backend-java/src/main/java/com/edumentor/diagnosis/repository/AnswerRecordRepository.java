@@ -30,34 +30,68 @@ public interface AnswerRecordRepository extends JpaRepository<AnswerRecord, UUID
     long countByStudentIdAndIsCorrectTrueAndAttemptedAtBetween(
         UUID studentId, LocalDateTime start, LocalDateTime end);
 
-    @Query("SELECT a.knowledgePointId, COUNT(a), SUM(CASE WHEN a.isCorrect = true THEN 1 ELSE 0 END) " +
-           "FROM AnswerRecord a WHERE a.studentId = :studentId AND a.attemptedAt BETWEEN :start AND :end " +
-           "GROUP BY a.knowledgePointId")
+    @Query(value = "SELECT a.knowledge_point_id, COUNT(*), " +
+           "SUM(CASE WHEN a.is_correct THEN 1 ELSE 0 END), " +
+           "COALESCE(kp.name, '未知知识点') " +
+           "FROM answer_records a " +
+           "LEFT JOIN knowledge_points kp ON kp.id = a.knowledge_point_id " +
+           "WHERE a.student_id = :studentId AND a.attempted_at BETWEEN :start AND :end " +
+           "GROUP BY a.knowledge_point_id, kp.name", nativeQuery = true)
     List<Object[]> aggregateByKnowledgePoint(
         @Param("studentId") UUID studentId,
         @Param("start") LocalDateTime start,
         @Param("end") LocalDateTime end);
 
-    @Query("SELECT a.knowledgePointId, COUNT(a), SUM(CASE WHEN a.isCorrect = true THEN 1 ELSE 0 END) " +
-           "FROM AnswerRecord a WHERE a.studentId = :studentId AND a.courseId = :courseId " +
-           "AND a.attemptedAt BETWEEN :start AND :end GROUP BY a.knowledgePointId")
+    @Query(value = "SELECT a.knowledge_point_id, COUNT(*), " +
+           "SUM(CASE WHEN a.is_correct THEN 1 ELSE 0 END), " +
+           "COALESCE(kp.name, '未知知识点') " +
+           "FROM answer_records a " +
+           "LEFT JOIN knowledge_points kp ON kp.id = a.knowledge_point_id " +
+           "WHERE a.student_id = :studentId AND a.course_id = :courseId " +
+           "AND a.attempted_at BETWEEN :start AND :end " +
+           "GROUP BY a.knowledge_point_id, kp.name", nativeQuery = true)
     List<Object[]> aggregateByKnowledgePointAndCourse(
         @Param("studentId") UUID studentId,
         @Param("courseId") UUID courseId,
         @Param("start") LocalDateTime start,
         @Param("end") LocalDateTime end);
 
-    @Query("SELECT a.knowledgePointId, COUNT(a), SUM(CASE WHEN a.isCorrect = true THEN 1 ELSE 0 END) " +
-           "FROM AnswerRecord a WHERE a.studentId = :studentId " +
-           "GROUP BY a.knowledgePointId")
+    @Query(value = "SELECT a.knowledge_point_id, COUNT(*), " +
+           "SUM(CASE WHEN a.is_correct THEN 1 ELSE 0 END), " +
+           "COALESCE(kp.name, '未知知识点') " +
+           "FROM answer_records a " +
+           "LEFT JOIN knowledge_points kp ON kp.id = a.knowledge_point_id " +
+           "WHERE a.student_id = :studentId " +
+           "GROUP BY a.knowledge_point_id, kp.name", nativeQuery = true)
     List<Object[]> aggregateByKnowledgePointAll(
         @Param("studentId") UUID studentId);
+
+    @Query(value = "SELECT a.knowledge_point_id, COUNT(*), " +
+           "SUM(CASE WHEN a.is_correct THEN 1 ELSE 0 END), " +
+           "COALESCE(kp.name, '未知知识点') " +
+           "FROM answer_records a " +
+           "LEFT JOIN knowledge_points kp ON kp.id = a.knowledge_point_id " +
+           "WHERE a.student_id = :studentId AND a.course_id = :courseId " +
+           "GROUP BY a.knowledge_point_id, kp.name", nativeQuery = true)
+    List<Object[]> aggregateByKnowledgePointAllAndCourse(
+        @Param("studentId") UUID studentId,
+        @Param("courseId") UUID courseId);
 
     @Query("SELECT FUNCTION('DATE', a.attemptedAt), COUNT(a), SUM(CASE WHEN a.isCorrect = true THEN 1 ELSE 0 END) " +
            "FROM AnswerRecord a WHERE a.studentId = :studentId AND a.attemptedAt BETWEEN :start AND :end " +
            "GROUP BY FUNCTION('DATE', a.attemptedAt) ORDER BY FUNCTION('DATE', a.attemptedAt)")
     List<Object[]> dailyAggregate(
         @Param("studentId") UUID studentId,
+        @Param("start") LocalDateTime start,
+        @Param("end") LocalDateTime end);
+
+    @Query("SELECT FUNCTION('DATE', a.attemptedAt), COUNT(a), SUM(CASE WHEN a.isCorrect = true THEN 1 ELSE 0 END) " +
+           "FROM AnswerRecord a WHERE a.studentId = :studentId AND a.courseId = :courseId " +
+           "AND a.attemptedAt BETWEEN :start AND :end " +
+           "GROUP BY FUNCTION('DATE', a.attemptedAt) ORDER BY FUNCTION('DATE', a.attemptedAt)")
+    List<Object[]> dailyAggregateByCourse(
+        @Param("studentId") UUID studentId,
+        @Param("courseId") UUID courseId,
         @Param("start") LocalDateTime start,
         @Param("end") LocalDateTime end);
 

@@ -2,6 +2,8 @@ package com.edumentor.record.entity;
 
 import com.edumentor.entity.BaseEntity;
 import com.edumentor.entity.enums.QuestionType;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -36,7 +38,7 @@ public class Question extends BaseEntity {
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
-    private String options;
+    private JsonNode options;
 
     @Column(name = "correct_answer", nullable = false, columnDefinition = "text")
     private String correctAnswer;
@@ -49,7 +51,7 @@ public class Question extends BaseEntity {
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
-    private String tags;
+    private JsonNode tags;
 
     @Column(name = "created_by")
     private UUID createdBy;

@@ -2,7 +2,7 @@ package com.edumentor.engine.rag;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
@@ -17,11 +17,11 @@ import java.util.*;
  * <p><strong>注意：</strong> 本实现仅为开发阶段使用。
  * 生产环境应替换为真正的 RAG 实现（由 D1 任务提供）。
  * 当 D1 的 {@code @Service("ragEngineImpl")} 实现注册后，
- * {@code @ConditionalOnMissingBean} 会使本 Mock 自动失效。
+ * {@code rag.vector-engine=false}（默认值）时启用，为 true 时由 VectorRAGEngine 替换。
  * </p>
  */
-@Component("ragEngineImpl")
-@ConditionalOnMissingBean(name = "ragEngineImpl")
+@Component("mockRagEngine")
+@ConditionalOnProperty(name = "rag.vector-engine", havingValue = "false", matchIfMissing = true)
 public class MockRAGEngine implements RAGEngine {
 
     private static final Logger log = LoggerFactory.getLogger(MockRAGEngine.class);

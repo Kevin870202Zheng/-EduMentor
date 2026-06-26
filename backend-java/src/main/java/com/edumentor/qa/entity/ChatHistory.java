@@ -40,7 +40,7 @@ public class ChatHistory extends BaseEntity {
     @Column(nullable = false, columnDefinition = "text")
     private String content;
 
-    @Column(columnDefinition = "jsonb")
+    @Column(columnDefinition = "jsonb", insertable = false, updatable = false)
     private String metadata;
 
     @Column(name = "token_count")

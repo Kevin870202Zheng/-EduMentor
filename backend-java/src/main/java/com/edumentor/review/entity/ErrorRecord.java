@@ -24,6 +24,9 @@ import java.util.UUID;
 })
 public class ErrorRecord extends BaseEntity {
 
+    @Column(name = "course_id")
+    private UUID courseId;
+
     @Column(name = "student_id", nullable = false)
     private UUID studentId;
 
@@ -67,7 +70,7 @@ public class ErrorRecord extends BaseEntity {
     @Column(name = "error_count")
     private Integer errorCount = 1;
 
-    @Column(columnDefinition = "jsonb")
+    @Column(columnDefinition = "jsonb", insertable = false, updatable = false)
     private String metadata;
 
     @Override

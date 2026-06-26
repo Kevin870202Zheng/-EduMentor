@@ -1,7 +1,6 @@
 package com.edumentor.learningpath.dto;
 
 import com.edumentor.learningpath.entity.LearningPath;
-import com.edumentor.learningpath.entity.LearningPathNode;
 import com.edumentor.learningpath.entity.PathStatus;
 import lombok.Data;
 
@@ -13,8 +12,9 @@ import java.util.stream.Collectors;
 
 /**
  * 学习路径 DTO — 用于路径列表和详情展示。
+ *
  * <p>
- * 包含路径基本信息及关联的节点列表。
+ * 包含路径基本信息、适配策略及关联的节点列表。
  * </p>
  *
  * @author EduMentor Team
@@ -33,6 +33,7 @@ public class LearningPathDto {
     private Integer totalNodes;
     private Integer completedNodes;
     private Integer dailyMinutes;
+    private String adaptStrategy;
     private List<LearningPathNodeDto> nodes;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -59,6 +60,7 @@ public class LearningPathDto {
         dto.setTotalNodes(entity.getTotalNodes());
         dto.setCompletedNodes(entity.getCompletedNodes());
         dto.setDailyMinutes(entity.getDailyMinutes());
+        dto.setAdaptStrategy(entity.getAdaptStrategy());
         dto.setCreatedAt(entity.getCreatedAt());
         dto.setUpdatedAt(entity.getUpdatedAt());
 

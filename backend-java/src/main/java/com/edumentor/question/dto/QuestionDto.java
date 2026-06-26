@@ -14,7 +14,7 @@ import java.util.UUID;
  * @param courseId         所属课程 ID
  * @param questionType     题目类型
  * @param content          题目内容
- * @param options          选项（JSON 字符串）
+ * @param options          选项（JSON 对象/数组）
  * @param correctAnswer    正确答案
  * @param explanation      解析
  * @param difficulty       难度（1-5）
@@ -28,7 +28,7 @@ public record QuestionDto(
         UUID courseId,
         QuestionType questionType,
         String content,
-        String options,
+        Object options,
         String correctAnswer,
         String explanation,
         Integer difficulty,

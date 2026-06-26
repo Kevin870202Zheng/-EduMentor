@@ -106,25 +106,46 @@ public class PathService {
         // 3. Kahn 拓扑排序
         List<UUID> sortedKpIds = topologicalSort(allKps, prerequisiteMap);
 
-        // 4. 按难度递进微调（同层按难度升序）
+        // 4. 适配策略
+        String adaptStrategy = request.getAdaptStrategy() != null
+                ? request.getAdaptStrategy().toUpperCase() : "REORDER";
+        log.info("适配策略: {}", adaptStrategy);
+
+        // 5. 按难度递进微调（同层按难度升序）
         List<KpInfo> sortedKps = sortedKpIds.stream()
                 .map(id -> allKps.stream().filter(kp -> kp.id.equals(id)).findFirst().orElse(null))
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
 
-        // 5. 聚焦模式：截取到目标知识点
+        // 6. FOCUS_WEAK / EXPAND → 薄弱知识点优先排列
+        if ("FOCUS_WEAK".equals(adaptStrategy) || "EXPAND".equals(adaptStrategy)) {
+            Set<UUID> weakIds = findWeakKnowledgePointIds(studentId);
+            List<KpInfo> weakKps = sortedKps.stream()
+                    .filter(kp -> weakIds.contains(kp.id))
+                    .collect(Collectors.toList());
+            List<KpInfo> otherKps = sortedKps.stream()
+                    .filter(kp -> !weakIds.contains(kp.id))
+                    .collect(Collectors.toList());
+            weakKps.addAll(otherKps);
+            sortedKps = weakKps;
+            log.info("FOCUS_WEAK/EXPAND 排序: 薄弱={}, 其他={}", weakKps.size() - otherKps.size(), otherKps.size());
+        }
+
+        // 7. 聚焦模式：截取到目标知识点
         UUID focusKpId = request.getFocusKpId() != null ? request.getFocusKpId() : null;
         if (focusKpId != null) {
             sortedKps = truncateToTarget(sortedKps, focusKpId);
         }
 
-        // 6. 跳过已掌握的知识点
+        // 8. 跳过已掌握的知识点（FOCUS_WEAK/EXPAND 不跳过，保留全部以便聚焦薄弱）
         Set<UUID> masteredKpIds = Collections.emptySet();
-        if (Boolean.TRUE.equals(request.getSkipMastered())) {
+        boolean shouldSkipMastered = Boolean.TRUE.equals(request.getSkipMastered())
+                && !"FOCUS_WEAK".equals(adaptStrategy) && !"EXPAND".equals(adaptStrategy);
+        if (shouldSkipMastered) {
             masteredKpIds = findMasteredKnowledgePointIds(studentId);
         }
 
-        // 7. 创建路径实体
+        // 9. 创建路径实体
         LearningPath learningPath = new LearningPath();
         learningPath.setStudentId(studentId);
         learningPath.setCourseId(courseId);
@@ -132,13 +153,14 @@ public class PathService {
         learningPath.setName(request.getName());
         learningPath.setDescription(request.getDescription());
         learningPath.setStatus(PathStatus.DRAFT);
+        learningPath.setAdaptStrategy(adaptStrategy);
         if (request.getDailyMinutes() != null) {
             learningPath.setDailyMinutes(request.getDailyMinutes());
         }
         learningPath = learningPathRepository.save(learningPath);
         final LearningPath savedPath = learningPath;
 
-        // 8. 创建路径节点
+        // 10. 创建路径节点
         List<LearningPathNode> nodes = new ArrayList<>();
         int orderIndex = 0;
         for (KpInfo kp : sortedKps) {
@@ -551,6 +573,9 @@ public class PathService {
                 throw new ValidationException("不支持的适配策略: " + request.getAdaptStrategy()
                         + "，可选值: REORDER, SHORTEN, EXPAND, FOCUS_WEAK");
         }
+
+        // 保存路径策略
+        path.setAdaptStrategy(strategy);
 
         // 重新编号所有待处理节点
         int orderIndex = completedNodes.size();

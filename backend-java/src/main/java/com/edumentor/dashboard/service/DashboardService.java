@@ -157,8 +157,10 @@ public class DashboardService {
             "COALESCE(stats.today_ans, 0), COALESCE(stats.today_correct, 0), " +
             "COALESCE(stats.correct_rate, 0), " +
             "COALESCE(alert_cnt.unresolved, 0), " +
-            "COALESCE(sess.duration_today, 0) " +
+            "COALESCE(sess.duration_today, 0), " +
+            "sp.class_name, sp.department, sp.major " +
             "FROM users u " +
+            "LEFT JOIN student_profiles sp ON sp.user_id = u.id " +
             "LEFT JOIN ( " +
             "  SELECT ar.student_id, COUNT(*) AS total_ans, " +
             "  SUM(CASE WHEN ar.is_correct THEN 1 ELSE 0 END) AS correct_ans, " +
@@ -199,6 +201,9 @@ public class DashboardService {
             if (row[9] != null) s.correctRate(((Number) row[9]).doubleValue());
             if (row[10] != null) s.pendingAlertCount(((Number) row[10]).intValue());
             if (row[11] != null) s.studyMinutesToday(((Number) row[11]).intValue());
+            if (row[12] != null) s.className(row[12].toString());
+            if (row[13] != null) s.department(row[13].toString());
+            if (row[14] != null) s.major(row[14].toString());
 
             // 计算状态
             if (s.getPendingAlertCount() >= 2) {

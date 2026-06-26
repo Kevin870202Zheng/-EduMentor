@@ -293,6 +293,10 @@ public class QAService {
             return "";
         }
         try {
+            if (request.getCourseId() != null) {
+                return ragEngine.buildEnhancedContext(question,
+                        request.getCourseId().toString(), 5);
+            }
             if (request.getKnowledgePointId() != null) {
                 return ragEngine.buildEnhancedContext(question,
                         request.getKnowledgePointId().toString(), 5);

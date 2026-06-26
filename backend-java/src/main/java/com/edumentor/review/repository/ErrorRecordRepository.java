@@ -35,6 +35,15 @@ public interface ErrorRecordRepository extends JpaRepository<ErrorRecord, UUID> 
     List<ErrorRecord> findByStudentId(UUID studentId);
 
     /**
+     * 按 studentId 和 courseId 查询错题记录。
+     *
+     * @param studentId 学生 ID
+     * @param courseId  课程 ID
+     * @return 错题记录列表
+     */
+    List<ErrorRecord> findByStudentIdAndCourseId(UUID studentId, UUID courseId);
+
+    /**
      * 按复习状态查询某学生的错题记录。
      *
      * @param studentId  学生 ID

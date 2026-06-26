@@ -17,6 +17,7 @@ public class LlmConfig {
     private int maxRetries = 3;
     private int timeout = 30;
     private OpenAiConfig openai = new OpenAiConfig();
+    private DeepSeekConfig deepseek = new DeepSeekConfig();
     private OllamaConfig ollama = new OllamaConfig();
     private ZhipuConfig zhipu = new ZhipuConfig();
     private WenxinConfig wenxin = new WenxinConfig();
@@ -27,6 +28,12 @@ public class LlmConfig {
     public static class OpenAiConfig {
         private String apiKey;
         private String apiBase = "https://api.openai.com";
+    }
+
+    @Data
+    public static class DeepSeekConfig {
+        private String apiKey;
+        private String apiBase = "https://api.deepseek.com";
     }
 
     @Data

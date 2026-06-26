@@ -55,6 +55,7 @@ public class LLMConfig {
     public ProviderConfig getProviderConfig(LLMProvider provider) {
         return switch (provider) {
             case OPENAI -> new OpenAiProviderConfig(rawConfig.getOpenai());
+            case DEEPSEEK -> new DeepSeekProviderConfig(rawConfig.getDeepseek());
             case OLLAMA -> new OllamaProviderConfig(rawConfig.getOllama());
             case ZHIPU -> new ZhipuProviderConfig(rawConfig.getZhipu());
             case WENXIN -> new WenxinProviderConfig(rawConfig.getWenxin());
@@ -122,7 +123,7 @@ public class LLMConfig {
         Map<String, String> getExtraParams();
     }
 
-    // ──── OpenAi ────
+    // ──── OpenAi / DeepSeek ────
 
     private static class OpenAiProviderConfig implements ProviderConfig {
         private final LlmConfig.OpenAiConfig cfg;
@@ -136,7 +137,27 @@ public class LLMConfig {
         public String getApiKey() { return cfg.getApiKey(); }
 
         @Override
-        public String getModel() { return null; } // model 在 LLMService 中单独传递
+        public String getModel() { return null; }
+
+        @Override
+        public Map<String, String> getExtraParams() {
+            return Map.of();
+        }
+    }
+
+    private static class DeepSeekProviderConfig implements ProviderConfig {
+        private final LlmConfig.DeepSeekConfig cfg;
+
+        DeepSeekProviderConfig(LlmConfig.DeepSeekConfig cfg) { this.cfg = cfg; }
+
+        @Override
+        public String getApiBase() { return cfg.getApiBase(); }
+
+        @Override
+        public String getApiKey() { return cfg.getApiKey(); }
+
+        @Override
+        public String getModel() { return LLMProvider.DEEPSEEK.getDefaultModel(); }
 
         @Override
         public Map<String, String> getExtraParams() {

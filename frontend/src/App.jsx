@@ -15,6 +15,7 @@ const QATutoring = lazy(() => import('./pages/QATutoring'));
 const ErrorReview = lazy(() => import('./pages/ErrorReview'));
 const StudentCourses = lazy(() => import('./pages/StudentCourses'));
 const StudentProfileEdit = lazy(() => import('./pages/StudentProfileEdit'));
+const StudentLearning = lazy(() => import('./pages/StudentLearning'));
 const TeacherDashboard = lazy(() => import('./pages/TeacherDashboard'));
 const TeacherCourseManage = lazy(() => import('./pages/TeacherCourseManage'));
 const TeacherCourseList = lazy(() => import('./pages/TeacherCourseList'));
@@ -65,6 +66,7 @@ function App() {
                 <Route path="qa" element={<QATutoring />} />
                 <Route path="error-review" element={<ErrorReview />} />
                 <Route path="courses" element={<StudentCourses />} />
+                <Route path="learning/:courseCode" element={<StudentLearning />} />
                 <Route path="profile" element={<StudentProfileEdit />} />
               </Route>
 

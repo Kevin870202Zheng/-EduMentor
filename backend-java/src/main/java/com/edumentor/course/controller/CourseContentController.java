@@ -47,8 +47,10 @@ public class CourseContentController {
 
     /**
      * 获取课程信息（按课程编号）。
+     * 允许所有已认证用户访问（学生、教师、管理员）。
      */
     @GetMapping
+    @PreAuthorize("isAuthenticated()")
     public ApiResponse<Map<String, Object>> getCourseInfo(@PathVariable String courseCode) {
         Course course = courseRepository.findByCourseCode(courseCode)
                 .orElseThrow(() -> new IllegalArgumentException("课程不存在: " + courseCode));

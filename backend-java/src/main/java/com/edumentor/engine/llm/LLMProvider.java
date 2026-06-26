@@ -2,6 +2,7 @@ package com.edumentor.engine.llm;
 
 public enum LLMProvider {
     OPENAI("OpenAI", "gpt-4o-mini", "https://api.openai.com"),
+    DEEPSEEK("DeepSeek", "deepseek-v4-pro", "https://api.deepseek.com"),
     OLLAMA("Ollama", "llama3", "http://localhost:11434"),
     ZHIPU("智谱", "glm-4", "https://open.bigmodel.cn"),
     WENXIN("文心", "ernie-4", "https://aip.baidubce.com"),

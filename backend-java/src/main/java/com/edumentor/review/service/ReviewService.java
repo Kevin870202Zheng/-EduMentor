@@ -137,9 +137,11 @@ public class ReviewService {
      * @return 错题记录列表
      */
     @Transactional(readOnly = true)
-    public List<ErrorRecord> getErrorRecords(UUID studentId, int page, int size) {
-        return errorRecordRepository.findByStudentId(studentId)
-                .stream()
+    public List<ErrorRecord> getErrorRecords(UUID studentId, UUID courseId, int page, int size) {
+        List<ErrorRecord> all = (courseId != null)
+                ? errorRecordRepository.findByStudentIdAndCourseId(studentId, courseId)
+                : errorRecordRepository.findByStudentId(studentId);
+        return all.stream()
                 .sorted(Comparator.comparing(ErrorRecord::getCreatedAt).reversed())
                 .skip((long) (page - 1) * size)
                 .limit(size)
@@ -191,6 +193,7 @@ public class ReviewService {
         ErrorRecord record = getErrorById(errorRecordId);
         record.setIsReviewed(true);
         record.setReviewAccuracy(reviewAccuracy);
+        record.setReviewSuggestion(notes);
         errorRecordRepository.save(record);
         log.info("Error marked as reviewed: id={}, accuracy={}", errorRecordId, reviewAccuracy);
         return record;

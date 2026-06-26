@@ -45,6 +45,13 @@ public class OpenAIProvider implements LLMProviderAdapter {
         this.webClientBuilder = webClientBuilder;
     }
 
+    /**
+     * 获取当前供应商的默认 API Base URL。子类可覆盖以返回不同值。
+     */
+    protected String getDefaultApiBase() {
+        return LLMProvider.OPENAI.getDefaultApiBase();
+    }
+
     @Override
     public LLMProvider getProvider() {
         return LLMProvider.OPENAI;
@@ -136,7 +143,7 @@ public class OpenAIProvider implements LLMProviderAdapter {
     /**
      * 执行非流式 Chat Completion API 调用。
      */
-    private String doChatCompletion(List<ChatMessage> messages, ProviderConfig config,
+    protected String doChatCompletion(List<ChatMessage> messages, ProviderConfig config,
                                     double temperature, int maxTokens, boolean stream) {
         try {
             String requestBody = buildChatRequest(messages, config, temperature, maxTokens, false);
@@ -177,7 +184,7 @@ public class OpenAIProvider implements LLMProviderAdapter {
     /**
      * 执行流式 Chat Completion API 调用。
      */
-    private void doChatCompletionStream(List<ChatMessage> messages, ProviderConfig config,
+    protected void doChatCompletionStream(List<ChatMessage> messages, ProviderConfig config,
                                         double temperature, int maxTokens,
                                         Consumer<LLMResponse> chunkConsumer) {
         try {
@@ -355,10 +362,10 @@ public class OpenAIProvider implements LLMProviderAdapter {
     /**
      * 获取 API 基地址，优先使用配置值，否则使用默认值。
      */
-    private String getApiBase(ProviderConfig config) {
+    protected String getApiBase(ProviderConfig config) {
         String base = config.getApiBase();
         if (base == null || base.isBlank()) {
-            base = LLMProvider.OPENAI.getDefaultApiBase();
+            base = getDefaultApiBase();
         }
         // 去掉末尾的 /chat/completions（如果配置中包含了完整路径）
         if (base.endsWith("/chat/completions")) {

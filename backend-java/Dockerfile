@@ -6,6 +6,7 @@
 # =============================================================================
 
 # ---- Stage 1: Build ----
+# Build timestamp: 2026-06-25T17:45:00
 FROM maven:3.9.9-eclipse-temurin-21 AS build
 
 WORKDIR /build
@@ -18,7 +19,7 @@ RUN mvn dependency:go-offline -B || true
 COPY src src
 
 # 3. 编译打包（跳过测试，测试在 CI 阶段执行）
-RUN mvn clean package -Dmaven.test.skip=true -B
+RUN mvn clean package -Dmaven.test.skip=true -B -q
 
 # ---- Stage 2: Runtime ----
 FROM eclipse-temurin:21-jre-alpine AS runtime

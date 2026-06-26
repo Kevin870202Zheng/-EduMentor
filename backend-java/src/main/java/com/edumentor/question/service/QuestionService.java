@@ -8,6 +8,8 @@ import com.edumentor.question.dto.QuestionDto;
 import com.edumentor.question.dto.QuestionUpdateRequest;
 import com.edumentor.record.entity.Question;
 import com.edumentor.record.repository.QuestionRepository;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -25,9 +27,11 @@ public class QuestionService {
     private static final Logger log = LoggerFactory.getLogger(QuestionService.class);
 
     private final QuestionRepository questionRepository;
+    private final ObjectMapper objectMapper;
 
-    public QuestionService(QuestionRepository questionRepository) {
+    public QuestionService(QuestionRepository questionRepository, ObjectMapper objectMapper) {
         this.questionRepository = questionRepository;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -43,7 +47,7 @@ public class QuestionService {
         question.setCourseId(request.getCourseId());
         question.setQuestionType(request.getQuestionType());
         question.setContent(request.getContent());
-        question.setOptions(request.getOptions());
+        question.setOptions(parseOptions(request.getOptions()));
         question.setCorrectAnswer(request.getCorrectAnswer());
         question.setExplanation(request.getExplanation());
         question.setDifficulty(request.getDifficulty() != null ? request.getDifficulty() : 3);
@@ -92,7 +96,7 @@ public class QuestionService {
             question.setContent(request.getContent());
         }
         if (request.getOptions() != null) {
-            question.setOptions(request.getOptions());
+            question.setOptions(parseOptions(request.getOptions()));
         }
         if (request.getCorrectAnswer() != null) {
             question.setCorrectAnswer(request.getCorrectAnswer());
@@ -112,6 +116,18 @@ public class QuestionService {
 
         Question saved = questionRepository.save(question);
         return QuestionDto.fromEntity(saved);
+    }
+
+    private JsonNode parseOptions(String optionsStr) {
+        if (optionsStr == null || optionsStr.isBlank()) {
+            return objectMapper.createArrayNode();
+        }
+        try {
+            return objectMapper.readTree(optionsStr);
+        } catch (Exception e) {
+            log.warn("解析 options 失败，使用默认空数组: {}", e.getMessage());
+            return objectMapper.createArrayNode();
+        }
     }
 
     @Transactional

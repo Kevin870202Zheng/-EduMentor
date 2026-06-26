@@ -1,6 +1,7 @@
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Card, Table, Button, Modal, List, Tag, Typography, Spin, message, Empty, Space, Select } from 'antd';
-import { PlusOutlined, CheckCircleOutlined, BookOutlined, TeamOutlined } from '@ant-design/icons';
+import { Card, Table, Button, Modal, List, Tag, Typography, Spin, message, Empty, Space } from 'antd';
+import { PlusOutlined, BookOutlined } from '@ant-design/icons';
 import { enrollmentAPI, courseAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -12,7 +13,9 @@ export default function StudentCourses() {
   const [loading, setLoading] = useState(true);
   const [enrollModalOpen, setEnrollModalOpen] = useState(false);
   const [enrolling, setEnrolling] = useState(null);
+  const navigate = useNavigate();
   const { user } = useAuth();
+  const { setSelectedCourseId } = useOutletContext();
 
   useEffect(() => {
     loadData();
@@ -64,7 +67,20 @@ export default function StudentCourses() {
       title: '选课时间', dataIndex: 'enrolledAt', key: 'enrolledAt', width: 160,
       render: (t) => t ? new Date(t).toLocaleDateString('zh-CN') : '-',
     },
+    {
+      title: '操作', key: 'action', width: 120,
+      render: (_, record) => (
+        <Button type="primary" size="small" icon={<BookOutlined />}
+          onClick={() => {
+            if (setSelectedCourseId) setSelectedCourseId(record.courseId);
+            navigate(`/student/learning/${record.courseCode}`);
+          }}>
+          开始学习
+        </Button>
+      ),
+    },
   ];
+
 
   if (loading) return <Spin size="large" style={{ display: 'flex', justifyContent: 'center', marginTop: 100 }} />;
 

@@ -49,6 +49,9 @@ public class LearningPath extends BaseEntity {
     @Column(name = "daily_minutes")
     private Integer dailyMinutes;
 
+    @Column(name = "adapt_strategy", nullable = false, length = 16)
+    private String adaptStrategy = "REORDER";
+
     @OneToMany(mappedBy = "learningPath", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @OrderBy("orderIndex ASC")
     private List<LearningPathNode> nodes = new ArrayList<>();
@@ -83,6 +86,7 @@ public class LearningPath extends BaseEntity {
         dto.put("totalNodes", totalNodes);
         dto.put("completedNodes", completedNodes);
         dto.put("dailyMinutes", dailyMinutes);
+        dto.put("adaptStrategy", adaptStrategy);
         dto.put("createdBy", createdBy);
         dto.put("createdAt", getCreatedAt());
         dto.put("updatedAt", getUpdatedAt());

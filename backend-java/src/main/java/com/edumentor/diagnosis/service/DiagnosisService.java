@@ -220,15 +220,17 @@ public class DiagnosisService {
      * @return 认知画像
      */
     @Transactional(readOnly = true)
-    public CognitiveProfile buildCognitiveProfile(UUID studentId) {
-        log.info("开始构建认知画像: studentId={}", studentId);
+    public CognitiveProfile buildCognitiveProfile(UUID studentId, UUID courseId) {
+        log.info("开始构建认知画像: studentId={}, courseId={}", studentId, courseId);
 
         // 校验学生
         User student = userRepository.findById(studentId)
                 .orElseThrow(() -> new IllegalArgumentException("学生不存在: " + studentId));
 
         // 获取全量作答聚合数据（所有时间）
-        List<Object[]> kpAggregations = answerRecordRepository.aggregateByKnowledgePointAll(studentId);
+        List<Object[]> kpAggregations = (courseId != null)
+                ? answerRecordRepository.aggregateByKnowledgePointAllAndCourse(studentId, courseId)
+                : answerRecordRepository.aggregateByKnowledgePointAll(studentId);
 
         List<KnowledgeMasteryDTO> kpMasteries = buildKnowledgeMasteries(kpAggregations);
 
@@ -284,14 +286,16 @@ public class DiagnosisService {
      * @return 雷达图数据
      */
     @Transactional(readOnly = true)
-    public RadarChartData generateRadarChart(UUID studentId) {
-        log.info("生成雷达图数据: studentId={}", studentId);
+    public RadarChartData generateRadarChart(UUID studentId, UUID courseId) {
+        log.info("生成雷达图数据: studentId={}, courseId={}", studentId, courseId);
 
         User student = userRepository.findById(studentId)
                 .orElseThrow(() -> new IllegalArgumentException("学生不存在: " + studentId));
 
         // 获取知识点的按类掌握度
-        List<Object[]> kpAggregations = answerRecordRepository.aggregateByKnowledgePointAll(studentId);
+        List<Object[]> kpAggregations = (courseId != null)
+                ? answerRecordRepository.aggregateByKnowledgePointAllAndCourse(studentId, courseId)
+                : answerRecordRepository.aggregateByKnowledgePointAll(studentId);
         List<KnowledgeMasteryDTO> kpMasteries = buildKnowledgeMasteries(kpAggregations);
 
         // 将知识点分到 6 大雷达维度
@@ -326,8 +330,8 @@ public class DiagnosisService {
      * @return 热力图数据
      */
     @Transactional(readOnly = true)
-    public HeatMapData generateHeatMap(UUID studentId, int daysBack) {
-        log.info("生成学习热力图: studentId={}, daysBack={}", studentId, daysBack);
+    public HeatMapData generateHeatMap(UUID studentId, UUID courseId, int daysBack) {
+        log.info("生成学习热力图: studentId={}, courseId={}, daysBack={}", studentId, courseId, daysBack);
 
         int safeDaysBack = daysBack <= 0 ? HEATMAP_DEFAULT_DAYS
                 : Math.min(daysBack, HEATMAP_MAX_DAYS);
@@ -338,8 +342,9 @@ public class DiagnosisService {
         LocalDate endDate = endTime.toLocalDate();
 
         // 获取日统计数据
-        List<Object[]> dailyRecords = answerRecordRepository.dailyAggregate(
-                studentId, startTime, endTime);
+        List<Object[]> dailyRecords = (courseId != null)
+                ? answerRecordRepository.dailyAggregateByCourse(studentId, courseId, startTime, endTime)
+                : answerRecordRepository.dailyAggregate(studentId, startTime, endTime);
         List<Object[]> dailySessions = studySessionRepository.dailySessionAggregate(
                 studentId, startTime, endTime);
 

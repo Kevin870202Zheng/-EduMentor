@@ -88,12 +88,15 @@ public class DiagnosisController {
             @Parameter(description = "学生 ID（不传则使用当前认证用户）")
             @RequestParam(required = false) UUID studentId,
 
+            @Parameter(description = "课程 ID（可选，限定分析范围）")
+            @RequestParam(required = false) UUID courseId,
+
             @AuthenticationPrincipal User currentUser) {
 
         UUID targetStudentId = resolveStudentId(studentId, currentUser);
-        log.info("认知画像请求: studentId={}", targetStudentId);
+        log.info("认知画像请求: studentId={}, courseId={}", targetStudentId, courseId);
 
-        CognitiveProfile profile = diagnosisService.buildCognitiveProfile(targetStudentId);
+        CognitiveProfile profile = diagnosisService.buildCognitiveProfile(targetStudentId, courseId);
         return ApiResponse.success(profile, "认知画像构建完成");
     }
 
@@ -112,12 +115,15 @@ public class DiagnosisController {
             @Parameter(description = "学生 ID（不传则使用当前认证用户）")
             @RequestParam(required = false) UUID studentId,
 
+            @Parameter(description = "课程 ID（可选，限定分析范围）")
+            @RequestParam(required = false) UUID courseId,
+
             @AuthenticationPrincipal User currentUser) {
 
         UUID targetStudentId = resolveStudentId(studentId, currentUser);
-        log.info("雷达图请求: studentId={}", targetStudentId);
+        log.info("雷达图请求: studentId={}, courseId={}", targetStudentId, courseId);
 
-        RadarChartData radarData = diagnosisService.generateRadarChart(targetStudentId);
+        RadarChartData radarData = diagnosisService.generateRadarChart(targetStudentId, courseId);
         return ApiResponse.success(radarData, "雷达图数据生成完成");
     }
 
@@ -137,15 +143,18 @@ public class DiagnosisController {
             @Parameter(description = "学生 ID（不传则使用当前认证用户）")
             @RequestParam(required = false) UUID studentId,
 
+            @Parameter(description = "课程 ID（可选，限定分析范围）")
+            @RequestParam(required = false) UUID courseId,
+
             @Parameter(description = "回溯天数（默认 30，最大 365）")
             @RequestParam(defaultValue = "30") int daysBack,
 
             @AuthenticationPrincipal User currentUser) {
 
         UUID targetStudentId = resolveStudentId(studentId, currentUser);
-        log.info("热力图请求: studentId={}, daysBack={}", targetStudentId, daysBack);
+        log.info("热力图请求: studentId={}, courseId={}, daysBack={}", targetStudentId, courseId, daysBack);
 
-        HeatMapData heatMap = diagnosisService.generateHeatMap(targetStudentId, daysBack);
+        HeatMapData heatMap = diagnosisService.generateHeatMap(targetStudentId, courseId, daysBack);
         return ApiResponse.success(heatMap, "热力图数据生成完成");
     }
 
@@ -165,18 +174,21 @@ public class DiagnosisController {
             @Parameter(description = "学生 ID（不传则使用当前认证用户）")
             @RequestParam(required = false) UUID studentId,
 
+            @Parameter(description = "课程 ID（可选，限定分析范围）")
+            @RequestParam(required = false) UUID courseId,
+
             @Parameter(description = "回溯天数（默认 30，最大 365）")
             @RequestParam(defaultValue = "30") int daysBack,
 
             @AuthenticationPrincipal User currentUser) {
 
         UUID targetStudentId = resolveStudentId(studentId, currentUser);
-        log.info("诊断总览请求: studentId={}, daysBack={}", targetStudentId, daysBack);
+        log.info("诊断总览请求: studentId={}, courseId={}, daysBack={}", targetStudentId, courseId, daysBack);
 
-        DiagnosisResponse diagnosis = diagnosisService.diagnose(targetStudentId, null, daysBack);
-        CognitiveProfile profile = diagnosisService.buildCognitiveProfile(targetStudentId);
-        RadarChartData radar = diagnosisService.generateRadarChart(targetStudentId);
-        HeatMapData heatmap = diagnosisService.generateHeatMap(targetStudentId, daysBack);
+        DiagnosisResponse diagnosis = diagnosisService.diagnose(targetStudentId, courseId, daysBack);
+        CognitiveProfile profile = diagnosisService.buildCognitiveProfile(targetStudentId, courseId);
+        RadarChartData radar = diagnosisService.generateRadarChart(targetStudentId, courseId);
+        HeatMapData heatmap = diagnosisService.generateHeatMap(targetStudentId, courseId, daysBack);
 
         Map<String, Object> overview = Map.of(
                 "diagnosis", diagnosis,

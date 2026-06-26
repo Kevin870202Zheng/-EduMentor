@@ -340,7 +340,7 @@ public class DataSeeder implements CommandLineRunner {
                 question.setCourseId(course.getId());
                 question.setQuestionType(QuestionType.SINGLE_CHOICE);
                 question.setContent(q.content);
-                question.setOptions(q.options);
+                question.setOptions(parseOptions(q.options));
                 question.setCorrectAnswer(q.answer);
                 question.setExplanation(q.explanation);
                 question.setDifficulty(difficultyToInt(q.difficulty));
@@ -380,6 +380,15 @@ public class DataSeeder implements CommandLineRunner {
 
     private record QuestionData(String kpName, String content, String options,
                                  String answer, String explanation, double difficulty) {}
+
+    private com.fasterxml.jackson.databind.JsonNode parseOptions(String optionsStr) {
+        try {
+            return new com.fasterxml.jackson.databind.ObjectMapper().readTree(optionsStr);
+        } catch (Exception e) {
+            log.warn("parseOptions error: {}", e.getMessage());
+            return new com.fasterxml.jackson.databind.ObjectMapper().createArrayNode();
+        }
+    }
 
     @Transactional
     public void seedEnrollments() {

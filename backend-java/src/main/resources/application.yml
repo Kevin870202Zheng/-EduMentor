@@ -44,15 +44,18 @@ jwt:
 
 # LLM Configuration
 llm:
-  provider: MOCK
-  model: gpt-4o-mini
+  provider: DEEPSEEK
+  model: deepseek-v4-pro
   temperature: 0.7
-  max-tokens: 2048
+  max-tokens: 4096
   max-retries: 3
-  timeout: 30
+  timeout: 60
   openai:
     api-key: ${OPENAI_API_KEY:}
     api-base: https://api.openai.com
+  deepseek:
+    api-key: ${DEEPSEEK_API_KEY:}
+    api-base: https://api.deepseek.com
   ollama:
     base-url: http://localhost:11434
   zhipu:
@@ -70,6 +73,7 @@ llm:
 # RAG Configuration
 rag:
   enabled: true
+  vector-engine: false        # 是否启用向量检索引擎（替代 MockRAGEngine）
   top-k: 5
   max-context-chars: 3000
   embedding-model: text-embedding-3-small

@@ -24,8 +24,17 @@ public class StudentSummaryDto {
     /** 头像 URL */
     private String avatarUrl;
 
-    /** 班级/年级 */
+    /** 班级 */
+    private String className;
+
+    /** 年级 */
     private String grade;
+
+    /** 院系 */
+    private String department;
+
+    /** 专业 */
+    private String major;
 
     /** 总答题数 */
     private long totalAnswers;
@@ -88,8 +97,23 @@ public class StudentSummaryDto {
         return this;
     }
 
+    public StudentSummaryDto className(String className) {
+        this.className = className;
+        return this;
+    }
+
     public StudentSummaryDto grade(String grade) {
         this.grade = grade;
+        return this;
+    }
+
+    public StudentSummaryDto department(String department) {
+        this.department = department;
+        return this;
+    }
+
+    public StudentSummaryDto major(String major) {
+        this.major = major;
         return this;
     }
 
@@ -187,12 +211,36 @@ public class StudentSummaryDto {
         this.avatarUrl = avatarUrl;
     }
 
+    public String getClassName() {
+        return className;
+    }
+
+    public void setClassName(String className) {
+        this.className = className;
+    }
+
     public String getGrade() {
         return grade;
     }
 
     public void setGrade(String grade) {
         this.grade = grade;
+    }
+
+    public String getDepartment() {
+        return department;
+    }
+
+    public void setDepartment(String department) {
+        this.department = department;
+    }
+
+    public String getMajor() {
+        return major;
+    }
+
+    public void setMajor(String major) {
+        this.major = major;
     }
 
     public long getTotalAnswers() {

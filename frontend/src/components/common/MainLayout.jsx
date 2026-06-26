@@ -14,10 +14,11 @@ const { Text } = Typography;
 
 const studentMenuItems = [
   { key: '/student/dashboard', icon: <DashboardOutlined />, label: '学情总览' },
+  { key: '/student/learning', icon: <ReadOutlined />, label: '课程学习' },
   { key: '/student/learning-path', icon: <NodeIndexOutlined />, label: '学习路径' },
   { key: '/student/qa', icon: <QuestionCircleOutlined />, label: '智能答疑' },
   { key: '/student/error-review', icon: <FileExclamationOutlined />, label: '错题复盘' },
-  { key: '/student/courses', icon: <ReadOutlined />, label: '我的课程' },
+  { key: '/student/courses', icon: <BookOutlined />, label: '我的课程' },
   { key: '/student/profile', icon: <UserOutlined />, label: '个人信息' },
 ];
 
@@ -108,8 +109,18 @@ export default function MainLayout({ role = 'student' }) {
           </div>
         )}
 
-        <Menu mode="inline" selectedKeys={[location.pathname]} items={menuItems}
-          onClick={({ key }) => { if (key === '/teacher/courses') navigate(key); else navigate(key); }}
+        <Menu mode="inline" selectedKeys={[location.pathname.startsWith('/student/learning') ? '/student/learning' : location.pathname]} items={menuItems}
+          onClick={({ key }) => {
+            if (key === '/student/learning') {
+              const code = currentCourse?.courseCode;
+              if (code) navigate(`/student/learning/${code}`);
+              else message.warning('请先选择一门课程');
+            } else if (key === '/teacher/courses') {
+              navigate(key);
+            } else {
+              navigate(key);
+            }
+          }}
           style={{ borderRight: 0 }} />
       </Sider>
       <Layout>

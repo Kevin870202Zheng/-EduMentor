@@ -75,7 +75,7 @@ CREATE TABLE IF NOT EXISTS kp_embeddings (
     content_type    VARCHAR(30) NOT NULL     -- 'kp_content' / 'question' / 'material_chunk'
                     CHECK (content_type IN ('kp_content', 'question', 'material_chunk')),
     chunk_text      TEXT        NOT NULL,
-    embedding       vector(1536),           -- OpenAI text-embedding-3-small 维度
+    embedding       text,                   -- 向量化嵌入（JSON 数组文本，生产环境为 vector(1536)）
     course_id       UUID        NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
     course_code     VARCHAR(32) NOT NULL,
     metadata        JSONB       DEFAULT '{}'::jsonb,

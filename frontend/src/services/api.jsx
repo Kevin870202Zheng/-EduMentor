@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const API_BASE = import.meta.env.VITE_API_BASE || '/api/v1';
+const STRATEGY_BACKEND = { balanced: 'REORDER', shortest: 'SHORTEN', explore: 'FOCUS_WEAK' };
+
+const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
 const api = axios.create({
   baseURL: API_BASE,
@@ -103,24 +105,33 @@ export const authAPI = {
 // ============ 模块一：学情分析诊断 ============
 // 后端 DiagnosisController — 全部使用 GET，参数为 query params
 export const diagnosisAPI = {
-  analyze: (params) => api.get('/diagnosis/analyze', { params: { student_id: params.student_id, course_id: params.course_id } }),
-  getRadar: (studentId) =>
-    api.get('/diagnosis/radar', { params: { studentId } }),
-  getHeatmap: (studentId) =>
-    api.get('/diagnosis/heatmap', { params: { studentId } }),
+  analyze: (params) => api.get('/diagnosis/analyze', { params: { studentId: params.student_id, courseId: params.course_id } }),
+  getRadar: (studentId, courseId) =>
+    api.get('/diagnosis/radar', { params: { studentId, courseId } }),
+  getHeatmap: (studentId, courseId) =>
+    api.get('/diagnosis/heatmap', { params: { studentId, courseId } }),
   getProfile: (studentId) =>
     api.get('/diagnosis/profile', { params: { studentId } }),
 };
 
 // ============ 模块二：学习路径规划 ============
 export const pathAPI = {
-  getPlan: (studentId, courseId, strategy = 'balanced') =>
-    api.get('/path/plan', { params: { student_id: studentId, course_id: courseId, strategy } }),
+  getPlan: (studentId, courseId, strategy = 'balanced') => {
+    const adaptStrategy = STRATEGY_BACKEND[strategy] || 'REORDER';
+    return api.post('/paths/plan', {
+      studentId,
+      courseId,
+      name: '默认学习路径',
+      skipMastered: strategy !== 'explore',
+      adaptStrategy,
+    });
+  },
   getNext: (studentId, courseId) =>
     api.get('/path/next', { params: { student_id: studentId, course_id: courseId } }),
   getKnowledgeGraph: (courseId) =>
     api.get(`/path/knowledge-graph/${courseId}`),
-  adapt: (data) => api.post('/path/adapt', data),
+  adapt: (pathId, strategy) =>
+    api.post('/paths/adapt', { pathId, adaptStrategy: strategy }),
 };
 
 // ============ 模块三：智能答疑辅导 ============
@@ -133,9 +144,9 @@ export const qaAPI = {
 export const errorAPI = {
   analyze: (data) => api.post('/review/error-analysis', data),
   getRecords: (studentId, params = {}) =>
-    api.get(`/review/records/${studentId}`, { params }),
-  getDetail: (recordId) => api.get(`/review/records/${recordId}`),
-  submitReview: (data) => api.post('/review/review', data),
+    api.get('/reviews/errors', { params: { studentId, ...params } }),
+  getDetail: (recordId) => api.get(`/reviews/errors/${recordId}`),
+  submitReview: (recordId, data) => api.put(`/reviews/errors/${recordId}/review`, data),
   getSchedule: (studentId) => api.get(`/review/schedule/${studentId}`),
   getReflectionGuide: () => api.get('/review/reflection-guide'),
 };
@@ -208,6 +219,28 @@ export const enrollmentAPI = {
 export const studentAPI = {
   getProfile: (userId) => api.get(`/students/${userId}/profile`),
   updateProfile: (userId, data) => api.put(`/students/${userId}/profile`, data),
+};
+
+// ============ 模块十：课程教师分配 ============
+export const courseTeacherAPI = {
+  listTeachers: (courseId) => api.get(`/course-teachers/course/${courseId}`),
+  assignTeacher: (data) => api.post('/course-teachers', data),
+  removeTeacher: (id) => api.delete(`/course-teachers/${id}`),
+  listAvailable: () => api.get('/course-teachers/available'),
+};
+
+// ============ 模块十一：答题提交 ============
+export const answerAPI = {
+  submit: (data) => api.post('/v1/answers', data),
+};
+
+// ============ 模块十二：学习中心 ============
+export const learningAPI = {
+  getKpsByCourse: (courseId) => api.get(`/knowledge/courses/${courseId}/points`),
+  getQuestionsByKp: (kpId) => api.get(`/v1/questions`, { params: { knowledgePointId: kpId } }),
+  getGraph: (courseId) => api.get(`/knowledge/courses/${courseId}/graph`),
+  getDiagnosisProfile: (studentId, courseId) =>
+    api.get('/diagnosis/profile', { params: { studentId, courseId } }),
 };
 
 export default api;

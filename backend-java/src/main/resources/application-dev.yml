@@ -24,7 +24,7 @@ jwt:
   secret-key: edumentor-dev-secret-key-minimum-256-bits-please-replace-in-production
 
 llm:
-  provider: MOCK
+  provider: DEEPSEEK
 
 logging:
   level:

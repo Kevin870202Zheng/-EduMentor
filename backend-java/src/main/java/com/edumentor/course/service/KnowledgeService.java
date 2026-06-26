@@ -11,12 +11,14 @@ import com.edumentor.course.entity.enums.RelationType;
 import com.edumentor.course.repository.CourseRepository;
 import com.edumentor.course.repository.KnowledgePointRepository;
 import com.edumentor.course.repository.KnowledgeRelationRepository;
+import jakarta.persistence.criteria.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -213,17 +215,24 @@ public class KnowledgeService {
         Pageable pageable = PageRequest.of(page - 1, size,
                 Sort.by(Sort.Direction.DESC, "createdAt"));
 
-        Page<Course> coursePage;
+        Specification<Course> spec = Specification.where(null);
+
         if (keyword != null && !keyword.isBlank()) {
-            coursePage = courseRepository.findByNameContainingIgnoreCase(keyword, pageable);
-        } else if (subject != null && !subject.isBlank()) {
-            coursePage = courseRepository.findBySubject(subject, pageable);
-        } else if (publishedOnly) {
-            coursePage = courseRepository.findByIsPublishedTrue(pageable);
-        } else {
-            coursePage = courseRepository.findAll(pageable);
+            spec = spec.and((root, query, cb) ->
+                    cb.like(cb.lower(root.get("name")), "%" + keyword.toLowerCase() + "%"));
         }
 
+        if (subject != null && !subject.isBlank()) {
+            spec = spec.and((root, query, cb) ->
+                    cb.equal(root.get("subject"), subject));
+        }
+
+        if (publishedOnly) {
+            spec = spec.and((root, query, cb) ->
+                    cb.isTrue(root.get("isPublished")));
+        }
+
+        Page<Course> coursePage = courseRepository.findAll(spec, pageable);
         return coursePage.map(CourseDto::fromEntity);
     }
 

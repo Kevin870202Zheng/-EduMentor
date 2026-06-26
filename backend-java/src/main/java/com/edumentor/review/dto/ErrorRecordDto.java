@@ -20,6 +20,7 @@ import java.util.UUID;
 public class ErrorRecordDto {
 
     private UUID id;
+    private UUID courseId;
     private UUID studentId;
     private UUID questionId;
     private UUID knowledgePointId;
@@ -50,6 +51,7 @@ public class ErrorRecordDto {
         }
         ErrorRecordDto dto = new ErrorRecordDto();
         dto.setId(record.getId());
+        dto.setCourseId(record.getCourseId());
         dto.setStudentId(record.getStudentId());
         dto.setQuestionId(record.getQuestionId());
         dto.setKnowledgePointId(record.getKnowledgePointId());

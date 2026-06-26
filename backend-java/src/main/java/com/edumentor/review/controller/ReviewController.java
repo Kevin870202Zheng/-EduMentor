@@ -74,9 +74,10 @@ public class ReviewController {
     @GetMapping("/errors")
     public ResponseEntity<List<ErrorRecordDto>> getErrorRecords(
             @RequestParam UUID studentId,
+            @RequestParam(required = false) UUID courseId,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
-        List<ErrorRecord> records = reviewService.getErrorRecords(studentId, page, size);
+        List<ErrorRecord> records = reviewService.getErrorRecords(studentId, courseId, page, size);
         List<ErrorRecordDto> dtos = records.stream()
                 .map(ErrorRecordDto::fromEntity)
                 .collect(Collectors.toList());

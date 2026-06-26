@@ -24,6 +24,9 @@ public class ChatRequest {
     /** 关联知识点 ID（可选，用于 RAG 检索限定范围） */
     private UUID knowledgePointId;
 
+    /** 课程 ID（可选，用于按课程过滤 RAG 检索） */
+    private UUID courseId;
+
     /** 消息类型（可选，如 QUESTION / HINT_REQUEST 等，默认 TEXT） */
     private String messageType;
 }

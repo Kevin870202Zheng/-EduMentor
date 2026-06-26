@@ -2,6 +2,8 @@ package com.edumentor.course.service;
 
 import com.edumentor.course.entity.CourseMaterial;
 import com.edumentor.course.repository.CourseMaterialRepository;
+import com.edumentor.course.repository.CourseRepository;
+import com.edumentor.engine.embedding.VectorizationService;
 import com.edumentor.engine.llm.LLMService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -30,6 +32,8 @@ public class CourseExtractionService {
     private final CourseMaterialRepository courseMaterialRepository;
     private final KnowledgeService knowledgeService;
     private final ObjectMapper objectMapper;
+    private final VectorizationService vectorizationService;
+    private final CourseRepository courseRepository;
 
     private static final String EXTRACTION_SYSTEM_PROMPT =
             "你是一个专业的课程内容提取助手。请从提供的课程资料中，提取知识点网络、先修关系和配套习题。" +
@@ -40,11 +44,15 @@ public class CourseExtractionService {
     public CourseExtractionService(LLMService llmService,
                                    CourseMaterialRepository courseMaterialRepository,
                                    KnowledgeService knowledgeService,
-                                   ObjectMapper objectMapper) {
+                                   ObjectMapper objectMapper,
+                                   VectorizationService vectorizationService,
+                                   CourseRepository courseRepository) {
         this.llmService = llmService;
         this.courseMaterialRepository = courseMaterialRepository;
         this.knowledgeService = knowledgeService;
         this.objectMapper = objectMapper;
+        this.vectorizationService = vectorizationService;
+        this.courseRepository = courseRepository;
     }
 
     /**
@@ -139,6 +147,16 @@ public class CourseExtractionService {
         // 更新状态
         material.setStatus("published");
         courseMaterialRepository.save(material);
+
+        // 自动向量化课程知识点
+        try {
+            log.info("开始向量化课程内容: courseId={}", courseId);
+            int count = vectorizationService.vectorizeCourse(courseId, material.getCourseCode());
+            log.info("课程内容向量化完成: courseId={}, count={}", courseId, count);
+        } catch (Exception e) {
+            log.warn("向量化失败（不影响发布）: {}", e.getMessage());
+        }
+
         log.info("提取结果发布完成: materialId={}", materialId);
     }
 

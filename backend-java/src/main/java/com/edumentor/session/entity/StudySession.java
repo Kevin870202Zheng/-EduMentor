@@ -52,7 +52,7 @@ public class StudySession extends BaseEntity {
     @Column(name = "focus_score")
     private Double focusScore;
 
-    @Column(columnDefinition = "jsonb")
+    @Column(columnDefinition = "jsonb", insertable = false, updatable = false)
     private String metadata;
 
     @Column(name = "interrupt_reason", columnDefinition = "text")

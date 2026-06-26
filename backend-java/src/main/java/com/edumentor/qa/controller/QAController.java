@@ -201,6 +201,9 @@ public class QAController {
         if (principal instanceof UUID) {
             return (UUID) principal;
         }
+        if (principal instanceof com.edumentor.user.entity.User) {
+            return ((com.edumentor.user.entity.User) principal).getId();
+        }
         if (principal instanceof String) {
             String principalStr = (String) principal;
             // 格式: "userId:role" 或 "userId"
