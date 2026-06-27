@@ -1,7 +1,7 @@
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Card, Table, Button, Modal, List, Tag, Typography, Spin, message, Empty, Space } from 'antd';
-import { PlusOutlined, BookOutlined } from '@ant-design/icons';
+import { Card, Table, Button, Modal, List, Tag, Typography, Spin, message, Empty, Space, Popconfirm } from 'antd';
+import { PlusOutlined, BookOutlined, DeleteOutlined } from '@ant-design/icons';
 import { enrollmentAPI, courseAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -13,6 +13,7 @@ export default function StudentCourses() {
   const [loading, setLoading] = useState(true);
   const [enrollModalOpen, setEnrollModalOpen] = useState(false);
   const [enrolling, setEnrolling] = useState(null);
+  const [dropping, setDropping] = useState(null);
   const navigate = useNavigate();
   const { user } = useAuth();
   const { setSelectedCourseId } = useOutletContext();
@@ -25,17 +26,19 @@ export default function StudentCourses() {
     setLoading(true);
     try {
       const enrolledRes = await enrollmentAPI.listByStudent(user?.id);
-      setEnrolled(enrolledRes?.data || enrolledRes || []);
+      const enrolledList = enrolledRes?.data || enrolledRes || [];
+      setEnrolled(enrolledList);
+      // 获取所有课程和已选课程的差集
+      try {
+        const allRes = await courseAPI.list({ publishedOnly: true });
+        const allCourses = allRes?.data?.items || allRes?.data || [];
+        const enrolledIds = new Set(enrolledList.map(e => e.courseId));
+        setAvailableCourses(allCourses.filter(c => !enrolledIds.has(c.id)));
+      } catch (e) {
+        setAvailableCourses([]);
+      }
     } catch (e) {
       setEnrolled([]);
-    }
-    try {
-      const allRes = await courseAPI.list({ publishedOnly: true });
-      const allCourses = allRes?.data?.content || allRes?.data || [];
-      const enrolledIds = new Set(enrolled.map(e => e.courseId));
-      setAvailableCourses(allCourses.filter(c => !enrolledIds.has(c.id)));
-    } catch (e) {
-      setAvailableCourses([]);
     }
     setLoading(false);
   };
@@ -53,6 +56,18 @@ export default function StudentCourses() {
     setEnrolling(null);
   };
 
+  const handleDrop = async (record) => {
+    setDropping(record.id);
+    try {
+      await enrollmentAPI.drop(record.id);
+      message.success(`已退课：${record.courseName || record.courseCode}`);
+      loadData();
+    } catch (err) {
+      message.error('退课失败');
+    }
+    setDropping(null);
+  };
+
   const columns = [
     {
       title: '课程编号', dataIndex: 'courseCode', key: 'courseCode', width: 120,
@@ -68,19 +83,31 @@ export default function StudentCourses() {
       render: (t) => t ? new Date(t).toLocaleDateString('zh-CN') : '-',
     },
     {
-      title: '操作', key: 'action', width: 120,
+      title: '操作', key: 'action', width: 200,
       render: (_, record) => (
-        <Button type="primary" size="small" icon={<BookOutlined />}
-          onClick={() => {
-            if (setSelectedCourseId) setSelectedCourseId(record.courseId);
-            navigate(`/student/learning/${record.courseCode}`);
-          }}>
-          开始学习
-        </Button>
+        <Space>
+          <Button type="primary" size="small" icon={<BookOutlined />}
+            onClick={() => {
+              if (setSelectedCourseId) setSelectedCourseId(record.courseId);
+              navigate(`/student/learning/${record.courseCode}`);
+            }}>
+            开始学习
+          </Button>
+          <Popconfirm
+            title="确认退课"
+            description={`确定要退选「${record.courseName || record.courseCode}」吗？学习进度将被保留。`}
+            onConfirm={() => handleDrop(record)}
+            okText="确认退课"
+            cancelText="取消"
+          >
+            <Button size="small" danger icon={<DeleteOutlined />} loading={dropping === record.id}>
+              退课
+            </Button>
+          </Popconfirm>
+        </Space>
       ),
     },
   ];
-
 
   if (loading) return <Spin size="large" style={{ display: 'flex', justifyContent: 'center', marginTop: 100 }} />;
 
