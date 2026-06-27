@@ -92,10 +92,10 @@ export default function TeacherCourseList() {
     },
     {
       title: '状态',
-      dataIndex: 'published',
-      key: 'published',
+      dataIndex: 'isPublished',
+      key: 'isPublished',
       width: 80,
-      render: (v) => v ? <Tag color="green">已发布</Tag> : <Tag>未发布</Tag>,
+      render: (v) => v ? <Tag color="green">已发布</Tag> : <Tag color="orange">未发布</Tag>,
     },
     {
       title: '操作',

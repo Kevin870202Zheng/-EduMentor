@@ -247,7 +247,7 @@ export default function TeacherCourseManage() {
             {' · '}学科: {courseInfo.subject}
             {' · '}年级: {courseInfo.gradeLevel || '通用'}
             {' · '}
-            {courseInfo.published ? <Tag color="green" size="small">已发布</Tag> : <Tag size="small">未发布</Tag>}
+            {courseInfo.isPublished ? <Tag color="green" size="small">已发布</Tag> : <Tag color="orange" size="small">未发布</Tag>}
           </Text>
         </div>
       </div>
