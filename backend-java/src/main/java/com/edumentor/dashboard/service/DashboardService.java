@@ -34,17 +34,18 @@ public class DashboardService {
         LocalDateTime todayStart = today.atStartOfDay();
         LocalDateTime yesterdayStart = today.minusDays(1).atStartOfDay();
         LocalDateTime weekAgo = today.minusDays(7).atStartOfDay();
+        UUID uuid = courseIdStr != null ? UUID.fromString(courseIdStr) : null;
 
-        // 总学生数
+        // 选了该课的学生数
         Number totalStudents = (Number) entityManager.createNativeQuery(
-            "SELECT COUNT(*) FROM users WHERE role = 'STUDENT' AND is_active = true"
-        ).getSingleResult();
+            "SELECT COUNT(*) FROM student_courses WHERE course_id = :cid AND status = 'active'"
+        ).setParameter("cid", uuid).getSingleResult();
         dto.totalStudents(totalStudents.intValue());
 
         // 今日活跃学生数
         Number activeToday = (Number) entityManager.createNativeQuery(
-            "SELECT COUNT(DISTINCT ar.student_id) FROM answer_records ar WHERE ar.attempted_at >= :today"
-        ).setParameter("today", todayStart).getSingleResult();
+            "SELECT COUNT(DISTINCT ar.student_id) FROM answer_records ar WHERE ar.course_id = :cid AND ar.attempted_at >= :today"
+        ).setParameter("cid", uuid).setParameter("today", todayStart).getSingleResult();
         dto.activeStudentsToday(activeToday.intValue());
         dto.activeRate(totalStudents.intValue() > 0 ? (double) activeToday.intValue() / totalStudents.intValue() * 100 : 0);
 
@@ -58,33 +59,33 @@ public class DashboardService {
         // 今日正确率
         Number todayCorrect = (Number) entityManager.createNativeQuery(
             "SELECT COALESCE(SUM(CASE WHEN is_correct = true THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0), 0) " +
-            "FROM answer_records WHERE attempted_at >= :today"
-        ).setParameter("today", todayStart).getSingleResult();
+            "FROM answer_records WHERE course_id = :cid AND attempted_at >= :today"
+        ).setParameter("cid", uuid).setParameter("today", todayStart).getSingleResult();
 
         // 昨日正确率
         Number yesterdayCorrect = (Number) entityManager.createNativeQuery(
             "SELECT COALESCE(SUM(CASE WHEN is_correct = true THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0), 0) " +
-            "FROM answer_records WHERE attempted_at >= :yesterday AND attempted_at < :today"
-        ).setParameter("yesterday", yesterdayStart).setParameter("today", todayStart).getSingleResult();
+            "FROM answer_records WHERE course_id = :cid AND attempted_at >= :yesterday AND attempted_at < :today"
+        ).setParameter("cid", uuid).setParameter("yesterday", yesterdayStart).setParameter("cid", uuid).setParameter("today", todayStart).getSingleResult();
 
         dto.correctRateChange(todayCorrect.doubleValue() - yesterdayCorrect.doubleValue());
 
         // 本周答题总数
         Number weekAnswers = (Number) entityManager.createNativeQuery(
-            "SELECT COUNT(*) FROM answer_records WHERE attempted_at >= :weekAgo"
-        ).setParameter("weekAgo", weekAgo).getSingleResult();
+            "SELECT COUNT(*) FROM answer_records WHERE course_id = :cid AND attempted_at >= :weekAgo"
+        ).setParameter("cid", uuid).setParameter("weekAgo", weekAgo).getSingleResult();
         dto.totalAnswersThisWeek(weekAnswers.longValue());
 
         // 今日答题数
         Number todayAnswers = (Number) entityManager.createNativeQuery(
-            "SELECT COUNT(*) FROM answer_records WHERE attempted_at >= :today"
-        ).setParameter("today", todayStart).getSingleResult();
+            "SELECT COUNT(*) FROM answer_records WHERE course_id = :cid AND attempted_at >= :today"
+        ).setParameter("cid", uuid).setParameter("today", todayStart).getSingleResult();
         dto.answersToday(todayAnswers.longValue());
 
         // 总正确数
         Number totalCorrect = (Number) entityManager.createNativeQuery(
-            "SELECT COUNT(*) FROM answer_records WHERE is_correct = true"
-        ).getSingleResult();
+            "SELECT COUNT(*) FROM answer_records WHERE course_id = :cid AND is_correct = true"
+        ).setParameter("cid", uuid).getSingleResult();
         dto.totalCorrectAnswers(totalCorrect.longValue());
 
         // 预警统计
@@ -116,9 +117,10 @@ public class DashboardService {
             "COUNT(*), kp.difficulty " +
             "FROM answer_records ar " +
             "JOIN knowledge_points kp ON kp.id = ar.knowledge_point_id " +
+            "WHERE ar.course_id = :cid " +
             "GROUP BY ar.knowledge_point_id, kp.name, kp.difficulty " +
             "ORDER BY 3 ASC"
-        ).getResultList();
+        ).setParameter("cid", uuid).getResultList();
 
         List<ClassOverviewDto.KnowledgeMasterySummary> masteryList = new ArrayList<>();
         for (Object[] row : masteryRows) {
@@ -144,6 +146,15 @@ public class DashboardService {
         String orderClause = buildStudentSortClause(sortBy, sortDir);
         LocalDate today = LocalDate.now();
         LocalDateTime todayStart = today.atStartOfDay();
+        UUID uuid = courseIdStr != null ? UUID.fromString(courseIdStr) : null;
+        if (uuid == null) {
+            Map<String, Object> empty = new LinkedHashMap<>();
+            empty.put("items", Collections.emptyList());
+            empty.put("total", 0);
+            empty.put("page", page);
+            empty.put("hasMore", false);
+            return empty;
+        }
 
         // 总记录数
         Number total = (Number) entityManager.createNativeQuery(
@@ -167,7 +178,7 @@ public class DashboardService {
             "  SUM(CASE WHEN ar.attempted_at >= :today AND ar.is_correct THEN 1 ELSE 0 END) AS today_correct, " +
             "  SUM(CASE WHEN ar.attempted_at >= :today THEN 1 ELSE 0 END) AS today_ans, " +
             "  SUM(CASE WHEN ar.is_correct THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0) AS correct_rate " +
-            "  FROM answer_records ar GROUP BY ar.student_id " +
+            "  FROM answer_records ar WHERE ar.course_id = :courseId GROUP BY ar.student_id " +
             ") stats ON stats.student_id = u.id " +
             "LEFT JOIN ( " +
             "  SELECT student_id, COUNT(*) AS unresolved FROM alert_records " +
@@ -178,9 +189,11 @@ public class DashboardService {
             "  FROM study_sessions WHERE start_time >= :today GROUP BY student_id " +
             ") sess ON sess.student_id = u.id " +
             "WHERE u.role = 'STUDENT' AND u.is_active = true " +
+            "AND u.id IN (SELECT student_id FROM student_courses WHERE course_id = :courseId) " +
             "ORDER BY " + orderClause + " " +
             "LIMIT :size OFFSET :offset"
         )
+        .setParameter("courseId", uuid)
         .setParameter("today", todayStart)
         .setParameter("size", size)
         .setParameter("offset", offset)
@@ -219,11 +232,12 @@ public class DashboardService {
             List<String> weakAreas = entityManager.createNativeQuery(
                 "SELECT kp.name FROM answer_records ar " +
                 "JOIN knowledge_points kp ON kp.id = ar.knowledge_point_id " +
-                "WHERE ar.student_id = :sid " +
+                "WHERE ar.student_id = :sid AND ar.course_id = :courseId " +
                 "GROUP BY ar.knowledge_point_id, kp.name " +
                 "HAVING SUM(CASE WHEN ar.is_correct THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0) < 60 " +
                 "ORDER BY 1 ASC LIMIT 5"
-            ).setParameter("sid", UUID.fromString(s.getStudentId())).getResultList();
+            ).setParameter("sid", UUID.fromString(s.getStudentId()))
+             .setParameter("courseId", uuid).getResultList();
             s.weakAreas(weakAreas);
 
             items.add(s);
@@ -333,63 +347,63 @@ public class DashboardService {
 
         // 今日活跃
         Number active = (Number) entityManager.createNativeQuery(
-            "SELECT COUNT(DISTINCT student_id) FROM answer_records WHERE attempted_at >= :today"
-        ).setParameter("today", todayStart).getSingleResult();
+            "SELECT COUNT(DISTINCT student_id) FROM answer_records WHERE course_id = :cid AND attempted_at >= :today"
+        ).setParameter("cid", uuid).setParameter("today", todayStart).getSingleResult();
         dto.activeStudents(active.intValue());
 
         // 今日答题
         Number newAnswers = (Number) entityManager.createNativeQuery(
-            "SELECT COUNT(*) FROM answer_records WHERE attempted_at >= :today"
-        ).setParameter("today", todayStart).getSingleResult();
+            "SELECT COUNT(*) FROM answer_records WHERE course_id = :cid AND attempted_at >= :today"
+        ).setParameter("cid", uuid).setParameter("today", todayStart).getSingleResult();
         dto.newAnswers(newAnswers.longValue());
 
         // 今日正确率
         Number todayCorrect = (Number) entityManager.createNativeQuery(
             "SELECT COALESCE(SUM(CASE WHEN is_correct THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0), 0) " +
-            "FROM answer_records WHERE attempted_at >= :today"
-        ).setParameter("today", todayStart).getSingleResult();
+            "FROM answer_records WHERE course_id = :cid AND attempted_at >= :today"
+        ).setParameter("cid", uuid).setParameter("today", todayStart).getSingleResult();
         dto.todayCorrectRate(todayCorrect.doubleValue());
 
         // 昨日正确率
         Number yesterdayCorrect = (Number) entityManager.createNativeQuery(
             "SELECT COALESCE(SUM(CASE WHEN is_correct THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0), 0) " +
-            "FROM answer_records WHERE attempted_at >= :yesterday AND attempted_at < :today"
-        ).setParameter("yesterday", yesterdayStart).setParameter("today", todayStart).getSingleResult();
+            "FROM answer_records WHERE course_id = :cid AND attempted_at >= :yesterday AND attempted_at < :today"
+        ).setParameter("cid", uuid).setParameter("yesterday", yesterdayStart).setParameter("cid", uuid).setParameter("today", todayStart).getSingleResult();
         dto.correctRateChange(todayCorrect.doubleValue() - yesterdayCorrect.doubleValue());
 
         // 学习会话
         Number sessions = (Number) entityManager.createNativeQuery(
             "SELECT COUNT(*) FROM study_sessions WHERE start_time >= :today"
-        ).setParameter("today", todayStart).getSingleResult();
+        ).setParameter("cid", uuid).setParameter("today", todayStart).getSingleResult();
         dto.newSessions(sessions.intValue());
 
         Number totalMinutes = (Number) entityManager.createNativeQuery(
             "SELECT COALESCE(SUM(duration_seconds) / 60, 0) FROM study_sessions WHERE start_time >= :today"
-        ).setParameter("today", todayStart).getSingleResult();
+        ).setParameter("cid", uuid).setParameter("today", todayStart).getSingleResult();
         dto.totalStudyMinutes(totalMinutes.intValue());
         dto.averageStudyMinutes(active.intValue() > 0 ? (double) totalMinutes.intValue() / active.intValue() : 0);
 
         // 预警
         Number newAlerts = (Number) entityManager.createNativeQuery(
             "SELECT COUNT(*) FROM alert_records WHERE created_at >= :today"
-        ).setParameter("today", todayStart).getSingleResult();
+        ).setParameter("cid", uuid).setParameter("today", todayStart).getSingleResult();
         dto.newAlerts(newAlerts.intValue());
 
         Number resolvedAlerts = (Number) entityManager.createNativeQuery(
             "SELECT COUNT(*) FROM alert_records WHERE resolved_at >= :today"
-        ).setParameter("today", todayStart).getSingleResult();
+        ).setParameter("cid", uuid).setParameter("today", todayStart).getSingleResult();
         dto.resolvedAlerts(resolvedAlerts.intValue());
 
         // 错题
         Number newErrors = (Number) entityManager.createNativeQuery(
             "SELECT COUNT(*) FROM error_records WHERE created_at >= :today"
-        ).setParameter("today", todayStart).getSingleResult();
+        ).setParameter("cid", uuid).setParameter("today", todayStart).getSingleResult();
         dto.newErrors(newErrors.intValue());
 
         // 复习
         Number reviewed = (Number) entityManager.createNativeQuery(
             "SELECT COUNT(*) FROM review_records WHERE reviewed_at >= :today"
-        ).setParameter("today", todayStart).getSingleResult();
+        ).setParameter("cid", uuid).setParameter("today", todayStart).getSingleResult();
         dto.reviewedCount(reviewed.intValue());
 
         // 进步最快学生
@@ -408,7 +422,7 @@ public class DashboardService {
             "WHERE ar.attempted_at >= :today " +
             "GROUP BY ar.student_id, u.display_name, pre.pre_rate " +
             "ORDER BY improvement DESC LIMIT 1"
-        ).setParameter("today", todayStart).setParameter("yesterday", yesterdayStart).getResultList();
+        ).setParameter("cid", uuid).setParameter("today", todayStart).setParameter("yesterday", yesterdayStart).getResultList();
 
         if (!topStudent.isEmpty()) {
             Object[] row = topStudent.get(0);
@@ -458,6 +472,7 @@ public class DashboardService {
             "COUNT(DISTINCT ar.student_id) " +
             "FROM answer_records ar JOIN knowledge_points kp ON kp.id = ar.knowledge_point_id " +
             "JOIN courses c ON c.id = kp.course_id " +
+            "WHERE ar.course_id = :cid " +
             "GROUP BY kp.id, kp.name, c.name " +
             "HAVING SUM(CASE WHEN ar.is_correct THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0) < 50 " +
             "ORDER BY 4 ASC LIMIT 3"
@@ -483,8 +498,8 @@ public class DashboardService {
 
         // 2. 活跃度建议
         Number activeWeek = (Number) entityManager.createNativeQuery(
-            "SELECT COUNT(DISTINCT student_id) FROM answer_records WHERE attempted_at >= :weekAgo"
-        ).setParameter("weekAgo", weekAgo).getSingleResult();
+            "SELECT COUNT(DISTINCT student_id) FROM answer_records WHERE course_id = :cid AND attempted_at >= :weekAgo"
+        ).setParameter("cid", uuid).setParameter("weekAgo", weekAgo).getSingleResult();
 
         Number totalStudents = (Number) entityManager.createNativeQuery(
             "SELECT COUNT(*) FROM users WHERE role = 'STUDENT' AND is_active = true"
