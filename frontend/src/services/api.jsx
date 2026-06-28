@@ -154,15 +154,15 @@ export const errorAPI = {
 // ============ 模块五：教师驾驶舱 ============
 export const dashboardAPI = {
   getSummary: (courseId) =>
-    api.get('/dashboard/summary', { params: { course_id: courseId } }),
+    api.get('/dashboard/overview', { params: { courseId } }),
   getStudentList: (courseId, page = 1) =>
-    api.get('/dashboard/student-list', { params: { course_id: courseId, page } }),
+    api.get('/dashboard/students', { params: { courseId, page, size: 20, sortBy: 'correctRate', sortDir: 'asc' } }),
   getWeakKnowledge: (courseId) =>
-    api.get('/dashboard/weak-knowledge', { params: { course_id: courseId } }),
+    api.get('/dashboard/weak-knowledge', { params: { courseId } }),
   getDailyBrief: (courseId) =>
-    api.get('/dashboard/daily-brief', { params: { course_id: courseId } }),
+    api.get('/dashboard/daily-brief', { params: { courseId } }),
   getSuggestions: (courseId) =>
-    api.get('/dashboard/strategy-suggestions', { params: { course_id: courseId } }),
+    api.get('/dashboard/strategy-suggestions', { params: { courseId } }),
 };
 
 // ============ 模块六：课程内容管理（教师端） ============

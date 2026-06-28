@@ -174,7 +174,7 @@ public class DashboardService {
             "  WHERE is_resolved = false GROUP BY student_id " +
             ") alert_cnt ON alert_cnt.student_id = u.id " +
             "LEFT JOIN ( " +
-            "  SELECT student_id, COALESCE(SUM(duration_minutes), 0) AS duration_today " +
+            "  SELECT student_id, COALESCE(SUM(duration_seconds) / 60, 0) AS duration_today " +
             "  FROM study_sessions WHERE start_time >= :today GROUP BY student_id " +
             ") sess ON sess.student_id = u.id " +
             "WHERE u.role = 'STUDENT' AND u.is_active = true " +
@@ -222,7 +222,7 @@ public class DashboardService {
                 "WHERE ar.student_id = :sid " +
                 "GROUP BY ar.knowledge_point_id, kp.name " +
                 "HAVING SUM(CASE WHEN ar.is_correct THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0) < 60 " +
-                "ORDER BY 3 ASC LIMIT 5"
+                "ORDER BY 1 ASC LIMIT 5"
             ).setParameter("sid", UUID.fromString(s.getStudentId())).getResultList();
             s.weakAreas(weakAreas);
 
@@ -364,7 +364,7 @@ public class DashboardService {
         dto.newSessions(sessions.intValue());
 
         Number totalMinutes = (Number) entityManager.createNativeQuery(
-            "SELECT COALESCE(SUM(duration_minutes), 0) FROM study_sessions WHERE start_time >= :today"
+            "SELECT COALESCE(SUM(duration_seconds) / 60, 0) FROM study_sessions WHERE start_time >= :today"
         ).setParameter("today", todayStart).getSingleResult();
         dto.totalStudyMinutes(totalMinutes.intValue());
         dto.averageStudyMinutes(active.intValue() > 0 ? (double) totalMinutes.intValue() / active.intValue() : 0);
