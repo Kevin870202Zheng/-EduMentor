@@ -5,7 +5,7 @@ import * as echarts from 'echarts/core';
 import { BarChart, PieChart } from 'echarts/charts';
 import { TooltipComponent, LegendComponent, TitleComponent } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
-import { dashboardAPI, courseAPI } from '../services/api';
+import { dashboardAPI, courseAPI, enrollmentAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { TeamOutlined, BookOutlined, WarningOutlined, TrophyOutlined, RiseOutlined, FileTextOutlined } from '@ant-design/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -19,6 +19,7 @@ export default function TeacherDashboard() {
   const [overview, setOverview] = useState(null);
   const [students, setStudents] = useState([]);
   const [myCourses, setMyCourses] = useState([]);
+  const [courseCounts, setCourseCounts] = useState({});
   const [selectedCourseId, setSelectedCourseId] = useState(null);
   const [selectedClass, setSelectedClass] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
@@ -36,9 +37,21 @@ export default function TeacherDashboard() {
     try {
       const res = await courseAPI.listByTeacher(user?.id);
       const list = res?.data || res || [];
+      // 查询每门课的学生数
+      const courseCounts = {};
+      await Promise.all(list.map(async (c) => {
+        try {
+          const cntRes = await enrollmentAPI.countByCourse(c.id);
+          courseCounts[c.id] = cntRes?.data || 0;
+        } catch (e) { courseCounts[c.id] = 0; }
+      }));
+      setCourseCounts(courseCounts);
       setMyCourses(list);
       const urlCourseId = searchParams.get('courseId');
-      const defaultId = urlCourseId || (list.length > 0 ? list[0].id : null);
+      // 默认选中：URL 指定的 → 第一个有学生的 → 第一个课程
+      const defaultId = urlCourseId
+        || list.find(c => (courseCounts[c.id] || 0) > 0)?.id
+        || (list.length > 0 ? list[0].id : null);
       if (defaultId) setSelectedCourseId(defaultId);
       else setLoading(false);
     } catch (e) { setLoading(false); }
@@ -132,7 +145,11 @@ export default function TeacherDashboard() {
             placeholder="选择课程"
             value={selectedCourseId}
             onChange={setSelectedCourseId}
-            options={myCourses.map(c => ({ label: `[${c.courseCode}] ${c.name}`, value: c.id }))}
+            options={myCourses.map(c => ({
+              label: `[${c.courseCode}] ${c.name} (${courseCounts[c.id] || 0}人)`,
+              value: c.id,
+              disabled: !(courseCounts[c.id] || 0) > 0,
+            }))}
           />
           {classList.length > 0 && (
             <Select
