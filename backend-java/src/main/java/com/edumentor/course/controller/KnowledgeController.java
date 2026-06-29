@@ -58,8 +58,8 @@ public class KnowledgeController {
     @Operation(summary = "创建课程", description = "创建新课程，需要教师或管理员权限")
     public ApiResponse<CourseDto> createCourse(
             @Valid @RequestBody CourseCreateRequest request,
-            @AuthenticationPrincipal org.springframework.security.core.userdetails.User principal) {
-        UUID userId = UUID.fromString(principal.getUsername());
+            @AuthenticationPrincipal com.edumentor.user.entity.User principal) {
+        UUID userId = principal.getId();
         log.info("REST 创建课程: name={}, userId={}", request.getName(), userId);
         CourseDto course = knowledgeService.createCourse(request, userId);
         return ApiResponse.success(course, "课程创建成功");
