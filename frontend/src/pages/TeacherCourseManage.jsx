@@ -46,7 +46,7 @@ export default function TeacherCourseManage() {
   const [selectedRole, setSelectedRole] = useState('tutor');
   const [assigning, setAssigning] = useState(false);
   const [uploading, setUploading] = useState(0);
-  const uploadQueue = useRef([]);
+  const uploadCount = useRef(0);
 
   useEffect(() => {
     loadData();
@@ -71,18 +71,18 @@ export default function TeacherCourseManage() {
   // ========== 资料管理 ==========
 
   const handleUpload = async (file) => {
-    uploadQueue.current.push(file);
-    setUploading(uploadQueue.current.length);
-    const idx = uploadQueue.current.length;
+    uploadCount.current += 1;
+    setUploading(uploadCount.current);
+    const idx = uploadCount.current;
     try {
       await courseContentAPI.uploadMaterial(courseCode, file);
-      message.success(`[${idx}] xe3x80x8c${file.name}xe3x80x8dxe4xb8x8axe4xbcxa0xe6x88x90xe5x8ax9f`);
+      message.success(`[${idx}] ${file.name} 上传成功`);
     } catch (err) {
-      message.error(`[${idx}] xe3x80x8c${file.name}xe3x80x8dxe4xb8x8axe4xbcxa0xe5xa4xb1xe8xb4xa5`);
+      message.error(`[${idx}] ${file.name} 上传失败`);
     }
-    uploadQueue.current = uploadQueue.current.filter(f => f !== file);
-    setUploading(uploadQueue.current.length);
-    if (uploadQueue.current.length === 0) loadData();
+    uploadCount.current -= 1;
+    setUploading(uploadCount.current);
+    if (uploadCount.current === 0) loadData();
     return false;
   };
 
