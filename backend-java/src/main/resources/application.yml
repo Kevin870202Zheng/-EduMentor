@@ -4,6 +4,10 @@ server:
 spring:
   application:
     name: edumentor-backend
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 200MB
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/edumentor?useSSL=false&serverTimezone=UTC}
     username: ${DATABASE_USERNAME:edumentor}
