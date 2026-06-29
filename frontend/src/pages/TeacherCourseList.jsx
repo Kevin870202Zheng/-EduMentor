@@ -32,7 +32,7 @@ export default function TeacherCourseList() {
       await Promise.all(courseList.map(async (c) => {
         try {
           const countRes = await enrollmentAPI.countByCourse(c.id);
-          counts[c.id] = countRes?.data || countRes || 0;
+          counts[c.id] = countRes?.data?.data ?? countRes?.data ?? 0;
         } catch (e) {
           counts[c.id] = 0;
         }
