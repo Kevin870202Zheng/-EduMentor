@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Card, Typography, Button, Upload, Table, Tag, Spin, Alert,
@@ -45,6 +45,8 @@ export default function TeacherCourseManage() {
   const [selectedTeacherId, setSelectedTeacherId] = useState(null);
   const [selectedRole, setSelectedRole] = useState('tutor');
   const [assigning, setAssigning] = useState(false);
+  const [uploading, setUploading] = useState(0);
+  const uploadQueue = useRef([]);
 
   useEffect(() => {
     loadData();
@@ -69,13 +71,18 @@ export default function TeacherCourseManage() {
   // ========== 资料管理 ==========
 
   const handleUpload = async (file) => {
+    uploadQueue.current.push(file);
+    setUploading(uploadQueue.current.length);
+    const idx = uploadQueue.current.length;
     try {
-      const res = await courseContentAPI.uploadMaterial(courseCode, file);
-      message.success(`「${file.name}」上传成功`);
-      loadData();
+      await courseContentAPI.uploadMaterial(courseCode, file);
+      message.success(`[${idx}] xe3x80x8c${file.name}xe3x80x8dxe4xb8x8axe4xbcxa0xe6x88x90xe5x8ax9f`);
     } catch (err) {
-      message.error('上传失败: ' + (err.message || '未知错误'));
+      message.error(`[${idx}] xe3x80x8c${file.name}xe3x80x8dxe4xb8x8axe4xbcxa0xe5xa4xb1xe8xb4xa5`);
     }
+    uploadQueue.current = uploadQueue.current.filter(f => f !== file);
+    setUploading(uploadQueue.current.length);
+    if (uploadQueue.current.length === 0) loadData();
     return false;
   };
 
@@ -261,9 +268,9 @@ export default function TeacherCourseManage() {
   const materialsTab = (
     <div>
       <Card title="📤 上传课程资料" style={{ marginBottom: 16 }}>
-        <Upload.Dragger accept=".txt,.md,.html,.json,.csv,.pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt" beforeUpload={handleUpload} showUploadList={false}>
-          <p className="ant-upload-drag-icon"><UploadOutlined /></p>
-          <p className="ant-upload-text">点击或拖拽文件到此处上传</p>
+        <Upload.Dragger directory accept=".txt,.md,.html,.json,.csv,.pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt" beforeUpload={handleUpload} showUploadList={false}>
+          <p className="ant-upload-drag-icon">{uploading > 0 ? <Spin /> : <UploadOutlined />}</p>
+          <p className="ant-upload-text">{uploading > 0 ? `正在上传 ${uploading} 个文件...` : '点击、拖拽文件或选择文件夹上传'}</p>
           <p className="ant-upload-hint">支持 .txt / .md / .html / .json / .csv / .pdf / .docx / .xlsx / .pptx，AI 将从资料中提取知识点和习题</p>
         </Upload.Dragger>
       </Card>
