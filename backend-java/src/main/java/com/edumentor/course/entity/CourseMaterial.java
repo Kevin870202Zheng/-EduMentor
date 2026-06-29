@@ -43,7 +43,7 @@ public class CourseMaterial extends BaseEntity {
     @Column(nullable = false, length = 20)
     private String status = "pending";
 
-    @Column(name = "extraction_result", columnDefinition = "JSONB")
+    @Column(name = "extraction_result", columnDefinition = "JSONB", insertable = false, updatable = false)
     private String extractionResult;
 
     @Column(name = "error_message", columnDefinition = "TEXT")

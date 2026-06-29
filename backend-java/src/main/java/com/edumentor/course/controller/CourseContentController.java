@@ -7,6 +7,8 @@ import com.edumentor.course.repository.CourseMaterialRepository;
 import com.edumentor.course.repository.CourseRepository;
 import com.edumentor.course.service.CourseExtractionService;
 import com.edumentor.user.entity.User;
+import org.apache.tika.Tika;
+import org.apache.tika.exception.TikaException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -83,12 +86,12 @@ public class CourseContentController {
 
         log.info("上传课程资料: courseCode={}, fileName={}, fileType={}", courseCode, fileName, fileType);
 
-        // 解析文件内容
+        // 解析文件内容（文本格式直接读取，二进制格式用 Apache Tika 解析）
         String rawText;
         try {
-            rawText = new String(file.getBytes(), StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            return ApiResponse.error(400, "文件读取失败: " + e.getMessage());
+            rawText = parseFileContent(file, fileType);
+        } catch (Exception e) {
+            return ApiResponse.error(400, "文件解析失败: " + e.getMessage());
         }
 
         if (rawText.isBlank()) {
@@ -203,12 +206,29 @@ public class CourseContentController {
         if (fileName == null) return "txt";
         String lower = fileName.toLowerCase();
         if (lower.endsWith(".pdf")) return "pdf";
-        if (lower.endsWith(".docx")) return "docx";
+        if (lower.endsWith(".docx") || lower.endsWith(".doc")) return "docx";
+        if (lower.endsWith(".xlsx") || lower.endsWith(".xls")) return "xlsx";
+        if (lower.endsWith(".pptx") || lower.endsWith(".ppt")) return "pptx";
         if (lower.endsWith(".md") || lower.endsWith(".markdown")) return "md";
         if (lower.endsWith(".html") || lower.endsWith(".htm")) return "html";
         if (lower.endsWith(".txt")) return "txt";
         if (lower.endsWith(".json")) return "json";
         if (lower.endsWith(".csv")) return "csv";
         return "txt";
+    }
+
+    /**
+     * 使用 Apache Tika 解析文件内容。
+     * 文本格式直接 UTF-8 读取，二进制格式（PDF/Word/Excel/PPT）由 Tika 提取文本。
+     */
+    private String parseFileContent(MultipartFile file, String fileType) throws IOException {
+        if (List.of("txt", "md", "html", "json", "csv").contains(fileType)) {
+            return new String(file.getBytes(), StandardCharsets.UTF_8);
+        }
+        try (InputStream is = file.getInputStream()) {
+            return new Tika().parseToString(is);
+        } catch (TikaException e) {
+            throw new IOException("Tika 解析失败: " + e.getMessage(), e);
+        }
     }
 }

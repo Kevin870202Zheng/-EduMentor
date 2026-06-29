@@ -261,10 +261,10 @@ export default function TeacherCourseManage() {
   const materialsTab = (
     <div>
       <Card title="📤 上传课程资料" style={{ marginBottom: 16 }}>
-        <Upload.Dragger accept=".txt,.md,.html,.json,.csv" beforeUpload={handleUpload} showUploadList={false}>
+        <Upload.Dragger accept=".txt,.md,.html,.json,.csv,.pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt" beforeUpload={handleUpload} showUploadList={false}>
           <p className="ant-upload-drag-icon"><UploadOutlined /></p>
           <p className="ant-upload-text">点击或拖拽文件到此处上传</p>
-          <p className="ant-upload-hint">支持 .txt / .md / .html / .json / .csv 格式，AI 将从资料中提取知识点和习题</p>
+          <p className="ant-upload-hint">支持 .txt / .md / .html / .json / .csv / .pdf / .docx / .xlsx / .pptx，AI 将从资料中提取知识点和习题</p>
         </Upload.Dragger>
       </Card>
 
