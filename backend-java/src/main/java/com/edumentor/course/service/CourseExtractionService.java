@@ -85,13 +85,33 @@ public class CourseExtractionService {
             "\n重要：只输出JSON结果，不要任何思考过程。";
 
     /**
-     * 判断文件名是否属于习题集（试卷/考题/试题）。
+     * 用 LLM 结构化输出判断文件名是否为试卷/习题集/练习题。
      */
     private boolean isExamPaper(String fileName) {
-        if (fileName == null) return false;
-        String lower = fileName.toLowerCase();
-        return lower.contains("试卷") || lower.contains("考题") || lower.contains("试题")
-                || lower.contains("考试") || lower.contains("test") || lower.contains("exam");
+        if (fileName == null || fileName.isBlank()) return false;
+        try {
+            FileClassification fc = llmService.askStructured(
+                    "你是一个文件分类器。根据文件名判断是否为考试试卷、习题集或练习题（包括试卷、考题、试题、A/B卷、test、exam、exercise、quiz、单元测试、阶段测试、模拟卷等）。",
+                    fileName,
+                    FileClassification.class,
+                    "file_classify"
+            );
+            boolean result = fc != null && fc.isExamPaper;
+            log.debug("LLM文件名分类: {} → {}", fileName, result);
+            return result;
+        } catch (Exception e) {
+            log.warn("LLM文件名分类失败，使用关键词兜底: {}", e.getMessage());
+            String lower = fileName.toLowerCase();
+            return lower.contains("试卷") || lower.contains("考题") || lower.contains("试题")
+                    || lower.contains("考试") || lower.contains("test") || lower.contains("exam")
+                    || lower.contains("quiz") || lower.contains("exercise");
+        }
+    }
+
+    /** LLM 文件名分类的结构化输出 */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class FileClassification {
+        public boolean isExamPaper;
     }
 
     public CourseExtractionService(LLMService llmService,
