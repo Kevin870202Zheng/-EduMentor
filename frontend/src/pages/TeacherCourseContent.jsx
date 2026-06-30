@@ -170,7 +170,7 @@ export default function TeacherCourseContent() {
           if (m) optMap[m[1].toUpperCase()] = m[2].trim();
           else optMap[String.fromCharCode(65 + lines.indexOf(line))] = line.trim();
         });
-        values.options = Object.keys(optMap).length > 0 ? optMap : undefined;
+        values.options = Object.keys(optMap).length > 0 ? JSON.stringify(optMap) : undefined;
       }
 
       if (editingQ) {

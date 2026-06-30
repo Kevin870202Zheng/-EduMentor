@@ -156,21 +156,21 @@ public class CourseExtractionService {
         ExtractionResult result = null;
         try {
             String rawText = material.getRawText();
+            boolean isExam = isExamPaper(material.getTitle());
+            String prompt = isExam ? EXAM_PAPER_PROMPT : EXTRACTION_SYSTEM_PROMPT;
+            String userMsg;
+
+            if (isExam) {
+                log.info("检测到习题集: {}，只提取习题不生成知识点", material.getTitle());
+                userMsg = "请从以下考试试卷中提取所有题目，并为每道题标注对应的知识点名称：\n\n" + rawText;
+            } else {
+                userMsg = "请从以下课程资料中提取知识点、先修关系和习题：\n\n" + rawText;
+            }
 
             if (rawText.length() > LARGE_FILE_THRESHOLD) {
                 log.info("大文件检测: {} 字，启用章节拆分+硬盘临时持久化", rawText.length());
-                result = extractLargeFile(materialId, rawText);
+                result = extractLargeFile(materialId, rawText, prompt, userMsg);
             } else {
-                // 判断是否为习题集
-                boolean isExam = isExamPaper(material.getTitle());
-                String prompt = isExam ? EXAM_PAPER_PROMPT : EXTRACTION_SYSTEM_PROMPT;
-                String userMsg;
-                if (isExam) {
-                    log.info("检测到习题集: {}，只提取习题不生成知识点", material.getTitle());
-                    userMsg = "请从以下考试试卷中提取所有题目，并为每道题标注对应的知识点名称：\n\n" + rawText;
-                } else {
-                    userMsg = "请从以下课程资料中提取知识点、先修关系和习题：\n\n" + rawText;
-                }
                 result = llmService.askStructured(
                         prompt, userMsg, ExtractionResult.class, "course_extraction"
                 );
@@ -312,7 +312,20 @@ public class CourseExtractionService {
             int qNewCount = 0;
             int qSkipCount = 0;
             for (ExtractedQuestion eq : result.questions) {
-                if (eq.content == null || eq.content.isBlank()) continue;
+                // LLM 有时用 stem 字段代替 content，或 options 中有题目描述
+                if (eq.content == null || eq.content.isBlank()) {
+                    if (eq.stem != null && !eq.stem.isBlank()) {
+                        eq.content = eq.stem;
+                    } else if (eq.options != null) {
+                        // 从 options 推断题目内容（仅作为降级方案）
+                        String optText = eq.options.toString();
+                        if (optText.length() > 200) optText = optText.substring(0, 200) + "...";
+                        eq.content = "请根据所学知识回答：\n选项：" + optText;
+                        // 对于选择题，如果 correctAnswer 是字母则保留为选择题，否则转为简答题
+                    } else {
+                        eq.content = "请根据所学知识简要回答该知识点相关的题目。";
+                    }
+                }
                 UUID kpId = null;
                 if (eq.kpName != null) kpId = kpNameToId.get(eq.kpName.trim());
                 if (kpId == null && !kpNameToId.isEmpty()) {
@@ -403,7 +416,7 @@ public class CourseExtractionService {
     /**
      * 提取大文件：按章节拆分 → 写入临时文件 → 逐批读取 → LLM 提取 → 合并 → 清理。
      */
-    private ExtractionResult extractLargeFile(UUID materialId, String rawText) {
+    private ExtractionResult extractLargeFile(UUID materialId, String rawText, String prompt, String userMsgTemplate) {
         Path tempDir = Path.of(System.getProperty("java.io.tmpdir"), "edumentor", "chunks", materialId.toString());
 
         try {
@@ -428,7 +441,13 @@ public class CourseExtractionService {
             merged.relations = new ArrayList<>();
             merged.questions = new ArrayList<>();
 
-            String chunkPrompt = "这是课程资料的第 {idx}/{total} 部分「{title}」。请从以下内容中提取知识点、先修关系和习题：\n\n";
+            // 根据是否习题集选择不同的 chunk prompt
+            String chunkPrompt;
+            if (userMsgTemplate.contains("只提取习题")) {
+                chunkPrompt = "这是考试试卷的第 {idx}/{total} 部分「{title}」。请从以下内容中提取所有题目，并为每道题标注对应的知识点名称：\n\n";
+            } else {
+                chunkPrompt = "这是课程资料的第 {idx}/{total} 部分「{title}」。请从以下内容中提取知识点、先修关系和习题：\n\n";
+            }
 
             for (int i = 0; i < chunks.size(); i++) {
                 ChunkInfo ci = chunks.get(i);
@@ -438,7 +457,7 @@ public class CourseExtractionService {
                 ExtractionResult chunkResult = null;
                 try {
                     chunkResult = llmService.askStructured(
-                            EXTRACTION_SYSTEM_PROMPT,
+                            prompt,
                             chunkPrompt.replace("{idx}", String.valueOf(i + 1))
                                     .replace("{total}", String.valueOf(chunks.size()))
                                     .replace("{title}", ci.title) + text,
@@ -610,7 +629,14 @@ public class CourseExtractionService {
                 if (eq.content != null) existingQs.put(eq.content.trim(), eq);
             }
             for (ExtractedQuestion eq : chunk.questions) {
-                if (eq.content == null || eq.content.isBlank()) continue;
+                // LLM 有时用 stem 字段代替 content
+                if (eq.content == null || eq.content.isBlank()) {
+                    if (eq.stem != null && !eq.stem.isBlank()) {
+                        eq.content = eq.stem;
+                    } else {
+                        continue;
+                    }
+                }
                 String key = eq.content.trim();
                 ExtractedQuestion exist = existingQs.get(key);
                 if (exist == null) {
@@ -722,6 +748,7 @@ public class CourseExtractionService {
     public static class ExtractedQuestion {
         public String kpName;
         public String content;
+        public String stem;  // LLM 有时用 stem 而非 content
         public String type = "SINGLE_CHOICE";
         public Object options;  // List<String>（数组）或 Map<String,String>，兼容两种格式
         public Object correctAnswer;  // String 或 List<String>，兼容两种格式
