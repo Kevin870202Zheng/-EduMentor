@@ -6,7 +6,7 @@ const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
 const api = axios.create({
   baseURL: API_BASE,
-  timeout: 30000,
+  timeout: 600000,  // 10分钟（大文件章节拆分提取需要）
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -193,6 +193,10 @@ export const courseContentAPI = {
   // 发布提取结果
   publishExtraction: (courseCode, materialId) =>
     api.post(`/courses/${courseCode}/materials/${materialId}/publish`),
+
+  // 删除资料
+  deleteMaterial: (courseCode, materialId) =>
+    api.delete(`/courses/${courseCode}/materials/${materialId}`),
 };
 
 // ============ 模块七：课程管理（通用） ============

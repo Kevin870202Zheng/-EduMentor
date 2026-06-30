@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Typography, Button, Spin, Tag, Progress, Radio, Space, Alert, Empty, List, message, Divider, Steps } from 'antd';
+import { Card, Typography, Button, Spin, Tag, Progress, Radio, Checkbox, Input, Space, Alert, Empty, List, message, Divider, Steps } from 'antd';
 import { CheckCircleOutlined, CloseCircleOutlined, ArrowLeftOutlined, ArrowRightOutlined, BookOutlined, FileTextOutlined, RobotOutlined } from '@ant-design/icons';
 import { courseAPI, learningAPI, answerAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -94,9 +94,14 @@ export default function StudentLearning() {
     if (kp?.id) loadQuestions(kp.id);
   }, [knowledgePoints]);
 
-  // 选择答案
+  // 选择/输入答案
   const handleSelectAnswer = (questionId, value) => {
     setSelectedAnswers(prev => ({ ...prev, [questionId]: value }));
+  };
+
+  // 处理多选
+  const handleMultiSelect = (questionId, checkedValues) => {
+    setSelectedAnswers(prev => ({ ...prev, [questionId]: checkedValues.sort().join(',') }));
   };
 
   // 加载掌握度状态（答题后刷新用）
@@ -114,11 +119,30 @@ export default function StudentLearning() {
     } catch (e) { /* ignore */ }
   }, [user?.id]);
 
+  // 获取题目类型中文名
+  const getTypeLabel = (type) => {
+    const labels = {
+      SINGLE_CHOICE: '单选题', MULTIPLE_CHOICE: '多选题', TRUE_FALSE: '判断题',
+      FILL_BLANK: '填空题', SHORT_ANSWER: '简答题', ESSAY: '论述题',
+    };
+    return labels[type] || type;
+  };
+
+  // 判断题型是否需要选项
+  const needsOptions = (type) => {
+    return ['SINGLE_CHOICE', 'MULTIPLE_CHOICE', 'TRUE_FALSE'].includes(type);
+  };
+
+  // 判断题型是否需要文本输入
+  const isTextInput = (type) => {
+    return ['FILL_BLANK', 'SHORT_ANSWER', 'ESSAY'].includes(type);
+  };
+
   // 提交答案
-  const handleSubmitAnswer = async (questionId) => {
+  const handleSubmitAnswer = async (questionId, qType) => {
     const answer = selectedAnswers[questionId];
-    if (!answer) {
-      message.warning('请先选择一个答案');
+    if (!answer || (isTextInput(qType) && !answer.trim())) {
+      message.warning('请先输入答案');
       return;
     }
 
@@ -265,54 +289,107 @@ export default function StudentLearning() {
                     const selected = selectedAnswers[q.id];
                     const disabled = !!result;
 
-                    // 解析选项：支持 {label,text} 对象数组、字符串数组、{"A":"text"} 对象
+                    const qType = q.questionType || 'SINGLE_CHOICE';
+                    // 解析选项
                     let options = [];
-                    try {
-                      let raw = typeof q.options === 'string' ? JSON.parse(q.options) : (q.options || []);
-                      if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
-                        // {"A": "text", "B": "text"} → [{label:"A", text:"text"}, ...]
-                        options = Object.entries(raw).map(([k, v]) => ({ label: k, text: v }));
-                      } else if (Array.isArray(raw)) {
-                        options = raw.map(opt => {
-                          if (typeof opt === 'object' && opt !== null && opt.label) {
+                    if (needsOptions(qType)) {
+                      try {
+                        let raw = typeof q.options === 'string' ? JSON.parse(q.options) : (q.options || []);
+                        if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+                          options = Object.entries(raw).map(([k, v]) => ({ label: k, text: v }));
+                        } else if (Array.isArray(raw)) {
+                          options = raw.map(opt => {
+                            if (typeof opt === 'object' && opt !== null && opt.label) return opt;
+                            if (typeof opt === 'string') {
+                              const m = opt.match(/^([A-Da-d])[)\.]\s*(.*)/);
+                              if (m) return { label: m[1].toUpperCase(), text: m[2] };
+                              return { label: String.fromCharCode(65 + raw.indexOf(opt)), text: opt };
+                            }
                             return opt;
-                          }
-                          if (typeof opt === 'string') {
-                            const m = opt.match(/^([A-Da-d])[)\.]\s*(.*)/);
-                            if (m) return { label: m[1], text: m[2] };
-                            return { label: String.fromCharCode(65 + raw.indexOf(opt)), text: opt };
-                          }
-                          return opt;
-                        });
-                      }
-                    } catch (e) { /* ignore */ }
+                          });
+                        }
+                      } catch (e) { /* ignore */ }
+                    }
 
                     return (
                       <div key={q.id} style={{ marginBottom: 16, padding: 12, background: '#fafafa', borderRadius: 8 }}>
                         <Text strong>
                           {qIdx + 1}. {q.content}
-                          {q.difficulty && <Tag style={{ marginLeft: 8 }} color={DIFFICULTY_COLORS[q.difficulty]}>难度{q.difficulty}</Tag>}
+                          <Tag style={{ marginLeft: 6 }} color="blue">{getTypeLabel(qType)}</Tag>
+                          {q.difficulty && <Tag color={DIFFICULTY_COLORS[q.difficulty]}>难度{q.difficulty}</Tag>}
                         </Text>
 
-                        <Radio.Group
-                          style={{ display: 'block', marginTop: 8 }}
-                          value={selected}
-                          onChange={e => handleSelectAnswer(q.id, e.target.value)}
-                          disabled={disabled}
-                        >
-                          {options.map(opt => (
-                            <Radio key={opt.label} value={opt.label} style={{ display: 'block', marginBottom: 4 }}>
-                              <Text style={{
-                                color: result && opt.label === result.correctAnswer ? '#52c41a' :
-                                       result && opt.label === result.studentAnswer && !result.correct ? '#ff4d4f' :
-                                       'inherit',
-                                fontWeight: result && opt.label === result.correctAnswer ? 'bold' : 'normal',
-                              }}>
-                                {opt.label}. {opt.text}
-                              </Text>
-                            </Radio>
-                          ))}
-                        </Radio.Group>
+                        {/* 单选题: Radio */}
+                        {qType === 'SINGLE_CHOICE' || qType === 'TRUE_FALSE' ? (
+                          <Radio.Group
+                            style={{ display: 'block', marginTop: 8 }}
+                            value={selected}
+                            onChange={e => handleSelectAnswer(q.id, e.target.value)}
+                            disabled={disabled}
+                          >
+                            {options.map(opt => (
+                              <Radio key={opt.label} value={opt.label} style={{ display: 'block', marginBottom: 4 }}>
+                                <Text style={{
+                                  color: result && opt.label === result.correctAnswer ? '#52c41a' :
+                                         result && opt.label === result.studentAnswer && !result.correct ? '#ff4d4f' :
+                                         'inherit',
+                                  fontWeight: result && opt.label === result.correctAnswer ? 'bold' : 'normal',
+                                }}>
+                                  {opt.label}. {opt.text}
+                                </Text>
+                              </Radio>
+                            ))}
+                          </Radio.Group>
+                        ) : qType === 'MULTIPLE_CHOICE' ? (
+                          /* 多选题: Checkbox */
+                          <Checkbox.Group
+                            style={{ display: 'block', marginTop: 8 }}
+                            value={selected ? selected.split(',') : []}
+                            onChange={vals => handleMultiSelect(q.id, vals)}
+                            disabled={disabled}
+                          >
+                            {options.map(opt => (
+                              <Checkbox key={opt.label} value={opt.label} style={{ display: 'block', marginBottom: 4 }}>
+                                <Text style={{
+                                  color: result && result.correctAnswer && result.correctAnswer.split(',').includes(opt.label) ? '#52c41a' :
+                                         result && result.studentAnswer && result.studentAnswer.split(',').includes(opt.label) && !result.correct ? '#ff4d4f' :
+                                         'inherit',
+                                }}>
+                                  {opt.label}. {opt.text}
+                                </Text>
+                              </Checkbox>
+                            ))}
+                          </Checkbox.Group>
+                        ) : qType === 'FILL_BLANK' ? (
+                          /* 填空题: 文本输入框 */
+                          <Input
+                            style={{ marginTop: 8, maxWidth: 400 }}
+                            placeholder="请输入答案"
+                            value={selected || ''}
+                            onChange={e => handleSelectAnswer(q.id, e.target.value)}
+                            disabled={disabled}
+                          />
+                        ) : qType === 'SHORT_ANSWER' ? (
+                          /* 简答题: 文本区域 */
+                          <Input.TextArea
+                            style={{ marginTop: 8 }}
+                            rows={3}
+                            placeholder="请输入答案"
+                            value={selected || ''}
+                            onChange={e => handleSelectAnswer(q.id, e.target.value)}
+                            disabled={disabled}
+                          />
+                        ) : qType === 'ESSAY' ? (
+                          /* 论述题: 大文本区域 */
+                          <Input.TextArea
+                            style={{ marginTop: 8 }}
+                            rows={6}
+                            placeholder="请详细论述你的观点..."
+                            value={selected || ''}
+                            onChange={e => handleSelectAnswer(q.id, e.target.value)}
+                            disabled={disabled}
+                          />
+                        ) : null}
 
                         {/* 提交按钮 / 结果反馈 */}
                         {!disabled ? (
@@ -320,7 +397,7 @@ export default function StudentLearning() {
                             type="primary"
                             size="small"
                             style={{ marginTop: 8 }}
-                            onClick={() => handleSubmitAnswer(q.id)}
+                            onClick={() => handleSubmitAnswer(q.id, qType)}
                             loading={submitting}
                             disabled={!selected}
                           >

@@ -171,7 +171,7 @@ public class OpenAIProvider implements LLMProviderAdapter {
                     .bodyToMono(String.class)
                     .block(Duration.ofSeconds(config.getExtraParams().containsKey("timeout")
                             ? Long.parseLong(config.getExtraParams().get("timeout"))
-                            : 60));
+                            : 600));
         } catch (LlmException e) {
             throw e;
         } catch (Exception e) {
@@ -233,6 +233,10 @@ public class OpenAIProvider implements LLMProviderAdapter {
                             JsonNode delta = choices.get(0).get("delta");
                             if (delta != null) {
                                 String content = delta.has("content") ? delta.get("content").asText() : "";
+                                // DeepSeek 推理模型在 content 为空或很短时使用 reasoning_content
+                                if ((content.isBlank() || content.length() < 10) && delta.has("reasoning_content")) {
+                                    content = delta.get("reasoning_content").asText();
+                                }
                                 if (!content.isEmpty()) {
                                     contentBuffer.append(content);
                                     chunkConsumer.accept(
@@ -322,6 +326,20 @@ public class OpenAIProvider implements LLMProviderAdapter {
             }
 
             String content = choices.get(0).get("message").get("content").asText();
+            JsonNode msgNode = choices.get(0).get("message");
+            log.debug("OpenAI response message: content={}, has_reasoning={}", 
+                content.length() > 50 ? content.substring(0, 50) + "..." : content,
+                msgNode.has("reasoning_content"));
+            // DeepSeek 等推理模型在复杂任务时会使用 reasoning_content 而非 content
+            if ((content.isBlank() || content.length() < 10) && msgNode.has("reasoning_content")) {
+                String rc = msgNode.get("reasoning_content").asText();
+                // 从 reasoning_content 中提取最后的 JSON 块（跳过思考过程）
+                int lastBrace = rc.lastIndexOf('}');
+                int jsonStart = lastBrace >= 0 ? rc.lastIndexOf('{', lastBrace) : -1;
+                content = jsonStart >= 0 ? rc.substring(jsonStart, lastBrace + 1) : rc;
+                log.debug("Fallback to reasoning_content: JSON extracted={}, total_len={}", 
+                    jsonStart >= 0, rc.length());
+            }
             String finishReason = choices.get(0).has("finish_reason")
                     ? choices.get(0).get("finish_reason").asText() : "stop";
 

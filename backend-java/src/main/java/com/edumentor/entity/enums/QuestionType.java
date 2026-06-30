@@ -6,5 +6,6 @@ public enum QuestionType {
     TRUE_FALSE,
     FILL_BLANK,
     SHORT_ANSWER,
-    CODING
+    CODING,
+    ESSAY
 }

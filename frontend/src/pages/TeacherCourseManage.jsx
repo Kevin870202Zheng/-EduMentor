@@ -108,6 +108,16 @@ export default function TeacherCourseManage() {
     }
   };
 
+  const handleDeleteMaterial = async (materialId) => {
+    try {
+      await courseContentAPI.deleteMaterial(courseCode, materialId);
+      message.success('资料已删除');
+      loadData();
+    } catch (err) {
+      message.error('删除失败: ' + (err.message || '未知错误'));
+    }
+  };
+
   const handlePublish = (materialId) => {
     Modal.confirm({
       title: '确认发布',
@@ -150,6 +160,9 @@ export default function TeacherCourseManage() {
           )}
           {record.status === 'published' && <Tag icon={<CheckCircleOutlined />} color="success">已发布</Tag>}
           {record.status === 'failed' && <Tag color="error">提取失败</Tag>}
+          <Popconfirm title="确定删除该资料？此操作不可恢复。" onConfirm={() => handleDeleteMaterial(record.id)} okText="确定" cancelText="取消">
+            <Button type="link" danger size="small" icon={<DeleteOutlined />}>删除</Button>
+          </Popconfirm>
         </Space>
       ),
     },
@@ -268,10 +281,10 @@ export default function TeacherCourseManage() {
   const materialsTab = (
     <div>
       <Card title="📤 上传课程资料" style={{ marginBottom: 16 }}>
-        <Upload.Dragger directory accept=".txt,.md,.html,.json,.csv,.pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt" beforeUpload={handleUpload} showUploadList={false}>
+        <Upload.Dragger multiple accept=".txt,.md,.html,.json,.csv,.pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt" beforeUpload={handleUpload} showUploadList={false}>
           <p className="ant-upload-drag-icon">{uploading > 0 ? <Spin /> : <UploadOutlined />}</p>
-          <p className="ant-upload-text">{uploading > 0 ? `正在上传 ${uploading} 个文件...` : '点击、拖拽文件或选择文件夹上传'}</p>
-          <p className="ant-upload-hint">支持 .txt / .md / .html / .json / .csv / .pdf / .docx / .xlsx / .pptx，AI 将从资料中提取知识点和习题</p>
+          <p className="ant-upload-text">{uploading > 0 ? `正在上传 ${uploading} 个文件...` : '点击或拖拽文件上传'}</p>
+          <p className="ant-upload-hint">支持 .txt / .md / .html / .json / .csv / .pdf / .docx / .xlsx / .pptx，可按住 Cmd 多选文件，或将文件夹拖入上传区</p>
         </Upload.Dragger>
       </Card>
 

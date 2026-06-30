@@ -13,7 +13,7 @@ public class LlmConfig {
     private String provider = "MOCK";
     private String model = "gpt-4o-mini";
     private double temperature = 0.7;
-    private int maxTokens = 2048;
+    private int maxTokens = 16384;
     private int maxRetries = 3;
     private int timeout = 30;
     private OpenAiConfig openai = new OpenAiConfig();

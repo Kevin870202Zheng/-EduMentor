@@ -185,6 +185,22 @@ public class CourseContentController {
     }
 
     /**
+     * 删除课程资料。
+     */
+    @DeleteMapping("/materials/{materialId}")
+    public ApiResponse<Void> deleteMaterial(
+            @PathVariable String courseCode,
+            @PathVariable UUID materialId) {
+
+        CourseMaterial material = courseMaterialRepository.findById(materialId)
+                .orElseThrow(() -> new IllegalArgumentException("资料不存在: " + materialId));
+
+        courseMaterialRepository.delete(material);
+        log.info("删除课程资料: courseCode={}, materialId={}", courseCode, materialId);
+        return ApiResponse.success(null, "资料已删除");
+    }
+
+    /**
      * 发布提取结果（确认后持久化到业务表）。
      */
     @PostMapping("/materials/{materialId}/publish")

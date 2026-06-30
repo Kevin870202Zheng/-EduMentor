@@ -27,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -79,9 +80,7 @@ public class AnswerService {
         Question question = questionRepository.findById(request.getQuestionId())
                 .orElseThrow(() -> new ResourceNotFoundException("题目", request.getQuestionId()));
 
-        boolean isCorrect = question.getCorrectAnswer()
-                .trim()
-                .equalsIgnoreCase(request.getStudentAnswer().trim());
+        boolean isCorrect = checkAnswer(question, request.getStudentAnswer());
 
         // ── 1. 保存答题记录 ──
         AnswerRecord record = new AnswerRecord();
@@ -158,8 +157,52 @@ public class AnswerService {
     }
 
     /**
-     * 基于题目类型和学生答案进行简单的错误类型分类。
+     * 智能判题：根据题型使用不同的比对策略。
      */
+    private boolean checkAnswer(Question question, String studentAnswer) {
+        if (studentAnswer == null) return false;
+        String correct = question.getCorrectAnswer();
+        if (correct == null) return false;
+
+        String student = studentAnswer.trim();
+        String expected = correct.trim();
+
+        if (question.getQuestionType() == null) {
+            return expected.equalsIgnoreCase(student);
+        }
+
+        return switch (question.getQuestionType()) {
+            case MULTIPLE_CHOICE -> {
+                // 多选题："A,B,C" 不区分顺序
+                String[] studentParts = student.split("[,\\s]+");
+                String[] expectedParts = expected.split("[,\\s]+");
+                if (studentParts.length != expectedParts.length) yield false;
+                Arrays.sort(studentParts);
+                Arrays.sort(expectedParts);
+                yield Arrays.equals(studentParts, expectedParts);
+            }
+            case FILL_BLANK -> {
+                // 填空题：忽略大小写和首尾空格
+                yield expected.equalsIgnoreCase(student);
+            }
+            case SHORT_ANSWER, ESSAY -> {
+                // 简答题/论述题：包含关键词判断
+                String studentLower = student.toLowerCase();
+                String[] keywords = expected.split("[，。、；：\\s]+");
+                long matchCount = Arrays.stream(keywords)
+                        .filter(kw -> kw.length() > 2)
+                        .filter(kw -> studentLower.contains(kw.toLowerCase()))
+                        .count();
+                long totalKeywords = Arrays.stream(keywords)
+                        .filter(kw -> kw.length() > 2)
+                        .count();
+                yield totalKeywords > 0 && matchCount >= Math.max(1, totalKeywords / 2);
+            }
+            default -> expected.equalsIgnoreCase(student);
+        };
+    }
+
+    /** 基于题目类型和学生答案进行简单的错误类型分类。 */
     private ErrorType classifyErrorType(Question question, String studentAnswer) {
         // 空答案 → 粗心
         if (studentAnswer == null || studentAnswer.trim().isEmpty()) {

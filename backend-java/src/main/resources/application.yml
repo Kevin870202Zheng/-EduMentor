@@ -49,9 +49,9 @@ jwt:
 # LLM Configuration
 llm:
   provider: DEEPSEEK
-  model: deepseek-v4-pro
+  model: deepseek-v4-flash
   temperature: 0.7
-  max-tokens: 4096
+  max-tokens: 16384
   max-retries: 3
   timeout: 60
   openai:

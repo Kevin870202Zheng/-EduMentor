@@ -4,6 +4,8 @@ import com.edumentor.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -43,7 +45,8 @@ public class CourseMaterial extends BaseEntity {
     @Column(nullable = false, length = 20)
     private String status = "pending";
 
-    @Column(name = "extraction_result", columnDefinition = "JSONB", insertable = false, updatable = false)
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "extraction_result", columnDefinition = "JSONB")
     private String extractionResult;
 
     @Column(name = "error_message", columnDefinition = "TEXT")
