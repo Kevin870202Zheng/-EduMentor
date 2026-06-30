@@ -57,7 +57,7 @@ public class CourseExtractionService {
             "\n- content: 详细的核心知识要点说明，学生可直接据此学习（必填，不少于150字）" +
             "\n- difficulty: 难度 1-5" +
             "\n- category: 类型（concept/theory/application/case）" +
-            "\n\n习题要求（每个知识点至少配1道题）：" +
+            "\n\n习题要求（每个知识点至少配3道题）：" +
             "\n- 题型必须多样：单选题(SINGLE_CHOICE)、多选题(MULTIPLE_CHOICE)、判断题(TRUE_FALSE)、填空题(FILL_BLANK)、简答题(SHORT_ANSWER)、论述题(ESSAY)" +
             "\n- 选择题的 options 格式为数组，如 [\"选项A内容\", \"选项B内容\", \"选项C内容\", \"选项D内容\"]" +
             "\n- 论述题(ESSAY)不需要 options，但 correctAnswer 需包含完整的参考答案（不少于200字）" +

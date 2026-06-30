@@ -238,7 +238,25 @@ export const answerAPI = {
   submit: (data) => api.post('/v1/answers', data),
 };
 
-// ============ 模块十二：学习中心 ============
+// ============ 模块十二：知识点管理（教师用CRUD） ============
+export const knowledgePointAPI = {
+  get: (id) => api.get(`/knowledge/points/${id}`),
+  create: (data) => api.post('/knowledge/points', data),
+  update: (id, data) => api.put(`/knowledge/points/${id}`, data),
+  delete: (id) => api.delete(`/knowledge/points/${id}`),
+  listByCourse: (courseId) => api.get(`/knowledge/courses/${courseId}/points`),
+};
+
+// ============ 模块十三：习题管理（教师用CRUD） ============
+export const questionManageAPI = {
+  get: (id) => api.get(`/v1/questions/${id}`),
+  create: (data) => api.post('/v1/questions', data),
+  update: (id, data) => api.put(`/v1/questions/${id}`, data),
+  delete: (id) => api.delete(`/v1/questions/${id}`),
+  listByKp: (kpId) => api.get('/v1/questions', { params: { knowledgePointId: kpId } }),
+};
+
+// ============ 模块十四：学习中心 ============
 export const learningAPI = {
   getKpsByCourse: (courseId) => api.get(`/knowledge/courses/${courseId}/points`),
   getQuestionsByKp: (kpId) => api.get(`/v1/questions`, { params: { knowledgePointId: kpId } }),

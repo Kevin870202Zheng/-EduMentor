@@ -11,6 +11,7 @@ import {
   UserOutlined, PlusOutlined, DeleteOutlined,
 } from '@ant-design/icons';
 import { courseContentAPI, courseTeacherAPI } from '../services/api';
+import TeacherCourseContent from './TeacherCourseContent';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -368,6 +369,7 @@ export default function TeacherCourseManage() {
 
       <Tabs defaultActiveKey="materials" onChange={onTabChange} items={[
         { key: 'materials', label: '📄 资料管理', children: materialsTab },
+        { key: 'content', label: '📝 课程内容', children: <TeacherCourseContent /> },
         { key: 'teachers', label: '👨‍🏫 教师管理', children: teachersTab },
       ]} />
     </div>
