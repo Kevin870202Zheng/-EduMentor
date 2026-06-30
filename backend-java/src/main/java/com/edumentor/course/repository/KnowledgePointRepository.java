@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -18,6 +19,8 @@ import java.util.UUID;
  */
 @Repository
 public interface KnowledgePointRepository extends JpaRepository<KnowledgePoint, UUID> {
+
+    Optional<KnowledgePoint> findByNameAndCourseId(String name, UUID courseId);
 
     /**
      * 按课程 ID 查询所有知识点（按排序序号升序）。

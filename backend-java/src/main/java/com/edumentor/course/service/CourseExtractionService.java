@@ -66,7 +66,33 @@ public class CourseExtractionService {
             "\n\n先修关系要求：" +
             "\n- source 和 target 使用知识点名称引用" +
             "\n- type 使用 PREREQUISITE" +
-            "\n\n重要：只输出JSON结果，不要任何思考过程、推理或解释。";
+            "\\n\\n重要：只输出JSON结果，不要任何思考过程、推理或解释。";
+
+    /** 习题集专用 prompt：只提取习题，不生成知识点 */
+    private static final String EXAM_PAPER_PROMPT =
+            "你是一个考试题目解析助手。这是一份考试试卷，请提取其中的所有题目。" +
+            "注意：不要生成知识点或先修关系，只提取习题。" +
+            "\n每道题的 kpName 字段必须填写该题对应的知识点名称。" +
+            "\n- 如果某题明确考核某个知识点（如'法的概念'），kpName 填该知识点名称" +
+            "\n- 如果某题涉及多个知识点或是综合性题目，kpName 填'综合'" +
+            "\n- 必须基于题目内容判断知识点，不可为空" +
+            "\n\n习题要求：" +
+            "\n- 题型标记：单选题(SINGLE_CHOICE)、多选题(MULTIPLE_CHOICE)、判断题(TRUE_FALSE)、填空题(FILL_BLANK)、简答题(SHORT_ANSWER)、论述题(ESSAY)" +
+            "\n- 选择题的 options 格式为数组，如 [\"选项A内容\", \"选项B内容\", \"选项C内容\", \"选项D内容\"]" +
+            "\n- correctAnswer 填写正确答案，论述题需包含完整参考答案" +
+            "\n\n严格按以下 JSON 格式输出（knowledgePoints 和 relations 返回空数组）：" +
+            "\n{\"knowledgePoints\":[],\"relations\":[],\"questions\":[{\"kpName\":\"知识点名称\",\"content\":\"题目\",\"type\":\"SINGLE_CHOICE\",\"options\":[],\"correctAnswer\":\"\",\"explanation\":\"\",\"difficulty\":3}]}" +
+            "\n重要：只输出JSON结果，不要任何思考过程。";
+
+    /**
+     * 判断文件名是否属于习题集（试卷/考题/试题）。
+     */
+    private boolean isExamPaper(String fileName) {
+        if (fileName == null) return false;
+        String lower = fileName.toLowerCase();
+        return lower.contains("试卷") || lower.contains("考题") || lower.contains("试题")
+                || lower.contains("考试") || lower.contains("test") || lower.contains("exam");
+    }
 
     public CourseExtractionService(LLMService llmService,
                                    CourseMaterialRepository courseMaterialRepository,
@@ -115,12 +141,18 @@ public class CourseExtractionService {
                 log.info("大文件检测: {} 字，启用章节拆分+硬盘临时持久化", rawText.length());
                 result = extractLargeFile(materialId, rawText);
             } else {
-                // 小文件：直接提取
+                // 判断是否为习题集
+                boolean isExam = isExamPaper(material.getTitle());
+                String prompt = isExam ? EXAM_PAPER_PROMPT : EXTRACTION_SYSTEM_PROMPT;
+                String userMsg;
+                if (isExam) {
+                    log.info("检测到习题集: {}，只提取习题不生成知识点", material.getTitle());
+                    userMsg = "请从以下考试试卷中提取所有题目，并为每道题标注对应的知识点名称：\n\n" + rawText;
+                } else {
+                    userMsg = "请从以下课程资料中提取知识点、先修关系和习题：\n\n" + rawText;
+                }
                 result = llmService.askStructured(
-                        EXTRACTION_SYSTEM_PROMPT,
-                        "请从以下课程资料中提取知识点、先修关系和习题：\n\n" + rawText,
-                        ExtractionResult.class,
-                        "course_extraction"
+                        prompt, userMsg, ExtractionResult.class, "course_extraction"
                 );
             }
 
@@ -191,50 +223,74 @@ public class CourseExtractionService {
             throw new RuntimeException("解析提取结果失败", e);
         }
 
-        // 1. 创建知识点，建立 name → ID 映射
+        // 1. 增量发布知识点：已存在的不覆盖，不存在的新增
         Map<String, UUID> kpNameToId = new LinkedHashMap<>();
         if (result.knowledgePoints != null) {
-            int order = 0;
+            // 获取当前最大 order_index，新知识点追加到末尾
+            int currentMaxOrder = (int) knowledgePointRepository.countByCourseId(courseId);
+            int newCount = 0;
+            int skipCount = 0;
+
             for (ExtractedKnowledgePoint ekp : result.knowledgePoints) {
                 if (ekp.name == null || ekp.name.isBlank()) continue;
-                KnowledgePoint kp = new KnowledgePoint();
-                kp.setCourseId(courseId);
-                kp.setName(ekp.name.trim());
-                kp.setDescription(ekp.description != null ? ekp.description : "");
-                kp.setContent(ekp.content != null ? ekp.content : "");
-                kp.setDifficulty(ekp.difficulty > 0 ? ekp.difficulty : 3);
-                kp.setOrderIndex(order++);
-                kp = knowledgePointRepository.save(kp);
-                kpNameToId.put(ekp.name.trim(), kp.getId());
+                String name = ekp.name.trim();
+
+                // 检查是否已存在同名知识点
+                Optional<KnowledgePoint> existing = knowledgePointRepository.findByNameAndCourseId(name, courseId);
+                if (existing.isPresent()) {
+                    // 已存在 → 保留旧版，不覆盖，记录映射
+                    kpNameToId.put(name, existing.get().getId());
+                    skipCount++;
+                } else {
+                    // 不存在 → 创建新知识点，追加到末尾
+                    KnowledgePoint kp = new KnowledgePoint();
+                    kp.setCourseId(courseId);
+                    kp.setName(name);
+                    kp.setDescription(ekp.description != null ? ekp.description : "");
+                    kp.setContent(ekp.content != null ? ekp.content : "");
+                    kp.setDifficulty(ekp.difficulty > 0 ? ekp.difficulty : 3);
+                    kp.setOrderIndex(currentMaxOrder + newCount);
+                    kp = knowledgePointRepository.save(kp);
+                    kpNameToId.put(name, kp.getId());
+                    newCount++;
+                }
             }
-            log.info("已创建 {} 个知识点", kpNameToId.size());
+            log.info("知识点发布: 新增={}, 已存在跳过={}", newCount, skipCount);
         }
 
-        // 2. 创建先修关系
+        // 2. 增量发布先修关系：已存在的跳过
         if (result.relations != null) {
-            int relCount = 0;
+            int relNewCount = 0;
+            int relSkipCount = 0;
             for (ExtractedRelation er : result.relations) {
                 UUID sourceId = kpNameToId.get(er.source);
                 UUID targetId = kpNameToId.get(er.target);
-                if (sourceId != null && targetId != null) {
+                if (sourceId == null || targetId == null) continue;
+                RelationType relType;
+                try {
+                    relType = RelationType.valueOf(er.type);
+                } catch (Exception e) {
+                    relType = RelationType.PREREQUISITE;
+                }
+                // 检查关系是否已存在
+                if (!knowledgeRelationRepository.existsBySourceKpIdAndTargetKpIdAndRelationType(sourceId, targetId, relType)) {
                     KnowledgeRelation kr = new KnowledgeRelation();
                     kr.setSourceKpId(sourceId);
                     kr.setTargetKpId(targetId);
-                    try {
-                        kr.setRelationType(RelationType.valueOf(er.type));
-                    } catch (Exception e) {
-                        kr.setRelationType(RelationType.PREREQUISITE);
-                    }
+                    kr.setRelationType(relType);
                     knowledgeRelationRepository.save(kr);
-                    relCount++;
+                    relNewCount++;
+                } else {
+                    relSkipCount++;
                 }
             }
-            log.info("已创建 {} 条先修关系", relCount);
+            log.info("先修关系发布: 新增={}, 已存在跳过={}", relNewCount, relSkipCount);
         }
 
-        // 3. 创建习题
+        // 3. 增量发布习题：按内容去重，已存在的跳过
         if (result.questions != null) {
-            int qCount = 0;
+            int qNewCount = 0;
+            int qSkipCount = 0;
             for (ExtractedQuestion eq : result.questions) {
                 if (eq.content == null || eq.content.isBlank()) continue;
                 UUID kpId = null;
@@ -242,7 +298,32 @@ public class CourseExtractionService {
                 if (kpId == null && !kpNameToId.isEmpty()) {
                     kpId = kpNameToId.values().iterator().next();
                 }
+                // 如果仍然匹配不到知识点，检查或创建"综合"知识点
+                if (kpId == null) {
+                    String compName = "综合";
+                    Optional<KnowledgePoint> compKp = knowledgePointRepository.findByNameAndCourseId(compName, courseId);
+                    if (compKp.isPresent()) {
+                        kpId = compKp.get().getId();
+                    } else {
+                        KnowledgePoint kp = new KnowledgePoint();
+                        kp.setCourseId(courseId);
+                        kp.setName(compName);
+                        kp.setDescription("综合知识点，包含综合性习题和跨章节题目");
+                        kp.setContent("此知识点包含综合性练习题，涉及多个章节的知识点。");
+                        kp.setDifficulty(3);
+                        kp.setOrderIndex((int) knowledgePointRepository.countByCourseId(courseId));
+                        kp = knowledgePointRepository.save(kp);
+                        kpId = kp.getId();
+                        log.info("创建综合知识点: id={}", kpId);
+                    }
+                }
                 if (kpId == null) continue;
+
+                // 检查该知识点下是否已有相同内容的习题
+                if (questionRepository.existsByContentAndKnowledgePointId(eq.content.trim(), kpId)) {
+                    qSkipCount++;
+                    continue;
+                }
 
                 Question q = new Question();
                 q.setKnowledgePointId(kpId);
@@ -251,12 +332,12 @@ public class CourseExtractionService {
                 q.setCorrectAnswer(toSafeString(eq.correctAnswer, ""));
                 q.setExplanation(eq.explanation != null ? eq.explanation : "");
 
-                // 映射题目类型（兼容中文和英文枚举值）
+                // 映射题目类型
                 String typeStr = eq.type != null ? eq.type.trim() : "";
                 QuestionType qType = parseQuestionType(typeStr);
                 q.setQuestionType(qType);
 
-                // 处理选项（兼容数组、Map 两种格式）
+                // 处理选项
                 if (eq.options != null && qType != QuestionType.ESSAY && qType != QuestionType.SHORT_ANSWER) {
                     JsonNode optNode = parseOptionsToJsonNode(eq.options);
                     q.setOptions(optNode);
@@ -274,9 +355,9 @@ public class CourseExtractionService {
 
                 q.setIsPublished(true);
                 questionRepository.save(q);
-                qCount++;
+                qNewCount++;
             }
-            log.info("已创建 {} 道习题", qCount);
+            log.info("习题发布: 新增={}, 已存在跳过={}", qNewCount, qSkipCount);
         }
 
         // 更新状态
