@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, Input, Button, Typography, Tag, Space, Spin, Empty } from 'antd';
 import { SendOutlined, RobotOutlined, UserOutlined, BulbOutlined } from '@ant-design/icons';
 import { qaAPI } from '../services/api';
@@ -21,7 +21,16 @@ export default function QATutoring() {
     { role: 'assistant', content: '你好！我是智学导师 EduMentor。有什么学习问题需要我帮忙吗？我会引导你思考，而不是直接给答案哦！😊', level: null }
   ]);
   const [loading, setLoading] = useState(false);
-  const { selectedCourseId } = useOutletContext();
+  const { selectedCourseId, studentCourses } = useOutletContext();
+  const currentCourse = studentCourses?.find(c => c.courseId === selectedCourseId);
+
+  // 🔗 联动：切换课程时清空聊天历史，重新初始化
+  useEffect(() => {
+    setMessages([
+      { role: 'assistant', content: `你好！我是智学导师 EduMentor。当前课程已切换至「${currentCourse?.courseName || '未知课程'}」，有什么学习问题需要我帮忙吗？我会引导你思考，而不是直接给答案哦！😊`, level: null }
+    ]);
+    setQuestion('');
+  }, [selectedCourseId]);
 
   const handleAsk = async (q) => {
     const query = q || question;

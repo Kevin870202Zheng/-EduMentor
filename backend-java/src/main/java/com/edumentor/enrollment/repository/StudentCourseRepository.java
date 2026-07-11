@@ -22,5 +22,7 @@ public interface StudentCourseRepository extends JpaRepository<StudentCourse, UU
 
     boolean existsByStudentIdAndCourseId(UUID studentId, UUID courseId);
 
+    boolean existsByStudentIdAndCourseIdAndStatus(UUID studentId, UUID courseId, String status);
+
     long countByCourseId(UUID courseId);
 }

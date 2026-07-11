@@ -161,6 +161,7 @@ export default function ErrorReview() {
   };
 
   if (loading) return <Spin size="large" style={{ display: 'flex', justifyContent: 'center', marginTop: 100 }} />;
+  if (!selectedCourseId) return <Empty description="请先选择一门课程" />;
 
   return (
     <div>

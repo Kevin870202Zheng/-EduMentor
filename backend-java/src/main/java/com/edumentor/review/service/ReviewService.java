@@ -97,8 +97,22 @@ public class ReviewService {
                                    String questionContent, String studentAnswer,
                                    String correctAnswer, ErrorType errorType,
                                    Integer difficulty) {
+        return recordError(studentId, questionId, knowledgePointId, knowledgePointName,
+                questionContent, studentAnswer, correctAnswer, errorType, difficulty, null);
+    }
+
+    /**
+     * 记录错题（含 courseId） — 将作答错误的题目记录到错题本。
+     */
+    @Transactional
+    public ErrorRecord recordError(UUID studentId, UUID questionId,
+                                   UUID knowledgePointId, String knowledgePointName,
+                                   String questionContent, String studentAnswer,
+                                   String correctAnswer, ErrorType errorType,
+                                   Integer difficulty, UUID courseId) {
         ErrorRecord record = new ErrorRecord();
         record.setStudentId(studentId);
+        record.setCourseId(courseId);
         record.setQuestionId(questionId);
         record.setKnowledgePointId(knowledgePointId);
         record.setKnowledgePointName(knowledgePointName);
@@ -110,8 +124,8 @@ public class ReviewService {
         record.setIsReviewed(false);
         record.setErrorCount(1);
         ErrorRecord saved = errorRecordRepository.save(record);
-        log.info("Error recorded: student={}, question={}, kp={}, errorType={}",
-                studentId, questionId, knowledgePointId, errorType);
+        log.info("Error recorded: student={}, question={}, kp={}, errorType={}, courseId={}",
+                studentId, questionId, knowledgePointId, errorType, courseId);
         return saved;
     }
 
@@ -138,9 +152,11 @@ public class ReviewService {
      */
     @Transactional(readOnly = true)
     public List<ErrorRecord> getErrorRecords(UUID studentId, UUID courseId, int page, int size) {
-        List<ErrorRecord> all = (courseId != null)
-                ? errorRecordRepository.findByStudentIdAndCourseId(studentId, courseId)
-                : errorRecordRepository.findByStudentId(studentId);
+        // 未指定课程时不返回记录（避免退课后跨课程数据泄露）
+        if (courseId == null) {
+            return List.of();
+        }
+        List<ErrorRecord> all = errorRecordRepository.findByStudentIdAndCourseId(studentId, courseId);
         return all.stream()
                 .sorted(Comparator.comparing(ErrorRecord::getCreatedAt).reversed())
                 .skip((long) (page - 1) * size)

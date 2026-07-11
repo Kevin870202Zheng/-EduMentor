@@ -102,9 +102,10 @@ public class QAService {
     public ChatResponse ask(ChatRequest request, UUID userId) {
         String sessionId = resolveSessionId(request, userId);
         String question = request.getQuestion();
+        UUID courseId = request.getCourseId();
 
         // 1. 保存用户消息
-        saveMessage(userId, sessionId, ChatRole.USER, resolveMessageType(request), question, null, null);
+        saveMessage(userId, courseId, sessionId, ChatRole.USER, resolveMessageType(request), question, null, null);
 
         // 2. 构建 RAG 上下文
         String ragContext = buildRagContext(question, request);
@@ -121,7 +122,7 @@ public class QAService {
 
         // 6. 保存助手消息
         String metadataJson = buildMetadataJson(llmResponse, sources);
-        saveMessage(userId, sessionId, ChatRole.ASSISTANT, MessageType.ANSWER,
+        saveMessage(userId, courseId, sessionId, ChatRole.ASSISTANT, MessageType.ANSWER,
                 llmResponse.getContent(), extractTotalTokens(llmResponse), metadataJson);
 
         // 7. 构建响应
@@ -153,9 +154,10 @@ public class QAService {
     public void streamAsk(ChatRequest request, UUID userId, Consumer<LLMResponse> chunkConsumer) {
         String sessionId = resolveSessionId(request, userId);
         String question = request.getQuestion();
+        UUID courseId = request.getCourseId();
 
         // 1. 保存用户消息
-        saveMessage(userId, sessionId, ChatRole.USER, resolveMessageType(request), question, null, null);
+        saveMessage(userId, courseId, sessionId, ChatRole.USER, resolveMessageType(request), question, null, null);
 
         // 2. 构建 RAG 上下文
         String ragContext = buildRagContext(question, request);
@@ -178,7 +180,7 @@ public class QAService {
 
             if (response.isFinished() && response.getTokenUsage() != null) {
                 String metadataJson = buildMetadataJson(response, sources);
-                saveMessage(userId, sessionId, ChatRole.ASSISTANT, MessageType.ANSWER,
+                saveMessage(userId, courseId, sessionId, ChatRole.ASSISTANT, MessageType.ANSWER,
                         fullAnswer.toString(),
                         response.getTokenUsage().getTotalTokens(),
                         metadataJson);
@@ -257,11 +259,12 @@ public class QAService {
     /**
      * 保存消息到对话历史。
      */
-    private void saveMessage(UUID userId, String sessionId, ChatRole role,
+    private void saveMessage(UUID userId, UUID courseId, String sessionId, ChatRole role,
                              MessageType messageType, String content,
                              Integer tokenCount, String metadata) {
         ChatHistory message = new ChatHistory();
         message.setUserId(userId);
+        message.setCourseId(courseId);
         message.setSessionId(sessionId);
         message.setRole(role);
         message.setMessageType(messageType);

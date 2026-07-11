@@ -62,6 +62,16 @@ public interface ChatHistoryRepository extends JpaRepository<ChatHistory, UUID> 
     void deleteBySessionId(String sessionId);
 
     /**
+     * 查询指定用户在指定课程下的最近消息。
+     *
+     * @param userId   用户 ID
+     * @param courseId 课程 ID
+     * @param pageable 分页参数
+     * @return 最近消息列表（按创建时间降序）
+     */
+    List<ChatHistory> findByUserIdAndCourseIdOrderByCreatedAtDesc(UUID userId, UUID courseId, Pageable pageable);
+
+    /**
      * 查询指定用户的会话 ID 列表（按最新消息时间降序排列）。
      *
      * @param userId   用户 ID

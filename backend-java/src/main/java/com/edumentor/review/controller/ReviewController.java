@@ -55,7 +55,7 @@ public class ReviewController {
                 request.getKnowledgePointId(), request.getKnowledgePointName(),
                 request.getQuestionContent(), request.getStudentAnswer(),
                 request.getCorrectAnswer(), request.getErrorType(),
-                request.getDifficulty());
+                request.getDifficulty(), request.getCourseId());
         return ResponseEntity.status(HttpStatus.CREATED).body(ErrorRecordDto.fromEntity(record));
     }
 
@@ -384,6 +384,7 @@ public class ReviewController {
 
         private UUID studentId;
         private UUID questionId;
+        private UUID courseId;
         private UUID knowledgePointId;
         private String knowledgePointName;
         private String questionContent;
@@ -397,6 +398,9 @@ public class ReviewController {
 
         public UUID getQuestionId() { return questionId; }
         public void setQuestionId(UUID questionId) { this.questionId = questionId; }
+
+        public UUID getCourseId() { return courseId; }
+        public void setCourseId(UUID courseId) { this.courseId = courseId; }
 
         public UUID getKnowledgePointId() { return knowledgePointId; }
         public void setKnowledgePointId(UUID knowledgePointId) { this.knowledgePointId = knowledgePointId; }

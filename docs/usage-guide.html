@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智学导师 EduMentor 使用指南</title>
+<style>
+  :root { --primary: #1677ff; --success: #52c41a; --warning: #faad14; --danger: #ff4d4f; --bg: #f5f5f5; --card: #fff; --text: #333; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+  .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 260px; background: var(--card); border-right: 1px solid #e8e8e8; overflow-y: auto; padding: 20px 0; z-index: 10; }
+  .sidebar h2 { padding: 0 20px; margin-bottom: 16px; font-size: 16px; color: var(--primary); }
+  .sidebar a { display: block; padding: 8px 20px; color: #555; text-decoration: none; font-size: 14px; transition: .2s; border-left: 3px solid transparent; }
+  .sidebar a:hover, .sidebar a.active { background: #e6f4ff; color: var(--primary); border-left-color: var(--primary); }
+  .sidebar .section-title { padding: 12px 20px 4px; font-size: 12px; color: #999; text-transform: uppercase; letter-spacing: 1px; }
+  .content { margin-left: 260px; padding: 40px 48px; max-width: 900px; }
+  h1 { font-size: 28px; margin-bottom: 8px; }
+  h2 { font-size: 22px; margin: 40px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--primary); }
+  h3 { font-size: 17px; margin: 24px 0 12px; color: #444; }
+  p { margin-bottom: 12px; }
+  .card { background: var(--card); border-radius: 8px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  .card h4 { margin-bottom: 8px; color: var(--primary); }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 13px; }
+  pre { background: #1e1e2e; color: #cdd6f4; padding: 16px; border-radius: 8px; overflow-x: auto; font-size: 13px; margin: 12px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+  th, td { border: 1px solid #e8e8e8; padding: 8px 12px; text-align: left; }
+  th { background: #fafafa; font-weight: 600; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; margin: 0 4px; }
+  .tag-blue { background: #e6f4ff; color: #1677ff; }
+  .tag-green { background: #f6ffed; color: #52c41a; }
+  .tag-orange { background: #fff7e6; color: #fa8c16; }
+  .tag-purple { background: #f9f0ff; color: #722ed1; }
+  .note { background: #fffbe6; border: 1px solid #ffe58f; border-radius: 6px; padding: 12px 16px; margin: 12px 0; }
+  .note strong { color: #d48806; }
+  .step { display: flex; gap: 12px; margin: 12px 0; padding: 12px; background: #fafafa; border-radius: 8px; }
+  .step-num { width: 28px; height: 28px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 14px; font-weight: 700; }
+  @media (max-width: 768px) { .sidebar { display: none; } .content { margin-left: 0; padding: 20px; } }
+</style>
+</head>
+<body>
+<div class="sidebar">
+  <h2>📘 EduMentor 指南</h2>
+  <div class="section-title">快速开始</div>
+  <a href="#overview">系统概述</a>
+  <a href="#quickstart">快速上手</a>
+  <a href="#accounts">测试账号</a>
+  <div class="section-title">学生端</div>
+  <a href="#student-courses">我的课程</a>
+  <a href="#student-learning">课程学习</a>
+  <a href="#student-dashboard">学情总览</a>
+  <a href="#student-path">学习路径</a>
+  <a href="#student-qa">智能答疑</a>
+  <a href="#student-review">错题复盘</a>
+  <div class="section-title">教师端</div>
+  <a href="#teacher-dashboard">教学驾驶舱</a>
+  <a href="#teacher-courses">课程管理</a>
+  <a href="#teacher-content">内容管理</a>
+  <a href="#teacher-materials">资料管理</a>
+  <a href="#teacher-ai-extract">AI 提取</a>
+  <div class="section-title">管理端</div>
+  <a href="#deploy">部署运维</a>
+  <a href="#config">配置说明</a>
+  <a href="#troubleshoot">常见问题</a>
+</div>
+
+<div class="content">
+  <h1>📚 智学导师 EduMentor 使用指南</h1>
+  <p style="color:#666;font-size:15px;">学习赋能 AI 教育智能体 — 教师端与学生端完整操作手册</p>
+  <p style="font-size:13px;color:#999;">版本 2.0 | 最后更新: 2026-06-30</p>
+
+  <h2 id="overview">系统概述</h2>
+  <p>EduMentor 是一个面向高校教育的 AI 智能学习平台，核心功能包括：</p>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin:16px 0;">
+    <div class="card"><h4>📖 课程学习</h4><p>知识点学习 + 随堂练习</p></div>
+    <div class="card"><h4>📊 学情诊断</h4><p>雷达图、掌握度追踪</p></div>
+    <div class="card"><h4>🗺️ 学习路径</h4><p>自适应规划学习顺序</p></div>
+    <div class="card"><h4>🤖 智能答疑</h4><p>RAG 向量检索增强</p></div>
+    <div class="card"><h4>📝 错题复盘</h4><p>艾宾浩斯复习计划</p></div>
+    <div class="card"><h4>👨‍🏫 教师驾驶舱</h4><p>班级学情、教学建议</p></div>
+    <div class="card"><h4>🤖 AI 提取</h4><p>资料→知识点+习题</p></div>
+    <div class="card"><h4>📤 批量导入</h4><p>课程内容自动提取</p></div>
+  </div>
+
+  <h2 id="quickstart">快速上手</h2>
+  <div class="step"><span class="step-num">1</span><div><strong>访问地址</strong><br><code>http://82.156.203.220:3000</code></div></div>
+  <div class="step"><span class="step-num">2</span><div><strong>选择身份登录</strong><br>学生用 <code>student01 / student123</code>，教师用 <code>teacher01 / teacher123</code></div></div>
+  <div class="step"><span class="step-num">3</span><div><strong>开始使用</strong><br>学生：选课 → 学习 → 练习；教师：创建课程 → 上传资料 → AI 提取</div></div>
+
+  <h2 id="accounts">测试账号</h2>
+  <table>
+    <tr><th>角色</th><th>用户名</th><th>密码</th><th>说明</th></tr>
+    <tr><td><span class="tag tag-blue">学生</span></td><td>student01</td><td>student123</td><td>李明，已选3门课</td></tr>
+    <tr><td><span class="tag tag-blue">学生</span></td><td>student02</td><td>student123</td><td>王芳</td></tr>
+    <tr><td><span class="tag tag-blue">学生</span></td><td>student03</td><td>student123</td><td>赵强</td></tr>
+    <tr><td><span class="tag tag-green">教师</span></td><td>teacher01</td><td>teacher123</td><td>张教授，可管理所有课程</td></tr>
+    <tr><td><span class="tag tag-orange">管理员</span></td><td>admin</td><td>admin123</td><td>系统管理</td></tr>
+  </table>
+
+  <h2 id="student-courses">📚 我的课程</h2>
+  <p>学生登录后的课程管理页面：</p>
+  <ul>
+    <li><strong>查看已选课程</strong> — 列表展示已加入的课程</li>
+    <li><strong>选课</strong> — 点击右上角「选课」按钮，从可选课程列表中选择</li>
+    <li><strong>退课</strong> — 操作列点击「退课」确认后移除</li>
+    <li><strong>开始学习</strong> — 点击「开始学习」跳转到课程学习页面</li>
+  </ul>
+  <p>侧边栏的<b>「当前课程」</b>下拉选择器会同步显示你选中的课程，所有学习模块都跟随该课程切换。</p>
+
+  <h2 id="student-learning">📖 课程学习</h2>
+  <p>核心学习页面，访问 <code>/student/learning/:courseCode</code>。</p>
+  <div class="card">
+    <h4>页面结构</h4>
+    <ul>
+      <li><strong>左侧：知识点导航</strong> — 所有知识点列表，带掌握度状态标签（<span class="tag" style="background:#d9d9d9;">未学习</span> <span class="tag" style="background:#faad14;color:#fff;">待巩固</span> <span class="tag" style="background:#1677ff;color:#fff;">学习中</span> <span class="tag" style="background:#52c41a;color:#fff;">已掌握</span>）</li>
+      <li><strong>右侧上方：学习内容</strong> — 当前知识点的详细说明</li>
+      <li><strong>右侧下方：练习题</strong> — 6 种题型：单选、多选、判断、填空、简答、论述</li>
+    </ul>
+  </div>
+  <p><strong>答题流程：</strong>选择答案 / 输入内容 → 点击「提交答案」→ 即时反馈正误 + 解析 → 正确后掌握度自动更新。</p>
+  <div class="note"><strong>💡 提示：</strong>每个知识点至少 3 道练习题，题型由 AI 自动生成。</div>
+
+  <h2 id="student-dashboard">📊 学情总览</h2>
+  <p>学生仪表盘，按课程展示学习数据：</p>
+  <ul>
+    <li><strong>学习进度</strong> — 已掌握/学习中/待巩固知识点数量</li>
+    <li><strong>雷达图</strong> — 6 维度能力分析（知识掌握、理解应用、分析推理等）</li>
+    <li><strong>薄弱知识点</strong> — 掌握度低于 50% 的知识点列表</li>
+    <li><strong>今日学习建议</strong> — 基于学情数据生成的个性化建议</li>
+    <li><strong>答题热力图</strong> — 学习活跃度日历</li>
+  </ul>
+  <p>侧边栏切换课程后，学情数据自动跟随刷新。</p>
+
+  <h2 id="student-path">🗺️ 学习路径</h2>
+  <p>按先修关系规划的学习路线，三种策略：</p>
+  <table>
+    <tr><th>策略</th><th>说明</th><th>适用场景</th></tr>
+    <tr><td><span class="tag tag-blue">均衡推荐</span></td><td>按先修+难度排序，跳过已掌握</td><td>日常学习</td></tr>
+    <tr><td><span class="tag tag-green">最短路径</span></td><td>跳过已掌握，动态缩短</td><td>考前冲刺</td></tr>
+    <tr><td><span class="tag tag-purple">拓展探索</span></td><td>保留全部知识点，薄弱点优先</td><td>查漏补缺</td></tr>
+  </table>
+
+  <h2 id="student-qa">🤖 智能答疑</h2>
+  <p>基于 RAG（检索增强生成）的 AI 辅导：</p>
+  <ul>
+    <li><strong>向量检索</strong> — 从课程知识点向量库中检索最相关内容</li>
+    <li><strong>DeepSeek 回答</strong> — 基于检索到的课程内容 + 自身知识生成回答</li>
+    <li><strong>课程关联</strong> — 自动按当前选中的课程过滤知识库</li>
+  </ul>
+  <p>提问示例：「Python中的列表支持哪些操作？」、「法的本质是什么？」</p>
+
+  <h2 id="student-review">📝 错题复盘</h2>
+  <p>错题管理和艾宾浩斯复习计划：</p>
+  <ul>
+    <li><strong>错题列表</strong> — 题目内容、我的答案（橙色）、正确答案（绿色）、错误类型、日期</li>
+    <li><strong>复盘反思</strong> — 弹窗查看题目详情，填写反思笔记</li>
+    <li><strong>复习计划</strong> — 1天/3天/7天/14天/30天后复习的艾宾浩斯节奏</li>
+  </ul>
+
+  <h2 id="teacher-dashboard">👨‍🏫 教学智慧驾驶舱</h2>
+  <p>教师端核心面板，按课程查看：</p>
+  <ul>
+    <li><strong>班级概览</strong> — 学生数、平均正确率、薄弱知识点</li>
+    <li><strong>知识点掌握度</strong> — 全班各知识点正确率柱状图</li>
+    <li><strong>预警分布</strong> — 需要重点关注的学生</li>
+    <li><strong>学生列表</strong> — 姓名、班级、正确率、薄弱知识点、预警等级</li>
+    <li><strong>教学建议</strong> — AI 生成的策略建议</li>
+  </ul>
+
+  <h2 id="teacher-courses">📋 课程管理</h2>
+  <p>教师课程列表 <code>/teacher/courses</code>：</p>
+  <ul>
+    <li><strong>创建课程</strong> — 填写编号、名称、描述、学科、年级</li>
+    <li><strong>发布/下架</strong> — 切换课程发布状态</li>
+    <li><strong>进入课程管理</strong> — 点击课程进入内容管理页面</li>
+  </ul>
+
+  <h2 id="teacher-content">📝 课程内容管理</h2>
+  <p>在课程管理页面的「📝 课程内容」Tab 中，教师可以直接维护知识点和习题：</p>
+  <div class="card">
+    <h4>知识点管理</h4>
+    <ul>
+      <li>✅ 查看知识点列表（名称/描述/内容/难度）</li>
+      <li>✏️ 编辑知识点名称、描述、详细内容</li>
+      <li>➕ 新增知识点</li>
+      <li>🗑️ 删除知识点（关联习题一并删除）</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>习题管理</h4>
+    <ul>
+      <li>📖 展开知识点查看其习题列表</li>
+      <li>✏️ 编辑题目、类型、选项、答案、解析</li>
+      <li>➕ 新增习题（支持 6 种题型）</li>
+      <li>🗑️ 删除习题</li>
+    </ul>
+  </div>
+
+  <h2 id="teacher-materials">📤 资料管理</h2>
+  <p>在「📄 资料管理」Tab 中：</p>
+  <ul>
+    <li><strong>上传资料</strong> — 支持 <code>.txt .md .html .json .csv .pdf .docx .xlsx .pptx</code></li>
+    <li><strong>批量上传</strong> — 可选择多个文件或拖拽文件夹</li>
+    <li><strong>资料列表</strong> — 上传后显示状态（待处理/AI提取中/已提取/已发布）</li>
+  </ul>
+
+  <h2 id="teacher-ai-extract">🤖 AI 提取</h2>
+  <p>核心功能：将课程资料自动转换为知识点和习题：</p>
+  <div class="step"><span class="step-num">1</span><div><strong>上传资料</strong> — 课程教材、教案、PPT 等</div></div>
+  <div class="step"><span class="step-num">2</span><div><strong>AI 提取</strong> — 点击「AI 提取」按钮，DeepSeek 自动提取知识点+关系+习题</div></div>
+  <div class="step"><span class="step-num">3</span><div><strong>查看结果</strong> — 点击「查看结果」预览提取内容</div></div>
+  <div class="step"><span class="step-num">4</span><div><strong>发布</strong> — 点击「发布」写入课程知识库并自动向量化</div></div>
+  <div class="note"><strong>🤖 智能识别：</strong>系统自动判断资料类型——教材/教案正常提取知识点+习题；试卷/考题则只提取习题并分配到对应知识点。</div>
+
+  <h3>大文件处理</h3>
+  <p>超过 5000 字的文件会自动按章节结构拆分（识别"第X章"、"## 标题"等），分批调用 AI 提取后合并结果，确保完整覆盖。</p>
+
+  <h3>习题集处理</h3>
+  <p>文件名包含试卷/考题/试题/考试等关键词时，LLM 自动识别为习题集，只提取习题并标注对应的知识点名称，不生成新知识点。</p>
+
+  <h2 id="deploy">🚀 部署运维</h2>
+  <div class="card">
+    <h4>服务器信息</h4>
+    <table>
+      <tr><td>IP</td><td><code>82.156.203.220</code></td></tr>
+      <tr><td>前端</td><td><code>http://82.156.203.220:3000</code>（Node.js）</td></tr>
+      <tr><td>后端</td><td><code>http://82.156.203.220:8080</code>（Spring Boot）</td></tr>
+      <tr><td>数据库</td><td>PostgreSQL 16 + pgvector（Docker）</td></tr>
+      <tr><td>SSH</td><td><code>ssh ubuntu@82.156.203.220</code></td></tr>
+    </table>
+  </div>
+
+  <h3>后端启动</h3>
+  <pre>export DEEPSEEK_API_KEY=sk-xxx
+export CORS_ALLOWED_ORIGINS=http://82.156.203.220:3000
+export ARK_API_KEY=ark-xxx
+
+java -Xmx4g -jar edumentor-backend-1.0.0.jar \
+  --spring.flyway.enabled=false \
+  --spring.profiles.active=prod \
+  --spring.datasource.url=jdbc:postgresql://172.18.0.2:5432/edumentor \
+  --spring.datasource.username=edumentor \
+  --spring.datasource.password=REPLACED_DB_PASSWORD \
+  --llm.provider=DEEPSEEK \
+  --llm.max-tokens=16384 \
+  --llm.timeout=600 \
+  --rag.vector-engine=true</pre>
+
+  <h3>前端启动</h3>
+  <pre>node /home/ubuntu/server.js
+# 提供静态文件 + 反向代理 API 到 8080 端口</pre>
+
+  <h2 id="config">⚙️ 配置说明</h2>
+  <table>
+    <tr><th>配置项</th><th>说明</th><th>默认值</th></tr>
+    <tr><td><code>LLM_PROVIDER</code></td><td>LLM 供应商</td><td><code>DEEPSEEK</code></td></tr>
+    <tr><td><code>DEEPSEEK_API_KEY</code></td><td>DeepSeek API 密钥</td><td>—</td></tr>
+    <tr><td><code>ARK_API_KEY</code></td><td>火山引擎 Embedding API 密钥</td><td>—</td></tr>
+    <tr><td><code>CORS_ALLOWED_ORIGINS</code></td><td>前端域名白名单</td><td><code>http://localhost:3000</code></td></tr>
+    <tr><td><code>RAG_VECTOR_ENGINE</code></td><td>启用向量检索引擎</td><td><code>true</code></td></tr>
+    <tr><td><code>LLM_MAX_TOKENS</code></td><td>LLM 最大输出 token</td><td><code>16384</code></td></tr>
+    <tr><td><code>LLM_TIMEOUT</code></td><td>LLM 请求超时（秒）</td><td><code>600</code></td></tr>
+  </table>
+
+  <h2 id="troubleshoot">🔧 常见问题</h2>
+  <div class="card">
+    <h4>登录报 403</h4>
+    <p>原因：CORS 配置未正确设置。<br>解决：确保 <code>CORS_ALLOWED_ORIGINS</code> 环境变量包含前端域名。</p>
+  </div>
+  <div class="card">
+    <h4>AI 提取报 500</h4>
+    <p>原因：<code>max-tokens</code> 太小或 <code>timeout</code> 太短。<br>解决：设置 <code>--llm.max-tokens=16384 --llm.timeout=600</code>。</p>
+  </div>
+  <div class="card">
+    <h4>习题发布后学生端看不到</h4>
+    <p>原因：LLM 返回的习题 <code>content</code> 字段为空。<br>解决：新代码已自动兼容 <code>stem</code> 字段和 <code>options</code> 降级，重新上传提取即可。</p>
+  </div>
+  <div class="card">
+    <h4>向量化失败</h4>
+    <p>原因：数据库 <code>embedding</code> 列为 <code>vector</code> 类型但 JPA 期望 <code>text</code>。<br>解决：<code>ALTER TABLE kp_embeddings ALTER COLUMN embedding TYPE text;</code></p>
+  </div>
+  <div class="card">
+    <h4>Flyway 校验失败</h4>
+    <p>原因：迁移文件 checksum 不匹配。<br>解决：启动时加 <code>--spring.flyway.enabled=false</code>，或 <code>DELETE FROM flyway_schema_history WHERE version='N';</code></p>
+  </div>
+  <div class="card">
+    <h4>学习路径报错</h4>
+    <p>原因：数据库缺少 <code>adapt_strategy</code> 列。<br>解决：<code>ALTER TABLE learning_paths ADD COLUMN adapt_strategy VARCHAR(32);</code></p>
+  </div>
+
+  <div style="margin-top:60px;padding:20px;text-align:center;color:#999;font-size:13px;border-top:1px solid #e8e8e8;">
+    EduMentor v2.0 — 学习赋能 AI 教育智能体<br>
+    基于 Spring Boot 3.3 + React 18 + PostgreSQL 16 + DeepSeek
+  </div>
+</div>
+</body>
+</html>

@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import { Card, Typography, Button, Spin, Tag, Progress, Radio, Checkbox, Input, Space, Alert, Empty, List, message, Divider, Steps } from 'antd';
 import { CheckCircleOutlined, CloseCircleOutlined, ArrowLeftOutlined, ArrowRightOutlined, BookOutlined, FileTextOutlined, RobotOutlined } from '@ant-design/icons';
 import { courseAPI, learningAPI, answerAPI } from '../services/api';
@@ -13,6 +13,7 @@ export default function StudentLearning() {
   const { courseCode } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { selectedCourseId, studentCourses } = useOutletContext();
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -26,6 +27,22 @@ export default function StudentLearning() {
   const [answeredCount, setAnsweredCount] = useState(0);
 
   const currentKp = knowledgePoints[currentKpIndex];
+  const prevCourseIdRef = useRef(null);
+
+  // 🔗 联动：左侧切换课程时自动导航到新课程（跳过首次挂载）
+  useEffect(() => {
+    if (!selectedCourseId || !studentCourses.length) return;
+    if (!prevCourseIdRef.current) {
+      prevCourseIdRef.current = selectedCourseId;
+      return;
+    }
+    prevCourseIdRef.current = selectedCourseId;
+
+    const newCourse = studentCourses.find(c => c.courseId === selectedCourseId);
+    if (newCourse && newCourse.courseCode !== courseCode) {
+      navigate(`/student/learning/${newCourse.courseCode}`, { replace: true });
+    }
+  }, [selectedCourseId]);
 
   // 加载课程和学习数据
   useEffect(() => {

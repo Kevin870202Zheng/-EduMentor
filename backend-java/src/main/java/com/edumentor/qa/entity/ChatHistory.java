@@ -23,6 +23,9 @@ public class ChatHistory extends BaseEntity {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
+    @Column(name = "course_id")
+    private UUID courseId;
+
     @Column(name = "knowledge_point_id")
     private UUID knowledgePointId;
 
@@ -51,6 +54,7 @@ public class ChatHistory extends BaseEntity {
         Map<String, Object> dto = new HashMap<>();
         dto.put("id", getId());
         dto.put("userId", userId);
+        dto.put("courseId", courseId);
         dto.put("knowledgePointId", knowledgePointId);
         dto.put("sessionId", sessionId);
         dto.put("role", role != null ? role.name() : null);

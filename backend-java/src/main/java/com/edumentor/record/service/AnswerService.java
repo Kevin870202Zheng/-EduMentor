@@ -1,11 +1,13 @@
 package com.edumentor.record.service;
 
 import com.edumentor.common.exception.ResourceNotFoundException;
+import com.edumentor.common.exception.ValidationException;
 import com.edumentor.course.entity.KnowledgePoint;
 import com.edumentor.course.repository.KnowledgePointRepository;
 import com.edumentor.diagnosis.repository.AnswerRecordRepository;
 import com.edumentor.diagnosis.repository.StudySessionRepository;
 import com.edumentor.entity.enums.ErrorType;
+import com.edumentor.enrollment.repository.StudentCourseRepository;
 import com.edumentor.learningpath.entity.LearningPath;
 import com.edumentor.learningpath.entity.LearningPathNode;
 import com.edumentor.learningpath.entity.PathNodeStatus;
@@ -55,6 +57,7 @@ public class AnswerService {
     private final LearningPathNodeRepository learningPathNodeRepository;
     private final StudySessionRepository studySessionRepository;
     private final KnowledgePointRepository knowledgePointRepository;
+    private final StudentCourseRepository studentCourseRepository;
 
     public AnswerService(AnswerRecordRepository answerRecordRepository,
                          QuestionRepository questionRepository,
@@ -62,7 +65,8 @@ public class AnswerService {
                          LearningPathRepository learningPathRepository,
                          LearningPathNodeRepository learningPathNodeRepository,
                          StudySessionRepository studySessionRepository,
-                         KnowledgePointRepository knowledgePointRepository) {
+                         KnowledgePointRepository knowledgePointRepository,
+                         StudentCourseRepository studentCourseRepository) {
         this.answerRecordRepository = answerRecordRepository;
         this.questionRepository = questionRepository;
         this.errorRecordRepository = errorRecordRepository;
@@ -70,6 +74,7 @@ public class AnswerService {
         this.learningPathNodeRepository = learningPathNodeRepository;
         this.studySessionRepository = studySessionRepository;
         this.knowledgePointRepository = knowledgePointRepository;
+        this.studentCourseRepository = studentCourseRepository;
     }
 
     /**
@@ -79,6 +84,15 @@ public class AnswerService {
     public SubmitAnswerResult submitAnswer(UUID studentId, SubmitAnswerRequest request) {
         Question question = questionRepository.findById(request.getQuestionId())
                 .orElseThrow(() -> new ResourceNotFoundException("题目", request.getQuestionId()));
+
+        // 🔗 联动：校验选课状态 — 退课后禁止提交答题
+        if (question.getCourseId() != null) {
+            boolean enrolled = studentCourseRepository
+                    .existsByStudentIdAndCourseIdAndStatus(studentId, question.getCourseId(), "active");
+            if (!enrolled) {
+                throw new ValidationException("您尚未选修该课程或已退课，无法提交答题");
+            }
+        }
 
         boolean isCorrect = checkAnswer(question, request.getStudentAnswer());
 
@@ -107,7 +121,7 @@ public class AnswerService {
         }
 
         // ── 4. 更新学习会话 ──
-        updateStudySession(studentId, question.getKnowledgePointId(), isCorrect);
+        updateStudySession(studentId, question.getCourseId(), question.getKnowledgePointId(), isCorrect);
 
         return new SubmitAnswerResult(
                 saved.getId(),
@@ -288,7 +302,7 @@ public class AnswerService {
      * 更新学习会话记录。
      * 查找当前学生的活跃会话，如果没有则创建新会话。
      */
-    private void updateStudySession(UUID studentId, UUID knowledgePointId, boolean isCorrect) {
+    private void updateStudySession(UUID studentId, UUID courseId, UUID knowledgePointId, boolean isCorrect) {
         try {
             LocalDateTime todayStart = LocalDateTime.now().toLocalDate().atStartOfDay();
             List<StudySession> todaySessions = studySessionRepository
@@ -314,6 +328,7 @@ public class AnswerService {
             // 没有活跃会话 → 创建新会话
             session = new StudySession();
             session.setStudentId(studentId);
+            session.setCourseId(courseId);
             session.setKnowledgePointId(knowledgePointId);
             session.setStartTime(LocalDateTime.now());
             session.setStatus(SessionStatus.ACTIVE);

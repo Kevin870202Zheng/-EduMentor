@@ -216,6 +216,7 @@ export const enrollmentAPI = {
   enroll: (data) => api.post('/enrollments', data),
   drop: (id) => api.delete(`/enrollments/${id}`),
   listByStudent: (studentId) => api.get(`/enrollments/student/${studentId}`),
+  listDropped: (studentId) => api.get(`/enrollments/student/${studentId}/dropped`),
   countByCourse: (courseId) => api.get(`/enrollments/course/${courseId}/count`),
 };
 

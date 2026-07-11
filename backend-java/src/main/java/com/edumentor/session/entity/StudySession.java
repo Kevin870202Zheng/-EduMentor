@@ -24,6 +24,9 @@ public class StudySession extends BaseEntity {
     @Column(name = "student_id", nullable = false)
     private UUID studentId;
 
+    @Column(name = "course_id")
+    private UUID courseId;
+
     @Column(name = "knowledge_point_id")
     private UUID knowledgePointId;
 
@@ -63,6 +66,7 @@ public class StudySession extends BaseEntity {
         Map<String, Object> dto = new HashMap<>();
         dto.put("id", getId());
         dto.put("studentId", studentId);
+        dto.put("courseId", courseId);
         dto.put("knowledgePointId", knowledgePointId);
         dto.put("learningPathNodeId", learningPathNodeId);
         dto.put("status", status != null ? status.name() : null);

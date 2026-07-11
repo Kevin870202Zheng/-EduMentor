@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Layout, Menu, Avatar, Dropdown, Typography, message, Modal, Select, Space } from 'antd';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -43,19 +43,36 @@ export default function MainLayout({ role = 'student' }) {
   // Load student courses and set current course
   useEffect(() => {
     if (role === 'student' && user?.id) {
-      enrollmentAPI.listByStudent(user.id).then(res => {
-        const list = res?.data || res || [];
-        setStudentCourses(list);
-        // Restore saved course or use first one
-        const saved = localStorage.getItem('currentCourseId');
-        if (saved && list.some(c => c.courseId === saved)) {
-          setSelectedCourseId(saved);
-        } else if (list.length > 0) {
-          setSelectedCourseId(list[0].courseId);
-        }
-      }).catch(() => {});
+      loadCourses();
     }
   }, [user?.id]);
+
+  // 🔗 联动：加载选课列表并同步 selectedCourseId
+  const loadCourses = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const res = await enrollmentAPI.listByStudent(user.id);
+      const list = res?.data || res || [];
+      setStudentCourses(list);
+      // Restore saved course or use first one
+      const saved = localStorage.getItem('currentCourseId');
+      if (saved && list.some(c => c.courseId === saved)) {
+        setSelectedCourseId(saved);
+      } else if (list.length > 0) {
+        setSelectedCourseId(list[0].courseId);
+      } else {
+        setSelectedCourseId(null);
+        localStorage.removeItem('currentCourseId');
+      }
+    } catch (e) {
+      setStudentCourses([]);
+    }
+  }, [user?.id]);
+
+  // 🔗 联动：退课后刷新课程列表并同步上下文
+  const refreshCourses = useCallback(async () => {
+    await loadCourses();
+  }, [loadCourses]);
 
   // Save selected course to localStorage
   useEffect(() => {
@@ -140,7 +157,7 @@ export default function MainLayout({ role = 'student' }) {
           </Space>
         </Header>
         <Content style={{ margin: 16, padding: 24, background: '#f5f5f5', minHeight: 280, borderRadius: 8 }}>
-          <Outlet context={{ selectedCourseId, studentCourses, setSelectedCourseId }} />
+          <Outlet context={{ selectedCourseId, studentCourses, setSelectedCourseId, refreshCourses }} />
         </Content>
       </Layout>
     </Layout>
