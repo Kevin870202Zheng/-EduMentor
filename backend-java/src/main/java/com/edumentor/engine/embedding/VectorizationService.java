@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * 向量化服务 — 将课程知识点内容向量化并写入 kp_embeddings 表。
@@ -42,6 +43,81 @@ public class VectorizationService {
         this.knowledgePointRepository = knowledgePointRepository;
         this.courseRepository = courseRepository;
         this.objectMapper = objectMapper;
+    }
+
+    /**
+     * 增量向量化 — 只处理新增的知识点，已有的跳过。
+     * 发布新资料时调用此方法，避免全量重建。
+     *
+     * @param courseId   课程 ID
+     * @param courseCode 课程编号
+     * @return 新增的向量化记录数
+     */
+    @Transactional
+    public int vectorizeIncremental(UUID courseId, String courseCode) {
+        if (!embeddingService.isAvailable()) {
+            log.warn("Embedding 服务不可用，跳过增量向量化");
+            return 0;
+        }
+
+        // 获取该课程的所有知识点
+        List<KnowledgePoint> allKps = knowledgePointRepository.findByCourseId(courseId);
+        if (allKps.isEmpty()) {
+            log.info("课程 {} 无知识点，跳过增量向量化", courseCode);
+            return 0;
+        }
+
+        // 获取已向量化的知识点 ID 集合
+        Set<UUID> existingKpIds = kpEmbeddingRepository.findByCourseId(courseId).stream()
+                .map(KpEmbedding::getKpId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        // 只筛选新增的知识点
+        List<KnowledgePoint> newKps = allKps.stream()
+                .filter(kp -> !existingKpIds.contains(kp.getId()))
+                .collect(Collectors.toList());
+
+        if (newKps.isEmpty()) {
+            log.info("课程 {} 无新增知识点，跳过向量化", courseCode);
+            return 0;
+        }
+
+        log.info("增量向量化课程 {}: 已有 {} 条，新增 {} 条",
+                courseCode, existingKpIds.size(), newKps.size());
+
+        // 构建待向量化的文本
+        List<String> texts = new ArrayList<>();
+        List<UUID> kpIds = new ArrayList<>();
+        for (KnowledgePoint kp : newKps) {
+            texts.add(buildKpText(kp));
+            kpIds.add(kp.getId());
+        }
+
+        // 批量生成向量
+        List<float[]> embeddings = embeddingService.embedBatch(texts);
+
+        // 只写入新增的记录
+        int count = 0;
+        for (int i = 0; i < texts.size(); i++) {
+            if (i >= embeddings.size()) break;
+            float[] vec = embeddings.get(i);
+            if (vec.length == 0) continue;
+
+            KpEmbedding record = new KpEmbedding();
+            record.setKpId(kpIds.get(i));
+            record.setContentType("kp_content");
+            record.setChunkText(texts.get(i));
+            record.setEmbedding(floatArrayToJson(vec));
+            record.setCourseId(courseId);
+            record.setCourseCode(courseCode);
+            record.setMetadata("{}");
+            kpEmbeddingRepository.save(record);
+            count++;
+        }
+
+        log.info("课程 {} 增量向量化完成: 新增 {} 条", courseCode, count);
+        return count;
     }
 
     /**

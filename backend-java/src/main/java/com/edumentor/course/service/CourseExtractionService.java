@@ -10,12 +10,14 @@ import com.edumentor.record.entity.Question;
 import com.edumentor.record.repository.QuestionRepository;
 import com.edumentor.engine.embedding.VectorizationService;
 import com.edumentor.engine.llm.LLMService;
+import com.edumentor.engine.rag.VectorRAGEngine;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,6 +49,9 @@ public class CourseExtractionService {
     private final ObjectMapper objectMapper;
     private final VectorizationService vectorizationService;
     private final CourseRepository courseRepository;
+
+    @Autowired(required = false)
+    private VectorRAGEngine vectorRAGEngine;
 
     private static final String EXTRACTION_SYSTEM_PROMPT =
             "你是一个专业的课程内容提取助手。请从提供的课程资料中，提取知识点网络、先修关系和配套习题。" +
@@ -397,11 +402,16 @@ public class CourseExtractionService {
         material.setStatus("published");
         courseMaterialRepository.save(material);
 
-        // 自动向量化课程知识点
+        // 增量向量化课程知识点（只处理新增的）
         try {
-            log.info("开始向量化课程内容: courseId={}", courseId);
-            int count = vectorizationService.vectorizeCourse(courseId, material.getCourseCode());
-            log.info("课程内容向量化完成: courseId={}, count={}", courseId, count);
+            log.info("开始增量向量化课程内容: courseId={}", courseId);
+            int count = vectorizationService.vectorizeIncremental(courseId, material.getCourseCode());
+            log.info("课程内容增量向量化完成: courseId={}, count={}", courseId, count);
+
+            // 刷新内存缓存，让新向量立即可用于 RAG 检索
+            if (vectorRAGEngine != null && count > 0) {
+                vectorRAGEngine.reloadCacheForCourse(courseId);
+            }
         } catch (Exception e) {
             log.warn("向量化失败（不影响发布）: {}", e.getMessage());
         }

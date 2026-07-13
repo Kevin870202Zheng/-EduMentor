@@ -90,6 +90,45 @@ public class VectorRAGEngine implements RAGEngine {
         }
     }
 
+    /**
+     * 增量刷新指定课程的向量缓存。
+     * 在增量向量化后调用，避免全量重建缓存。
+     */
+    public void reloadCacheForCourse(UUID courseId) {
+        if (!embeddingService.isAvailable()) return;
+        try {
+            List<KpEmbedding> courseEmbeddings = kpEmbeddingRepository.findByCourseId(courseId);
+            if (courseEmbeddings.isEmpty()) return;
+
+            // 移除该课程的旧数据（知识点被删除后不会残留）
+            List<KpEmbedding> newList = new ArrayList<>(embeddingList);
+            newList.removeIf(e -> e.getCourseId().equals(courseId));
+
+            Map<UUID, float[]> newCache = new HashMap<>();
+            for (KpEmbedding entry : embeddingList) {
+                if (!entry.getCourseId().equals(courseId)) {
+                    float[] vec = embeddingCache.get(entry.getId());
+                    if (vec != null) newCache.put(entry.getId(), vec);
+                }
+            }
+
+            // 添加新数据
+            for (KpEmbedding entry : courseEmbeddings) {
+                float[] vec = vectorizationService.jsonToFloatArray(entry.getEmbedding());
+                if (vec.length > 0) {
+                    newCache.put(entry.getId(), vec);
+                }
+                newList.add(entry);
+            }
+
+            this.embeddingCache = newCache;
+            this.embeddingList = newList;
+            log.info("课程 {} 向量缓存已增量刷新: 共 {} 条", courseId, courseEmbeddings.size());
+        } catch (Exception e) {
+            log.error("增量刷新课程向量缓存失败: {}", e.getMessage());
+        }
+    }
+
     @Override
     public List<DocumentChunk> retrieve(String question, int topK) {
         return search(question, topK, null, null);
