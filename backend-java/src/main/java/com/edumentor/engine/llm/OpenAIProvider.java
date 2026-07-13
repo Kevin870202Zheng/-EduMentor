@@ -217,49 +217,57 @@ public class OpenAIProvider implements LLMProviderAdapter {
             StringBuffer contentBuffer = new StringBuffer();
             TokenUsage finalTokenUsage = null;
 
-            for (String line : eventStream.toIterable()) {
-                if (line.startsWith("data: ")) {
-                    String data = line.substring(6).trim();
+            // bodyToFlux(String.class) 按 TCP 数据帧分割，可能一次返回多行。
+            // 需要在循环内按 \n 拆分成行后逐行处理。
+            for (String chunk : eventStream.toIterable()) {
+                String[] lines = chunk.split("\n", -1);
+                for (String line : lines) {
+                    String trimmed = line.trim();
+                    if (trimmed.isEmpty()) continue;
 
-                    // SSE 结束标记
-                    if ("[DONE]".equals(data)) {
-                        break;
-                    }
+                    if (trimmed.startsWith("data: ")) {
+                        String data = trimmed.substring(6).trim();
 
-                    try {
-                        JsonNode jsonNode = objectMapper.readTree(data);
-                        JsonNode choices = jsonNode.get("choices");
-                        if (choices != null && choices.size() > 0) {
-                            JsonNode delta = choices.get(0).get("delta");
-                            if (delta != null) {
-                                String content = delta.has("content") ? delta.get("content").asText() : "";
-                                // DeepSeek 推理模型在 content 为空或很短时使用 reasoning_content
-                                if ((content.isBlank() || content.length() < 10) && delta.has("reasoning_content")) {
-                                    content = delta.get("reasoning_content").asText();
-                                }
-                                if (!content.isEmpty()) {
-                                    contentBuffer.append(content);
-                                    chunkConsumer.accept(
-                                            LLMResponse.streamChunk(content, LLMProvider.OPENAI, config.getModel()));
-                                }
-                            }
-
-                            // 检查 finish_reason
-                            JsonNode finishReason = choices.get(0).get("finish_reason");
-                            if (finishReason != null && !finishReason.isNull()
-                                    && !"null".equals(finishReason.asText())) {
-                                // 尝试解析 Token 用量（OpenAI 最后一个 chunk 通常包含 usage）
-                                JsonNode usage = jsonNode.get("usage");
-                                if (usage != null) {
-                                    finalTokenUsage = parseTokenUsage(usage);
-                                }
-                                chunkConsumer.accept(LLMResponse.streamEnd(
-                                        LLMProvider.OPENAI, config.getModel(),
-                                        finalTokenUsage, finishReason.asText()));
-                            }
+                        // SSE 结束标记
+                        if ("[DONE]".equals(data)) {
+                            break;
                         }
-                    } catch (Exception e) {
-                        log.warn("Failed to parse SSE chunk: {}", e.getMessage());
+
+                        try {
+                            JsonNode jsonNode = objectMapper.readTree(data);
+                            JsonNode choices = jsonNode.get("choices");
+                            if (choices != null && choices.size() > 0) {
+                                JsonNode delta = choices.get(0).get("delta");
+                                if (delta != null) {
+                                    String content = delta.has("content") ? delta.get("content").asText() : "";
+                                    // DeepSeek 推理模型在 content 为空或很短时使用 reasoning_content
+                                    if ((content.isBlank() || content.length() < 10) && delta.has("reasoning_content")) {
+                                        content = delta.get("reasoning_content").asText();
+                                    }
+                                    if (!content.isEmpty()) {
+                                        contentBuffer.append(content);
+                                        chunkConsumer.accept(
+                                                LLMResponse.streamChunk(content, LLMProvider.OPENAI, config.getModel()));
+                                    }
+                                }
+
+                                // 检查 finish_reason
+                                JsonNode finishReason = choices.get(0).get("finish_reason");
+                                if (finishReason != null && !finishReason.isNull()
+                                        && !"null".equals(finishReason.asText())) {
+                                    // 尝试解析 Token 用量（OpenAI 最后一个 chunk 通常包含 usage）
+                                    JsonNode usage = jsonNode.get("usage");
+                                    if (usage != null) {
+                                        finalTokenUsage = parseTokenUsage(usage);
+                                    }
+                                    chunkConsumer.accept(LLMResponse.streamEnd(
+                                            LLMProvider.OPENAI, config.getModel(),
+                                            finalTokenUsage, finishReason.asText()));
+                                }
+                            }
+                        } catch (Exception e) {
+                            log.warn("Failed to parse SSE chunk: {}", e.getMessage());
+                        }
                     }
                 }
             }

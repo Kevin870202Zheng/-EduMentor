@@ -77,7 +77,7 @@ llm:
 # RAG Configuration
 rag:
   enabled: true
-  vector-engine: false        # 是否启用向量检索引擎（替代 MockRAGEngine）
+  vector-engine: true        # 启用向量检索引擎（VectorRAGEngine）
   top-k: 5
   max-context-chars: 3000
   embedding-model: text-embedding-3-small

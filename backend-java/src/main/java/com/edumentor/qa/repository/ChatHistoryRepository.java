@@ -37,6 +37,15 @@ public interface ChatHistoryRepository extends JpaRepository<ChatHistory, UUID> 
     List<ChatHistory> findBySessionIdOrderByCreatedAtAsc(String sessionId);
 
     /**
+     * 查询指定会话的消息（按创建时间升序，用于还原对话顺序，带分页）。
+     *
+     * @param sessionId 会话 ID
+     * @param pageable  分页参数（用于 limit）
+     * @return 按时间升序排列的消息列表
+     */
+    List<ChatHistory> findBySessionIdOrderByCreatedAtAsc(String sessionId, Pageable pageable);
+
+    /**
      * 查询指定会话的消息（按创建时间降序，用于预览最近消息）。
      *
      * @param sessionId 会话 ID

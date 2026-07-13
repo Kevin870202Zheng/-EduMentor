@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>题目 AI 分析功能 — 产品需求与架构设计</title>
+<style>
+  body { font-family: -apple-system, "Microsoft YaHei", sans-serif; max-width: 1000px; margin: 0 auto; padding: 20px; background: #f5f5f5; color: #333; line-height: 1.6; }
+  h1 { color: #1677ff; border-bottom: 3px solid #1677ff; padding-bottom: 10px; }
+  h2 { color: #2c3e50; margin-top: 32px; border-left: 4px solid #1677ff; padding-left: 12px; }
+  h3 { color: #34495e; margin-top: 24px; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 13px; font-weight: bold; margin-right: 6px; }
+  .p0 { background: #e74c3c; color: #fff; }
+  .p1 { background: #e67e22; color: #fff; }
+  .p2 { background: #f1c40f; color: #333; }
+  .card { background: #fff; border-radius: 8px; padding: 16px 20px; margin: 12px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  .card-blue { border-left: 4px solid #1677ff; }
+  .card-green { border-left: 4px solid #52c41a; }
+  .card-orange { border-left: 4px solid #fa8c16; }
+  pre { background: #1e1e1e; color: #d4d4d4; padding: 12px 16px; border-radius: 6px; overflow-x: auto; font-size: 13px; line-height: 1.5; }
+  code { background: #e8e8e8; padding: 1px 5px; border-radius: 3px; font-family: "SF Mono", Consolas, monospace; font-size: 13px; }
+  pre code { background: none; padding: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+  th, td { border: 1px solid #ddd; padding: 10px 14px; text-align: left; }
+  th { background: #1677ff; color: #fff; }
+  tr:nth-child(even) { background: #fafafa; }
+  .flow { display: flex; justify-content: space-between; align-items: center; margin: 16px 0; }
+  .flow-step { background: #e6f4ff; border: 1px solid #91caff; border-radius: 6px; padding: 8px 16px; text-align: center; flex: 1; margin: 0 4px; font-size: 13px; }
+  .flow-arrow { color: #1677ff; font-size: 20px; }
+  .wireframe { background: #fff; border: 2px dashed #bbb; border-radius: 8px; padding: 16px; margin: 12px 0; }
+  .wf-header { border-bottom: 1px solid #ddd; padding-bottom: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+  .wf-question { background: #fafafa; border-radius: 6px; padding: 12px; margin: 8px 0; }
+  .wf-options { margin: 8px 0 8px 24px; }
+  .wf-buttons { display: flex; gap: 8px; margin-top: 8px; }
+  .wf-btn { padding: 4px 16px; border-radius: 4px; border: 1px solid #ddd; cursor: pointer; font-size: 13px; background: #fff; }
+  .wf-btn-primary { background: #1677ff; color: #fff; border-color: #1677ff; }
+  .wf-btn-ai { background: #722ed1; color: #fff; border-color: #722ed1; }
+  .wf-analysis { background: #f9f0ff; border: 1px solid #d3adf7; border-radius: 8px; padding: 12px; margin-top: 8px; }
+  .wf-section { margin: 4px 0; padding: 4px 8px; background: #fff; border-radius: 4px; font-size: 13px; }
+  .wf-tag { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 11px; margin-right: 4px; }
+  .wf-tag-green { background: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; }
+  .wf-tag-red { background: #fff1f0; color: #ff4d4f; border: 1px solid #ffa39e; }
+  .wf-tag-purple { background: #f9f0ff; color: #722ed1; border: 1px solid #d3adf7; }
+</style>
+</head>
+<body>
+
+<h1>🧠 题目 AI 分析功能 — 产品需求与架构设计</h1>
+<p style="color:#666;">版本 1.0 | 2026-07-13 | 状态: 审核中</p>
+
+<div style="background:#e6f4ff;border-radius:8px;padding:12px 16px;margin:12px 0;">
+  <strong>🎯 一句话描述</strong>：在学生端课程学习的练习题区域中，增加"AI 题目分析"功能，利用大模型对题目和各选项进行深度分析，帮助学生理解知识点、掌握解题思路。
+</div>
+
+<!-- ======================================== -->
+<!-- 第一部分：产品需求 -->
+<!-- ======================================== -->
+<h2>一、产品需求</h2>
+
+<h3>1.1 用户故事</h3>
+<table>
+<tr><th>角色</th><th>故事</th><th>优先级</th></tr>
+<tr>
+  <td>学生</td>
+  <td>做选择题时，不理解为什么某个选项对、某个选项错，希望 AI 能逐项分析</td>
+  <td><span class="badge p0">P0</span></td>
+</tr>
+<tr>
+  <td>学生</td>
+  <td>答错后想深入理解错因，而不是只看正确答案</td>
+  <td><span class="badge p0">P0</span></td>
+</tr>
+<tr>
+  <td>学生</td>
+  <td>做题前想先了解题目考察什么知识点，确认自己是否学到位</td>
+  <td><span class="badge p1">P1</span></td>
+</tr>
+<tr>
+  <td>学生</td>
+  <td>做对后想举一反三，了解相关知识点和拓展学习建议</td>
+  <td><span class="badge p2">P2</span></td>
+</tr>
+</table>
+
+<h3>1.2 功能交互流程</h3>
+<div class="flow">
+  <div class="flow-step">① 学生浏览题目</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-step">② 点击「AI 分析」按钮</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-step">③ 后端调用 LLM 分析</div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-step">④ 前端渲染分析结果</div>
+</div>
+
+<div class="card card-blue">
+  <strong>触发时机</strong>：<br>
+  ✅ <strong>答题前</strong> — 学生选完答案但未提交时，可先点「AI 分析」理解题目后再答题<br>
+  ✅ <strong>答题后</strong> — 无论对错，学生都可点「AI 分析」获得深入讲解
+</div>
+
+<h3>1.3 页面交互线框图</h3>
+
+<div class="wireframe">
+  <div class="wf-header">
+    <span><strong>📝 练习题（共 5 题）</strong></span>
+  </div>
+
+  <div class="wf-question">
+    <div style="font-weight:bold;margin-bottom:4px;">
+      1. 以下哪个不是牛顿第一定律的内容？
+      <span class="wf-tag" style="background:#e6f4ff;color:#1677ff;">单选题</span>
+      <span class="wf-tag" style="background:#fff7e6;color:#fa8c16;">难度3</span>
+    </div>
+
+    <div class="wf-options">
+      <div>○ A. 物体保持静止或匀速直线运动</div>
+      <div>○ B. 力是改变物体运动状态的原因</div>
+      <div>○ C. 加速度与合外力成正比</div>
+      <div>○ D. 物体具有惯性</div>
+    </div>
+
+    <div class="wf-buttons">
+      <span class="wf-btn wf-btn-primary">提交答案</span>
+      <span class="wf-btn wf-btn-ai">🤖 AI 分析</span>
+    </div>
+
+    <!-- AI 分析结果区域 -->
+    <div class="wf-analysis">
+      <div style="font-weight:bold;color:#722ed1;margin-bottom:6px;">🤖 AI 题目分析</div>
+
+      <div class="wf-section">
+        <strong>📌 考察知识点</strong>：牛顿第一定律（惯性定律）的基本内容与适用范围
+      </div>
+
+      <div class="wf-section" style="margin-top:4px;">
+        <strong>📖 选项详解</strong>：
+        <div style="margin:4px 0 2px 12px;">
+          <div><span class="wf-tag wf-tag-green">✅ A 正确</span> 这是牛顿第一定律的直接表述——物体在不受外力时保持原有运动状态</div>
+          <div><span class="wf-tag wf-tag-green">✅ B 正确</span> 力确实是改变运动状态的原因，这是牛顿第一定律的推论</div>
+          <div><span class="wf-tag wf-tag-red">❌ C 错误</span> 这是 <strong>牛顿第二定律</strong> (F=ma) 的内容，不是第一定律的</div>
+          <div><span class="wf-tag wf-tag-green">✅ D 正确</span> 惯性是牛顿第一定律的核心概念</div>
+        </div>
+      </div>
+
+      <div class="wf-section" style="margin-top:4px;">
+        <strong>💡 解题思路</strong>：区分牛顿三定律的适用范围——第一定律讲"运动状态保持"，第二定律讲"力与加速度的关系"，第三定律讲"作用力与反作用力"
+      </div>
+
+      <div class="wf-section" style="margin-top:4px;">
+        <span class="wf-tag wf-tag-purple">📚 相关知识点</span>
+        牛顿第二定律、牛顿第三定律、惯性、力的概念
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3>1.4 分析内容定义</h3>
+<table>
+<tr><th>分析板块</th><th>内容说明</th><th>适用场景</th></tr>
+<tr><td>📌 考察知识点</td><td>题目主要考察哪个知识点/概念</td><td>答题前/后</td></tr>
+<tr><td>📖 选项详解</td><td>逐项分析每个选项正确/错误的原因（选择题适用）</td><td>答题前/后</td></tr>
+<tr><td>💡 解题思路</td><td>分步骤讲解如何正确解答本题</td><td>答题前/后</td></tr>
+<tr><td>⚠️ 常见错误</td><td>学生容易踩的坑和错误理解</td><td>答题后</td></tr>
+<tr><td>📚 相关知识</td><td>关联的知识点列表（便于学生复习）</td><td>答题后</td></tr>
+</table>
+
+<h3>1.5 非功能需求</h3>
+<ul>
+  <li><strong>响应速度</strong>：分析请求应在 5-8 秒内返回（与答疑速度一致）</li>
+  <li><strong>流式输出</strong>（P1）：分析结果应逐步展示，不必等全部生成再显示</li>
+  <li><strong>内容缓存</strong>（P2）：同一道题的分析结果可缓存，避免重复调用 LLM</li>
+  <li><strong>无副作用</strong>：题目分析不改变任何业务状态（不写入答题记录、不推进学习路径）</li>
+</ul>
+
+<!-- ======================================== -->
+<!-- 第二部分：技术方案 -->
+<!-- ======================================== -->
+<h2>二、技术方案</h2>
+
+<h3>2.1 架构概览</h3>
+
+<pre>
+┌─────────────────────────────────────────────────────────────┐
+│                    前端 StudentLearning.jsx                 │
+│  「AI 分析」按钮 → POST /api/v1/questions/{id}/analysis     │
+│                    ↓ 分析结果 JSON                          │
+│  渲染卡片：考察知识点 / 选项详解 / 解题思路 / 相关知识       │
+└────────────────────────────────┬────────────────────────────┘
+                                 │
+┌────────────────────────────────▼────────────────────────────┐
+│            后端 QuestionAnalysisController                  │
+│  POST /api/v1/questions/{questionId}/analysis               │
+│  请求体: { studentAnswer?: string }   ← 可选，答题后分析    │
+└────────────────────────────────┬────────────────────────────┘
+                                 │
+┌────────────────────────────────▼────────────────────────────┐
+│            后端 QuestionAnalysisService                     │
+│  1. 加载 Question（含 options, correctAnswer, explanation）│
+│  2. 构建 Prompt（含题目、选项、答案、学生答案）              │
+│  3. 调用 llmService.askStructured() → 结构化 JSON 输出      │
+│  4. 返回 QuestionAnalysisResult DTO                         │
+└────────────────────────────────┬────────────────────────────┘
+                                 │
+┌────────────────────────────────▼────────────────────────────┐
+│                  LLMService (已有)                           │
+│  askStructured(systemPrompt, QuestionAnalysisDto, schema)   │
+└─────────────────────────────────────────────────────────────┘
+</pre>
+
+<h3>2.2 后端新增文件清单</h3>
+<table>
+<tr><th>文件</th><th>类型</th><th>说明</th></tr>
+<tr><td><code>analyse/dto/QuestionAnalysisResult.java</code></td><td>DTO</td><td>分析结果响应（结构化输出）</td></tr>
+<tr><td><code>analyse/dto/QuestionAnalysisRequest.java</code></td><td>DTO</td><td>分析请求：questionId + 可选 studentAnswer</td></tr>
+<tr><td><code>analyse/controller/QuestionAnalysisController.java</code></td><td>Controller</td><td>POST /analysis 端点</td></tr>
+<tr><td><code>analyse/service/QuestionAnalysisService.java</code></td><td>Service</td><td>核心分析逻辑：构建 Prompt → 调用 LLM → 返回结果</td></tr>
+</table>
+
+<h3>2.3 数据结构定义</h3>
+
+<h4>分析结果 DTO — QuestionAnalysisResult</h4>
+<pre><code>{
+  "questionId": "uuid",            // 题目 ID
+  "coreConcept": "string",         // 考察核心知识点
+  "difficultyAssessment": "string", // 难度评估（如"中等"）
+  "options": [                     // 选项分析（选择题适用）
+    {
+      "label": "A",
+      "content": "选项内容",
+      "isCorrect": true,
+      "analysis": "为什么对/为什么错"
+    }
+  ],
+  "solutionSteps": [               // 解题步骤
+    "第一步...",
+    "第二步..."
+  ],
+  "commonMistakes": [              // 常见错误（答题后更突出）
+    "错误理解1",
+    "错误理解2"
+  ],
+  "relatedKnowledge": [            // 相关知识点
+    "知识点1",
+    "知识点2"
+  ],
+  "learningTip": "string"          // 学习建议
+}</code></pre>
+
+<h4>分析请求 DTO — QuestionAnalysisRequest</h4>
+<pre><code>{
+  "questionId": "uuid",            // 题目 ID（路径参数）
+  "studentAnswer": "string"       // 可选：学生答案（用于答题后分析）
+}</code></pre>
+
+<h3>2.4 Prompt 设计</h3>
+<div class="card card-green">
+<pre><code>系统提示词：
+你是一个专业的学科辅导老师。请对以下题目进行深入分析，
+帮助中学生理解题目考察的知识点和解题思路。
+
+请严格按照 JSON 格式输出分析结果。
+
+题目内容：{question.content}
+题型：{question.questionType}
+选项：{question.options}  ← 仅选择题
+正确答案：{question.correctAnswer}
+学生答案：{studentAnswer}  ← 可选，有则侧重错因分析
+
+输出 JSON Schema：
+{
+  "coreConcept": "考察的核心知识点，一句话概括",
+  "difficultyAssessment": "题目难度说明",
+  "options": [{"label":"A","content":"...","isCorrect":true,"analysis":"..."}],
+  "solutionSteps": ["步骤1", "步骤2"],
+  "commonMistakes": ["常见错误1"],
+  "relatedKnowledge": ["关联知识点1"],
+  "learningTip": "针对该知识点的学习建议"
+}</code></pre>
+</div>
+
+<h3>2.5 前端改动清单</h3>
+<table>
+<tr><th>文件</th><th>改动</th></tr>
+<tr><td><code>pages/StudentLearning.jsx</code></td><td>每题增加「AI 分析」按钮 + 分析结果展示区域</td></tr>
+<tr><td><code>services/api.jsx</code></td><td>新增 <code>questionAPI.analyze()</code> 方法</td></tr>
+</table>
+
+<h3>2.6 前端渲染组件设计</h3>
+<div class="card card-blue">
+<strong>在每题底部已有的「提交答案」按钮旁边增加「AI 分析」按钮</strong>：
+
+<pre><code>&lt;!-- 每题区域（简化示意）--&gt;
+&lt;div class="question-block"&gt;
+  &lt;div class="question-content"&gt;题目标题和选项...&lt;/div&gt;
+
+  &lt;!-- 按钮组 --&gt;
+  &lt;Space&gt;
+    &lt;Button type="primary" onClick={submitAnswer}&gt;提交答案&lt;/Button&gt;
+    &lt;Button icon={&lt;RobotOutlined /&gt;} style={{background:'#722ed1',color:'#fff'}}
+            onClick={analyzeQuestion}&gt;AI 分析&lt;/Button&gt;
+  &lt;/Space&gt;
+
+  &lt;!-- 分析结果区（展开/折叠） --&gt;
+  {analysisResult &amp;&amp; (
+    &lt;Collapse defaultActiveKey={['concept']}&gt;
+      &lt;Panel header="📌 考察知识点" key="concept"&gt;...&lt;/Panel&gt;
+      &lt;Panel header="📖 选项详解" key="options"&gt;...&lt;/Panel&gt;
+      &lt;Panel header="💡 解题思路" key="solution"&gt;...&lt;/Panel&gt;
+      &lt;Panel header="⚠️ 常见错误" key="mistakes"&gt;...&lt;/Panel&gt;
+      &lt;Panel header="📚 相关知识" key="related"&gt;...&lt;/Panel&gt;
+    &lt;/Collapse&gt;
+  )}
+&lt;/div&gt;</code></pre>
+</div>
+
+<h3>2.7 状态管理</h3>
+<pre><code>// 在 StudentLearning.jsx 中新增状态
+const [analysisResults, setAnalysisResults] = useState({});  // { [questionId]: result }
+
+// 调用分析
+const handleAnalyze = async (questionId, studentAnswer) => {
+  try {
+    const res = await questionAPI.analyze(questionId, studentAnswer || null);
+    setAnalysisResults(prev => ({ ...prev, [questionId]: res?.data || res }));
+  } catch (err) {
+    message.error('分析失败: ' + (err.message || '未知错误'));
+  }
+};
+
+// 渲染分析结果（折叠面板）
+{analysisResults[question.id] && (
+  &lt;Collapse&gt;
+    &lt;Panel header="📌 考察知识点"&gt;{result.coreConcept}&lt;/Panel&gt;
+    {result.options && &lt;Panel header="📖 选项详解"&gt;...&lt;/Panel&gt;}
+    &lt;Panel header="💡 解题思路"&gt;
+      &lt;List dataSource={result.solutionSteps} renderItem={step => &lt;List.Item&gt;{step}&lt;/List.Item&gt;}/&gt;
+    &lt;/Panel&gt;
+  &lt;/Collapse&gt;
+)}</code></pre>
+
+<h3>2.8 实现步骤（MVP）</h3>
+<table>
+<tr><th>步骤</th><th>内容</th><th>工作量</th></tr>
+<tr>
+  <td>1</td>
+  <td>后端：创建 QuestionAnalysisRequest/QuestionAnalysisResult DTO</td>
+  <td>小</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td>后端：创建 QuestionAnalysisService（构建 Prompt + 调 LLM）</td>
+  <td>中</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td>后端：创建 QuestionAnalysisController（POST /analysis）</td>
+  <td>小</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td>前端：api.jsx 新增 questionAPI.analyze() 方法</td>
+  <td>小</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td>前端：StudentLearning.jsx 新增「AI 分析」按钮 + 分析结果渲染</td>
+  <td>中</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td>编译验证 + 端到端测试</td>
+  <td>小</td>
+</tr>
+</table>
+
+<h2>三、实现计划</h2>
+
+<h3>迭代 1 — MVP（核心功能）</h3>
+<div class="card card-green">
+<ul>
+  <li>✅ 后端 DTO + Service + Controller</li>
+  <li>✅ 前端按钮 + 分析结果渲染（Collapse 折叠面板）</li>
+  <li>✅ 支持选择题和填空题</li>
+  <li>⏭️ 暂不支持流式输出（先同步返回）</li>
+  <li>⏭️ 暂不缓存（每次点击都调用 LLM）</li>
+</ul>
+</div>
+
+<h3>迭代 2 — 体验优化</h3>
+<div class="card card-orange">
+<ul>
+  <li>流式 SSE 输出分析结果（逐步渲染，减少等待感）</li>
+  <li>分析结果缓存（相同题目 + 相同学生答案不重复调用）</li>
+  <li>分析结果可收藏/保存到笔记</li>
+</ul>
+</div>
+
+<h2>四、注意事项</h2>
+
+<div class="card" style="border-left:4px solid #fa8c16;">
+<ul>
+  <li><strong>Token 消耗</strong>：每次分析消耗约 200-500 tokens（输入）+ 300-800 tokens（输出），需关注 TokenTracker 中的用量统计</li>
+  <li><strong>内容安全</strong>：分析内容不含敏感信息（仅基于题目内容），无需额外过滤</li>
+  <li><strong>并发控制</strong>：复用 LLMService 已有的 RateLimiter 限流机制，无需额外处理</li>
+  <li><strong>Question.explanation 的兼容</strong>：如果题目已经有教师编写的 explanation（解析），AI 分析可以补充丰富而非替代它</li>
+  <li><strong>非选择题的支持</strong>：填空题/简答题/论述题同样支持分析，但选项详解部分会替换为「答题思路分析」</li>
+</ul>
+</div>
+
+</body>
+</html>

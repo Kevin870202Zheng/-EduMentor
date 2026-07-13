@@ -138,6 +138,80 @@ export const pathAPI = {
 export const qaAPI = {
   ask: (data) => api.post('/qa/ask', data),
   getLevels: () => api.get('/qa/levels'),
+
+  /**
+   * SSE 流式问答 — 通过 fetch + ReadableStream 消费后端 SSE 端点。
+   *
+   * @param {{question:string, courseId?:string, sessionId?:string}} data  请求参数
+   * @param {(content:string)=>void}  onChunk  内容块回调（逐段追加）
+   * @param {(result:object)=>void}   onDone   流完成回调
+   * @param {(error:string)=>void}    onError  出错回调
+   * @returns {AbortController}  用于取消请求
+   */
+  askStream: (data, onChunk, onDone, onError) => {
+    const token = localStorage.getItem('edumentor_access_token');
+    const params = new URLSearchParams({ question: data.question });
+    if (data.courseId) params.append('courseId', data.courseId);
+    if (data.sessionId) params.append('sessionId', data.sessionId);
+
+    const controller = new AbortController();
+
+    (async () => {
+      try {
+        const response = await fetch(`${API_BASE}/qa/ask/stream?${params}`, {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          onError(`请求失败 (${response.status})`);
+          return;
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let currentEvent = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop(); // 不完整的行留到下次
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (trimmed.startsWith('event: ')) {
+              currentEvent = trimmed.slice(7).trim();
+            } else if (trimmed.startsWith('data: ')) {
+              const jsonStr = trimmed.slice(6);
+              try {
+                const parsed = JSON.parse(jsonStr);
+                if (currentEvent === 'done') {
+                  onDone?.(parsed);
+                } else if (currentEvent === 'error') {
+                  onError?.(parsed.message || '未知错误');
+                } else {
+                  // chunk 事件 / 默认当作内容块
+                  onChunk?.(parsed.content || '');
+                }
+              } catch (_) { /* 忽略解析失败的行 */ }
+            }
+            // 空行重置 event（SSE 规范：空行分隔事件）
+            if (trimmed === '') currentEvent = '';
+          }
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          onError?.(err.message || '网络异常');
+        }
+      }
+    })();
+
+    return controller;
+  },
 };
 
 // ============ 模块四：错题复盘与反思 ============
@@ -255,6 +329,11 @@ export const questionManageAPI = {
   update: (id, data) => api.put(`/v1/questions/${id}`, data),
   delete: (id) => api.delete(`/v1/questions/${id}`),
   listByKp: (kpId) => api.get('/v1/questions', { params: { knowledgePointId: kpId } }),
+};
+
+// ============ 模块十三-A：题目分析（AI 智能分析） ============
+export const questionAnalysisAPI = {
+  analyze: (data) => api.post('/v1/questions/analyze', data),
 };
 
 // ============ 模块十四：学习中心 ============

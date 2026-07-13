@@ -93,7 +93,7 @@ public class SecurityConfig {
             configuration.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
         } else {
             configuration.setAllowedOrigins(List.of(
-                "http://localhost:5173", "http://localhost:3000"));
+                "http://localhost:5173", "http://localhost:3000", "http://localhost:3003"));
         }
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With"));

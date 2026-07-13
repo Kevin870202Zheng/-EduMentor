@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
-import { Card, Typography, Button, Spin, Tag, Progress, Radio, Checkbox, Input, Space, Alert, Empty, List, message, Divider, Steps } from 'antd';
+import { Card, Typography, Button, Spin, Tag, Progress, Radio, Checkbox, Input, Space, Alert, Empty, List, message, Divider, Steps, Collapse } from 'antd';
 import { CheckCircleOutlined, CloseCircleOutlined, ArrowLeftOutlined, ArrowRightOutlined, BookOutlined, FileTextOutlined, RobotOutlined } from '@ant-design/icons';
-import { courseAPI, learningAPI, answerAPI } from '../services/api';
+import { courseAPI, learningAPI, answerAPI, questionAnalysisAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 const { Title, Text, Paragraph } = Typography;
@@ -25,6 +25,8 @@ export default function StudentLearning() {
   const [selectedAnswers, setSelectedAnswers] = useState({});
   const [submitResults, setSubmitResults] = useState({});
   const [answeredCount, setAnsweredCount] = useState(0);
+  const [analysisResults, setAnalysisResults] = useState({});
+  const [analyzingQuestions, setAnalyzingQuestions] = useState({});
 
   const currentKp = knowledgePoints[currentKpIndex];
   const prevCourseIdRef = useRef(null);
@@ -97,6 +99,8 @@ export default function StudentLearning() {
       setSelectedAnswers({});
       setSubmitResults({});
       setAnsweredCount(0);
+      setAnalysisResults({});
+      setAnalyzingQuestions({});
     } catch (err) {
       console.error('Failed to load questions:', err);
       setQuestions([]);
@@ -135,6 +139,106 @@ export default function StudentLearning() {
       }
     } catch (e) { /* ignore */ }
   }, [user?.id]);
+
+  // AI 分析题目
+  const handleAnalyzeQuestion = async (question, studentAnswer) => {
+    const qId = question.id;
+    if (analyzingQuestions[qId]) return;
+    setAnalyzingQuestions(prev => ({ ...prev, [qId]: true }));
+    try {
+      const res = await questionAnalysisAPI.analyze({
+        questionId: qId,
+        studentAnswer: studentAnswer || null,
+        usage: studentAnswer ? 'post_answer' : 'pre_answer',
+      });
+      setAnalysisResults(prev => ({ ...prev, [qId]: res?.data || res }));
+    } catch (err) {
+      message.error('AI 分析失败: ' + (err.message || '未知错误'));
+    }
+    setAnalyzingQuestions(prev => ({ ...prev, [qId]: false }));
+  };
+
+  // 渲染 AI 分析结果
+  const renderAnalysisResult = (qId) => {
+    const result = analysisResults[qId];
+    if (!result) return null;
+
+    const items = [];
+    if (result.knowledgePoint) {
+      items.push({
+        key: 'kp',
+        label: '📌 考察知识点',
+        children: <Text>{result.knowledgePoint}</Text>,
+      });
+    }
+    if (result.optionAnalysis && result.optionAnalysis.length > 0) {
+      items.push({
+        key: 'options',
+        label: '📖 选项详解',
+        children: (
+          <div>
+            {result.optionAnalysis.map((opt, i) => (
+              <div key={i} style={{ marginBottom: 6 }}>
+                <Text strong style={{ color: opt.isCorrect ? '#52c41a' : '#ff4d4f' }}>
+                  {opt.label}. {opt.text}
+                </Text>
+                <br />
+                <Text type="secondary">{opt.reason}</Text>
+              </div>
+            ))}
+          </div>
+        ),
+      });
+    }
+    if (result.solutionSteps && result.solutionSteps.length > 0) {
+      items.push({
+        key: 'steps',
+        label: '💡 解题思路',
+        children: (
+          <ol style={{ margin: 0, paddingLeft: 20 }}>
+            {result.solutionSteps.map((step, i) => (
+              <li key={i}><Text>{step}</Text></li>
+            ))}
+          </ol>
+        ),
+      });
+    }
+    if (result.commonMistakes && result.commonMistakes.length > 0) {
+      items.push({
+        key: 'mistakes',
+        label: '⚠️ 常见错误',
+        children: (
+          <ul style={{ margin: 0, paddingLeft: 20 }}>
+            {result.commonMistakes.map((m, i) => (
+              <li key={i}><Text type="warning">{m}</Text></li>
+            ))}
+          </ul>
+        ),
+      });
+    }
+    if (result.relatedKnowledge && result.relatedKnowledge.length > 0) {
+      items.push({
+        key: 'related',
+        label: '📚 相关知识',
+        children: (
+          <div>
+            {result.relatedKnowledge.map((k, i) => (
+              <Tag key={i} style={{ marginBottom: 4 }}>{k}</Tag>
+            ))}
+          </div>
+        ),
+      });
+    }
+
+    return (
+      <Collapse
+        size="small"
+        items={items}
+        defaultActiveKey={['kp', 'options']}
+        style={{ marginTop: 8, background: '#fff' }}
+      />
+    );
+  };
 
   // 获取题目类型中文名
   const getTypeLabel = (type) => {
@@ -410,30 +514,53 @@ export default function StudentLearning() {
 
                         {/* 提交按钮 / 结果反馈 */}
                         {!disabled ? (
-                          <Button
-                            type="primary"
-                            size="small"
-                            style={{ marginTop: 8 }}
-                            onClick={() => handleSubmitAnswer(q.id, qType)}
-                            loading={submitting}
-                            disabled={!selected}
-                          >
-                            提交答案
-                          </Button>
+                          <div style={{ marginTop: 8 }}>
+                            <Button
+                              type="primary"
+                              size="small"
+                              onClick={() => handleSubmitAnswer(q.id, qType)}
+                              loading={submitting}
+                              disabled={!selected}
+                            >
+                              提交答案
+                            </Button>
+                            <Button
+                              size="small"
+                              icon={<RobotOutlined />}
+                              style={{ marginLeft: 8 }}
+                              onClick={() => handleAnalyzeQuestion(q, selected)}
+                              loading={analyzingQuestions[q.id]}
+                            >
+                              AI 分析
+                            </Button>
+                            {!analyzingQuestions[q.id] && renderAnalysisResult(q.id)}
+                          </div>
                         ) : (
-                          <Alert
-                            style={{ marginTop: 8 }}
-                            type={result?.correct ? 'success' : 'error'}
-                            showIcon
-                            icon={result?.correct ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
-                            message={
-                              <Space direction="vertical" size={2}>
-                                <Text strong>{result?.correct ? '✅ 回答正确！' : '❌ 回答错误'}</Text>
-                                <Text>正确答案：{result?.correctAnswer}</Text>
-                                {result?.explanation && <Text type="secondary">解析：{result.explanation}</Text>}
-                              </Space>
-                            }
-                          />
+                          <div>
+                            <Alert
+                              style={{ marginTop: 8 }}
+                              type={result?.correct ? 'success' : 'error'}
+                              showIcon
+                              icon={result?.correct ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
+                              message={
+                                <Space direction="vertical" size={2}>
+                                  <Text strong>{result?.correct ? '✅ 回答正确！' : '❌ 回答错误'}</Text>
+                                  <Text>正确答案：{result?.correctAnswer}</Text>
+                                  {result?.explanation && <Text type="secondary">解析：{result.explanation}</Text>}
+                                </Space>
+                              }
+                            />
+                            <Button
+                              size="small"
+                              icon={<RobotOutlined />}
+                              style={{ marginTop: 8 }}
+                              onClick={() => handleAnalyzeQuestion(q, result?.studentAnswer || selected)}
+                              loading={analyzingQuestions[q.id]}
+                            >
+                              AI 分析
+                            </Button>
+                            {!analyzingQuestions[q.id] && renderAnalysisResult(q.id)}
+                          </div>
                         )}
                       </div>
                     );

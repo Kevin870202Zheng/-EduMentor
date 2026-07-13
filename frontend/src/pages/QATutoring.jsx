@@ -36,32 +36,79 @@ export default function QATutoring() {
     const query = q || question;
     if (!query.trim()) return;
 
+    // 1. 添加用户消息
     setMessages(prev => [...prev, { role: 'user', content: query }]);
     setQuestion('');
     setLoading(true);
 
-    try {
-      const res = await qaAPI.ask({
-        question: query,
-        courseId: selectedCourseId || undefined,
-      });
-      const data = res.data?.data || res.data || res;
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: data.answer || '让我思考一下这个问题...',
-        level: data.level,
-        related: data.related_knowledge
-      }]);
-    } catch (err) {
-      console.error('QA API error:', err);
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: '抱歉，我现在无法回答这个问题。请稍后再试。',
-        level: null,
-        related: []
-      }]);
-    }
-    setLoading(false);
+    // 2. 添加空的助理消息占位，用于流式填充
+    setMessages(prev => [...prev, { role: 'assistant', content: '', level: null, related: [] }]);
+
+    // 3. 发起 SSE 流式请求
+    qaAPI.askStream(
+      { question: query, courseId: selectedCourseId || undefined },
+      // onChunk — 逐块追加到最后一个消息
+      (content) => {
+        setMessages(prev => {
+          const updated = [...prev];
+          const last = { ...updated[updated.length - 1] };
+          last.content += content;
+          updated[updated.length - 1] = last;
+          return updated;
+        });
+      },
+      // onDone — 流结束
+      () => {
+        setLoading(false);
+      },
+      // onError — 流失败，回退到同步 API
+      (errMsg) => {
+        console.error('Stream error:', errMsg);
+        setLoading(false);
+
+        // 如果已经有部分流式内容，保留它；否则尝试同步回退
+        setMessages(prev => {
+          const last = prev[prev.length - 1];
+          if (last?.content?.length > 10) return prev; // 已有内容，保留
+
+          // 占位消息为空 → 尝试同步回退
+          (async () => {
+            setLoading(true);
+            try {
+              const res = await qaAPI.ask({
+                question: query,
+                courseId: selectedCourseId || undefined,
+              });
+              const data = res.data?.data || res.data || res;
+              setMessages(prev => {
+                const updated = [...prev];
+                updated[updated.length - 1] = {
+                  role: 'assistant',
+                  content: data.answer || '让我思考一下这个问题...',
+                  level: data.level,
+                  related: data.related_knowledge
+                };
+                return updated;
+              });
+            } catch (e) {
+              setMessages(prev => {
+                const updated = [...prev];
+                updated[updated.length - 1] = {
+                  role: 'assistant',
+                  content: '抱歉，我现在无法回答这个问题。请稍后再试。',
+                  level: null,
+                  related: []
+                };
+                return updated;
+              });
+            }
+            setLoading(false);
+          })();
+
+          return prev;
+        });
+      }
+    );
   };
 
   return (
@@ -87,7 +134,13 @@ export default function QATutoring() {
                   </Text>
                   {msg.level && <Tag {...LEVEL_TAGS[msg.level]} style={{ marginLeft: 8 }} />}
                 </div>
-                <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.8 }}>{msg.content}</div>
+                <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.8 }}>
+                  {msg.role === 'assistant' && !msg.content && loading && idx === messages.length - 1 ? (
+                    <Text type="secondary" italic>🤔 正在思考...</Text>
+                  ) : (
+                    msg.content || ''
+                  )}
+                </div>
                 {msg.related?.length > 0 && (
                   <div style={{ marginTop: 8, padding: 8, background: '#e6f7ff', borderRadius: 6 }}>
                     <Text type="secondary" style={{ fontSize: 12 }}>

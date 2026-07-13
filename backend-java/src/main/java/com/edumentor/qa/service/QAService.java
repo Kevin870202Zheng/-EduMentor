@@ -2,6 +2,7 @@ package com.edumentor.qa.service;
 
 import com.edumentor.entity.enums.ChatRole;
 import com.edumentor.entity.enums.MessageType;
+import com.edumentor.engine.llm.ChatMessage;
 import com.edumentor.engine.llm.LLMResponse;
 import com.edumentor.engine.llm.LLMService;
 import com.edumentor.engine.rag.RAGEngine;
@@ -98,7 +99,6 @@ public class QAService {
      * @param userId  当前用户 ID
      * @return 回答响应（含 Token 用量和来源）
      */
-    @Transactional
     public ChatResponse ask(ChatRequest request, UUID userId) {
         String sessionId = resolveSessionId(request, userId);
         String question = request.getQuestion();
@@ -107,18 +107,20 @@ public class QAService {
         // 1. 保存用户消息
         saveMessage(userId, courseId, sessionId, ChatRole.USER, resolveMessageType(request), question, null, null);
 
-        // 2. 构建 RAG 上下文
-        String ragContext = buildRagContext(question, request);
-        List<SourceInfo> sources = buildSources(question, request);
+        // 2. 一次 RAG 检索，结果同时用于构建上下文和来源信息
+        List<RAGEngine.DocumentChunk> docs = retrieveDocuments(question, request, 5);
+        String ragContext = formatRagContext(docs);
+        List<SourceInfo> sources = formatSources(docs, 3);
 
-        // 3. 构建对话历史上下文
-        String historyContext = buildHistoryContext(sessionId);
+        // 3. 构建只含 RAG 的系统提示词（历史作为独立 messages 传入）
+        String systemPrompt = buildSystemPrompt(ragContext);
 
-        // 4. 构建完整系统提示词
-        String systemPrompt = buildCombinedSystemPrompt(ragContext, historyContext);
+        // 4. 构建对话历史消息列表（包含当前提问）
+        List<ChatMessage> messages = buildHistoryMessages(sessionId);
+        messages.add(ChatMessage.userMessage(question));
 
-        // 5. 调用 LLM
-        LLMResponse llmResponse = llmService.ask(systemPrompt, question);
+        // 5. 调用 LLM（多轮对话）
+        LLMResponse llmResponse = llmService.chat(systemPrompt, messages);
 
         // 6. 保存助手消息
         String metadataJson = buildMetadataJson(llmResponse, sources);
@@ -150,7 +152,6 @@ public class QAService {
      * @param userId       当前用户 ID
      * @param chunkConsumer 流式内容块消费者（接收 {@link LLMResponse}）
      */
-    @Transactional
     public void streamAsk(ChatRequest request, UUID userId, Consumer<LLMResponse> chunkConsumer) {
         String sessionId = resolveSessionId(request, userId);
         String question = request.getQuestion();
@@ -159,20 +160,22 @@ public class QAService {
         // 1. 保存用户消息
         saveMessage(userId, courseId, sessionId, ChatRole.USER, resolveMessageType(request), question, null, null);
 
-        // 2. 构建 RAG 上下文
-        String ragContext = buildRagContext(question, request);
-        List<SourceInfo> sources = buildSources(question, request);
+        // 2. 一次 RAG 检索，结果同时用于构建上下文和来源信息
+        List<RAGEngine.DocumentChunk> docs = retrieveDocuments(question, request, 5);
+        String ragContext = formatRagContext(docs);
+        List<SourceInfo> sources = formatSources(docs, 3);
 
-        // 3. 构建对话历史上下文
-        String historyContext = buildHistoryContext(sessionId);
+        // 3. 构建只含 RAG 的系统提示词（历史作为独立 messages 传入）
+        String systemPrompt = buildSystemPrompt(ragContext);
 
-        // 4. 构建完整系统提示词
-        String systemPrompt = buildCombinedSystemPrompt(ragContext, historyContext);
+        // 4. 构建对话历史消息列表（包含当前提问）
+        List<ChatMessage> messages = buildHistoryMessages(sessionId);
+        messages.add(ChatMessage.userMessage(question));
 
-        // 5. 流式调用 LLM
+        // 5. 流式调用 LLM（多轮对话）
         StringBuilder fullAnswer = new StringBuilder();
 
-        llmService.askStream(systemPrompt, question, response -> {
+        llmService.chatStream(systemPrompt, messages, response -> {
             if (!response.isFinished()) {
                 fullAnswer.append(response.getContent());
             }
@@ -289,94 +292,105 @@ public class QAService {
     }
 
     /**
-     * 构建 RAG 增强上下文。
+     * 一次 RAG 检索 — 结果同时用于构建上下文和来源信息，避免重复检索。
+     *
+     * @param question 用户问题
+     * @param request  请求参数（含 courseId/knowledgePointId 过滤条件）
+     * @param topK     检索数量
+     * @return 文档片段列表（按相关性降序）
      */
-    private String buildRagContext(String question, ChatRequest request) {
+    private List<RAGEngine.DocumentChunk> retrieveDocuments(String question, ChatRequest request, int topK) {
         if (ragEngine == null || !ragEngine.isEnabled()) {
-            return "";
+            return Collections.emptyList();
         }
         try {
             if (request.getCourseId() != null) {
-                return ragEngine.buildEnhancedContext(question,
-                        request.getCourseId().toString(), 5);
+                return ragEngine.retrieveByCourse(question, request.getCourseId().toString(), topK);
             }
             if (request.getKnowledgePointId() != null) {
-                return ragEngine.buildEnhancedContext(question,
-                        request.getKnowledgePointId().toString(), 5);
+                return ragEngine.retrieveByKnowledgePoint(question, request.getKnowledgePointId().toString(), topK);
             }
-            return ragEngine.buildEnhancedContext(question, 5);
+            return ragEngine.retrieve(question, topK);
         } catch (Exception e) {
-            log.warn("RAG context building failed, continuing without RAG", e);
-            return "";
-        }
-    }
-
-    /**
-     * 构建 RAG 来源信息列表。
-     */
-    private List<SourceInfo> buildSources(String question, ChatRequest request) {
-        if (ragEngine == null || !ragEngine.isEnabled()) {
-            return Collections.emptyList();
-        }
-        try {
-            List<RAGEngine.SourceInfo> ragSources;
-            if (request.getKnowledgePointId() != null) {
-                ragSources = ragEngine.retrieveSources(question, 3);
-            } else {
-                ragSources = ragEngine.retrieveSources(question, 3);
-            }
-            return ragSources.stream()
-                    .map(s -> {
-                        SourceInfo info = new SourceInfo();
-                        info.setTitle(s.getTitle());
-                        info.setContent(s.getSnippet());
-                        info.setScore(s.getScore());
-                        info.setSourceType(s.getSourceType());
-                        return info;
-                    })
-                    .collect(Collectors.toList());
-        } catch (Exception e) {
-            log.warn("Failed to retrieve RAG sources", e);
+            log.warn("RAG retrieval failed, continuing without RAG", e);
             return Collections.emptyList();
         }
     }
 
     /**
-     * 构建对话历史上下文（取最近 N 轮对话）。
+     * 将文档片段格式化为 LLM 参考上下文字符串。
      */
-    private String buildHistoryContext(String sessionId) {
-        List<ChatHistory> recentMessages = chatHistoryRepository
-                .findBySessionIdOrderByCreatedAtAsc(sessionId);
+    private String formatRagContext(List<RAGEngine.DocumentChunk> docs) {
+        if (docs.isEmpty()) return "";
 
-        if (recentMessages.isEmpty()) {
-            return "";
-        }
-
-        int startIndex = Math.max(0, recentMessages.size() - MAX_HISTORY_ROUNDS);
-        List<ChatHistory> contextMessages = recentMessages.subList(startIndex, recentMessages.size());
-
-        StringBuilder sb = new StringBuilder("\n\n## 对话历史\n");
-        for (ChatHistory msg : contextMessages) {
-            String role = ChatRole.USER == msg.getRole() ? "学生" : "学伴";
-            sb.append(role).append(": ").append(msg.getContent()).append("\n");
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < docs.size(); i++) {
+            RAGEngine.DocumentChunk doc = docs.get(i);
+            sb.append("[").append(i + 1).append("] ");
+            if (doc.getTitle() != null && !doc.getTitle().isBlank()) {
+                sb.append(doc.getTitle()).append(" — ");
+            }
+            sb.append(doc.getContent()).append("\n\n");
         }
         return sb.toString();
     }
 
     /**
-     * 构建组合的系统提示词（RAG 上下文 + 对话历史）。
+     * 从文档片段构建来源信息列表（取前 maxCount 个用于前端展示）。
      */
-    private String buildCombinedSystemPrompt(String ragContext, String historyContext) {
-        String basePrompt;
+    private List<SourceInfo> formatSources(List<RAGEngine.DocumentChunk> docs, int maxCount) {
+        if (docs.isEmpty()) return Collections.emptyList();
+        int count = Math.min(maxCount, docs.size());
+        List<SourceInfo> result = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            RAGEngine.DocumentChunk doc = docs.get(i);
+            SourceInfo info = new SourceInfo();
+            info.setTitle(doc.getTitle());
+            info.setContent(doc.getContent());
+            info.setScore(doc.getScore());
+            info.setSourceType(doc.getSourceType());
+            result.add(info);
+        }
+        return result;
+    }
+
+    /**
+     * 构建对话历史消息列表（取最近 N 轮对话，作为独立 ChatMessage 返回）。
+     * 历史消息作为独立的 user/assistant messages 传入 LLM API，
+     * 避免拼入 system prompt 导致的每次调用 prompt 膨胀和 KV cache 无法复用。
+     */
+    private List<ChatMessage> buildHistoryMessages(String sessionId) {
+        int limit = MAX_HISTORY_ROUNDS * 2; // 每轮含 user + assistant 两条消息
+        List<ChatHistory> recentMessages = chatHistoryRepository
+                .findBySessionIdOrderByCreatedAtDesc(sessionId, PageRequest.of(0, limit));
+
+        if (recentMessages.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // 反转回正序，保证对话历史按时间先后排列
+        Collections.reverse(recentMessages);
+
+        List<ChatMessage> messages = new ArrayList<>();
+        for (ChatHistory msg : recentMessages) {
+            if (ChatRole.USER == msg.getRole()) {
+                messages.add(ChatMessage.userMessage(msg.getContent()));
+            } else {
+                messages.add(ChatMessage.assistantMessage(msg.getContent()));
+            }
+        }
+        return messages;
+    }
+
+    /**
+     * 构建只含 RAG 上下文的系统提示词（不含对话历史）。
+     * 历史消息通过 {@link #buildHistoryMessages} 作为独立 messages 传入 LLM。
+     */
+    private String buildSystemPrompt(String ragContext) {
         if (ragContext != null && !ragContext.isBlank()) {
-            basePrompt = SYSTEM_PROMPT.replace("{rag_context}", ragContext);
-        } else {
-            basePrompt = SYSTEM_PROMPT_NO_RAG;
+            return SYSTEM_PROMPT.replace("{rag_context}", ragContext);
         }
-        if (historyContext != null && !historyContext.isBlank()) {
-            basePrompt += historyContext;
-        }
-        return basePrompt;
+        return SYSTEM_PROMPT_NO_RAG;
     }
 
     /**
