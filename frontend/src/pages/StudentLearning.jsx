@@ -10,19 +10,19 @@ const { Title, Text, Paragraph } = Typography;
 const DIFFICULTY_COLORS = { 1: 'green', 2: 'cyan', 3: 'blue', 4: 'orange', 5: 'red' };
 
 // ============================================================
-// 纯工具函数（不依赖组件实例）
+// 纯工具函数
 // ============================================================
 const getTypeLabel = (type) => ({
   SINGLE_CHOICE: '单选题', MULTIPLE_CHOICE: '多选题', TRUE_FALSE: '判断题',
   FILL_BLANK: '填空题', SHORT_ANSWER: '简答题', ESSAY: '论述题',
 }[type] || type);
 
-const needsOptions = (type) =>
+const isChoiceType = (type) =>
   ['SINGLE_CHOICE', 'MULTIPLE_CHOICE', 'TRUE_FALSE'].includes(type);
 
 const parseOptions = (q) => {
   const type = q.questionType || 'SINGLE_CHOICE';
-  if (!needsOptions(type)) return [];
+  if (!isChoiceType(type)) return [];
   try {
     let raw = typeof q.options === 'string' ? JSON.parse(q.options) : (q.options || []);
     if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
@@ -43,7 +43,7 @@ const parseOptions = (q) => {
 };
 
 // ============================================================
-// 子组件：AI 分析结果折叠面板（React.memo）
+// 子组件：AI 分析结果折叠面板
 // ============================================================
 const AnalysisCollapse = React.memo(({ result }) => {
   const items = [];
@@ -91,66 +91,54 @@ const AnalysisCollapse = React.memo(({ result }) => {
 });
 
 // ============================================================
-// 子组件：单道题目卡片（React.memo — 增量渲染核心）
+// 子组件：单道题目卡片（React.memo — 内部管理本地状态）
+// 核心优化：选择题用本地 state 驱动（仅重渲染自身）
+//          输入题用 DOM ref 非受控（零渲染开销）
 // ============================================================
 const QuestionCard = React.memo(({
-  question, index, selected, result, disabled,
+  question, index, result, disabled,
   parsedOptions, submitting, analyzing, analysisResult,
   onSelectAnswer, onSubmitAnswer, onAnalyze,
 }) => {
   const qId = question.id;
   const qType = question.questionType || 'SINGLE_CHOICE';
+  const isChoice = isChoiceType(qType);
 
-  const renderOptions = (options) => {
-    if (qType === 'SINGLE_CHOICE' || qType === 'TRUE_FALSE') {
-      return (
-        <Radio.Group style={{ display: 'block', marginTop: 8 }}
-          value={selected} onChange={e => onSelectAnswer(qId, e.target.value)} disabled={disabled}>
-          {options.map(opt => (
-            <Radio key={opt.label} value={opt.label} style={{ display: 'block', marginBottom: 4 }}>
-              <Text style={{
-                color: result && opt.label === result.correctAnswer ? '#52c41a' :
-                       result && opt.label === result.studentAnswer && !result.correct ? '#ff4d4f' : 'inherit',
-                fontWeight: result && opt.label === result.correctAnswer ? 'bold' : 'normal',
-              }}>{opt.label}. {opt.text}</Text>
-            </Radio>
-          ))}
-        </Radio.Group>
-      );
-    }
-    if (qType === 'MULTIPLE_CHOICE') {
-      return (
-        <Checkbox.Group style={{ display: 'block', marginTop: 8 }}
-          value={selected ? selected.split(',') : []}
-          onChange={vals => onSelectAnswer(qId, vals.sort().join(','))} disabled={disabled}>
-          {options.map(opt => (
-            <Checkbox key={opt.label} value={opt.label} style={{ display: 'block', marginBottom: 4 }}>
-              <Text style={{
-                color: result && result.correctAnswer?.split(',').includes(opt.label) ? '#52c41a' :
-                       result && result.studentAnswer?.split(',').includes(opt.label) && !result.correct ? '#ff4d4f' : 'inherit',
-              }}>{opt.label}. {opt.text}</Text>
-            </Checkbox>
-          ))}
-        </Checkbox.Group>
-      );
-    }
-    return null;
+  // 选择题：本地 state 驱动选中显示（不依赖父组件重渲染）
+  const [localValue, setLocalValue] = useState('');
+  // 输入题：DOM ref 非受控
+  const inputRef = useRef(null);
+
+  // 切换题目时重置本地状态
+  useEffect(() => { setLocalValue(''); }, [qId]);
+
+  // 选择题选中
+  const handleChoiceChange = (value) => {
+    const finalValue = typeof value === 'object' && value?.target
+      ? value.target.value : value;
+    setLocalValue(finalValue);
+    onSelectAnswer(qId, finalValue);
   };
 
-  const renderInput = () => {
-    if (qType === 'FILL_BLANK') {
-      return <Input style={{ marginTop: 8, maxWidth: 400 }} placeholder="请输入答案"
-        value={selected || ''} onChange={e => onSelectAnswer(qId, e.target.value)} disabled={disabled} />;
+  // 输入题：只写 ref，不触发渲染
+  const handleInputChange = (e) => {
+    onSelectAnswer(qId, e.target.value);
+  };
+
+  // 提交时获取最终答案
+  const handleSubmit = () => {
+    let answer;
+    if (isChoice) {
+      answer = localValue;
+    } else {
+      const el = inputRef.current;
+      answer = el?.input?.value || el?.resizableTextArea?.textArea?.value || '';
     }
-    if (qType === 'SHORT_ANSWER') {
-      return <Input.TextArea style={{ marginTop: 8 }} rows={3} placeholder="请输入答案"
-        value={selected || ''} onChange={e => onSelectAnswer(qId, e.target.value)} disabled={disabled} />;
+    if (!answer || (qType !== 'SINGLE_CHOICE' && qType !== 'MULTIPLE_CHOICE' && qType !== 'TRUE_FALSE' && !answer.trim())) {
+      message.warning('请先输入答案');
+      return;
     }
-    if (qType === 'ESSAY') {
-      return <Input.TextArea style={{ marginTop: 8 }} rows={6} placeholder="请详细论述你的观点..."
-        value={selected || ''} onChange={e => onSelectAnswer(qId, e.target.value)} disabled={disabled} />;
-    }
-    return null;
+    onSubmitAnswer(qId, qType, answer);
   };
 
   return (
@@ -161,15 +149,66 @@ const QuestionCard = React.memo(({
         {question.difficulty && <Tag color={DIFFICULTY_COLORS[question.difficulty]}>难度{question.difficulty}</Tag>}
       </Text>
 
-      {needsOptions(qType) ? renderOptions(parsedOptions) : renderInput()}
+      {/* 选择题：受控于本地 state，增量渲染 */}
+      {isChoice && (
+        <>
+          {(qType === 'SINGLE_CHOICE' || qType === 'TRUE_FALSE') && (
+            <Radio.Group style={{ display: 'block', marginTop: 8 }}
+              value={localValue} onChange={e => handleChoiceChange(e.target.value)} disabled={disabled}>
+              {parsedOptions.map(opt => (
+                <Radio key={opt.label} value={opt.label} style={{ display: 'block', marginBottom: 4 }}>
+                  <Text style={{
+                    color: result && opt.label === result.correctAnswer ? '#52c41a' :
+                           result && opt.label === result.studentAnswer && !result.correct ? '#ff4d4f' : 'inherit',
+                    fontWeight: result && opt.label === result.correctAnswer ? 'bold' : 'normal',
+                  }}>{opt.label}. {opt.text}</Text>
+                </Radio>
+              ))}
+            </Radio.Group>
+          )}
+          {qType === 'MULTIPLE_CHOICE' && (
+            <Checkbox.Group style={{ display: 'block', marginTop: 8 }}
+              value={localValue ? localValue.split(',') : []}
+              onChange={vals => handleChoiceChange(vals.sort().join(','))} disabled={disabled}>
+              {parsedOptions.map(opt => (
+                <Checkbox key={opt.label} value={opt.label} style={{ display: 'block', marginBottom: 4 }}>
+                  <Text style={{
+                    color: result && result.correctAnswer?.split(',').includes(opt.label) ? '#52c41a' :
+                           result && result.studentAnswer?.split(',').includes(opt.label) && !result.correct ? '#ff4d4f' : 'inherit',
+                  }}>{opt.label}. {opt.text}</Text>
+                </Checkbox>
+              ))}
+            </Checkbox.Group>
+          )}
+        </>
+      )}
 
+      {/* 输入题：非受控，零渲染开销 */}
+      {!isChoice && (
+        <>
+          {qType === 'FILL_BLANK' && (
+            <Input ref={inputRef} style={{ marginTop: 8, maxWidth: 400 }}
+              placeholder="请输入答案" defaultValue="" disabled={disabled} />
+          )}
+          {qType === 'SHORT_ANSWER' && (
+            <Input.TextArea ref={inputRef} style={{ marginTop: 8 }} rows={3}
+              placeholder="请输入答案" defaultValue="" disabled={disabled} />
+          )}
+          {qType === 'ESSAY' && (
+            <Input.TextArea ref={inputRef} style={{ marginTop: 8 }} rows={6}
+              placeholder="请详细论述你的观点..." defaultValue="" disabled={disabled} />
+          )}
+        </>
+      )}
+
+      {/* 提交 / 反馈 */}
       {!disabled ? (
         <div style={{ marginTop: 8 }}>
           <Button type="primary" size="small"
-            onClick={() => onSubmitAnswer(qId, qType, selected)}
-            loading={submitting} disabled={!selected}>提交答案</Button>
+            onClick={handleSubmit}
+            loading={submitting} disabled={isChoice && !localValue}>提交答案</Button>
           <Button size="small" icon={<RobotOutlined />} style={{ marginLeft: 8 }}
-            onClick={() => onAnalyze(question, selected)} loading={analyzing}>AI 分析</Button>
+            onClick={() => onAnalyze(question, localValue)} loading={analyzing}>AI 分析</Button>
           {!analyzing && analysisResult && <AnalysisCollapse result={analysisResult} />}
         </div>
       ) : (
@@ -184,7 +223,7 @@ const QuestionCard = React.memo(({
               </Space>
             } />
           <Button size="small" icon={<RobotOutlined />} style={{ marginTop: 8 }}
-            onClick={() => onAnalyze(question, result?.studentAnswer || selected)} loading={analyzing}>AI 分析</Button>
+            onClick={() => onAnalyze(question, localValue)} loading={analyzing}>AI 分析</Button>
           {!analyzing && analysisResult && <AnalysisCollapse result={analysisResult} />}
         </div>
       )}
@@ -208,7 +247,6 @@ export default function StudentLearning() {
   const [currentKpIndex, setCurrentKpIndex] = useState(0);
   const [questions, setQuestions] = useState([]);
   const [masteryMap, setMasteryMap] = useState({});
-  const [selectedAnswers, setSelectedAnswers] = useState({});
   const [submitResults, setSubmitResults] = useState({});
   const [analysisResults, setAnalysisResults] = useState({});
   const [analyzingQuestions, setAnalyzingQuestions] = useState({});
@@ -216,10 +254,13 @@ export default function StudentLearning() {
   const currentKp = knowledgePoints[currentKpIndex];
   const prevCourseIdRef = useRef(null);
 
-  // ─── 稳定的事件回调（useCallback 确保 QuestionCard memo 生效） ───
+  // ─── ref 存储所有答案（不触发渲染） ───
+  const answerRefs = useRef({});
+
+  // ─── 稳定的事件回调 ───
 
   const handleSelectAnswer = useCallback((questionId, value) => {
-    setSelectedAnswers(prev => ({ ...prev, [questionId]: value }));
+    answerRefs.current[questionId] = value;
   }, []);
 
   const refreshMastery = useCallback(async (courseId) => {
@@ -237,13 +278,6 @@ export default function StudentLearning() {
   }, [user?.id]);
 
   const handleSubmitAnswer = useCallback(async (questionId, qType, answer) => {
-    if (!answer || (qType !== 'SINGLE_CHOICE' && qType !== 'MULTIPLE_CHOICE' && qType !== 'TRUE_FALSE' && !answer.trim())) {
-      if (!answer) { message.warning('请先输入答案'); return; }
-    }
-    if (!answer || ((qType === 'FILL_BLANK' || qType === 'SHORT_ANSWER' || qType === 'ESSAY') && !answer.trim())) {
-      message.warning('请先输入答案');
-      return;
-    }
     setSubmitting(true);
     try {
       const res = await answerAPI.submit({
@@ -333,7 +367,7 @@ export default function StudentLearning() {
       const res = await learningAPI.getQuestionsByKp(kpId);
       const list = res?.data || res || [];
       setQuestions(list);
-      setSelectedAnswers({});
+      answerRefs.current = {};
       setSubmitResults({});
       setAnalysisResults({});
       setAnalyzingQuestions({});
@@ -350,9 +384,8 @@ export default function StudentLearning() {
     if (kp?.id) loadQuestions(kp.id);
   }, [knowledgePoints]);
 
-  // ─── useMemo 缓存（输入/选择答案时不重算） ───
+  // ─── useMemo 缓存 ───
 
-  // 左侧知识点列表
   const kpListItems = useMemo(() => {
     return knowledgePoints.map((kp, idx) => {
       const val = masteryMap[kp.id];
@@ -365,12 +398,10 @@ export default function StudentLearning() {
     });
   }, [knowledgePoints, masteryMap, currentKpIndex]);
 
-  // 选项解析结果
   const parsedQuestions = useMemo(() => {
     return questions.map(q => ({ id: q.id, options: parseOptions(q) }));
   }, [questions]);
 
-  // 进度信息
   const progressInfo = useMemo(() => {
     const total = knowledgePoints.length;
     const learned = knowledgePoints.filter(kp => (masteryMap[kp.id] || 0) >= 0.5).length;
@@ -386,7 +417,6 @@ export default function StudentLearning() {
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-      {/* 顶部：返回 + 课程信息 + 进度 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <Space>
           <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/student/dashboard')}>返回</Button>
@@ -400,7 +430,6 @@ export default function StudentLearning() {
       </div>
 
       <div style={{ display: 'flex', gap: 16 }}>
-        {/* 左侧：知识点导航（useMemo 缓存，输入答案时不重渲染） */}
         <Card size="small" style={{ width: 240, flexShrink: 0, maxHeight: 600, overflow: 'auto' }}>
           <Text strong style={{ display: 'block', marginBottom: 8 }}>📖 知识点列表</Text>
           <List size="small" dataSource={kpListItems} renderItem={(item) => (
@@ -423,11 +452,9 @@ export default function StudentLearning() {
           )} />
         </Card>
 
-        {/* 右侧：学习内容 */}
         <div style={{ flex: 1 }}>
           {currentKp ? (
             <div>
-              {/* 当前知识点标题 */}
               <Card size="small" style={{ marginBottom: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
@@ -448,14 +475,12 @@ export default function StudentLearning() {
                 </div>
               </Card>
 
-              {/* 知识点内容 */}
               {currentKp.content && (
                 <Card size="small" title="📖 学习内容" style={{ marginBottom: 12 }}>
                   <Paragraph style={{ whiteSpace: 'pre-wrap' }}>{currentKp.content}</Paragraph>
                 </Card>
               )}
 
-              {/* 练习题（React.memo QuestionCard → 只重渲染当前操作的题目） */}
               <Card size="small" title={`📝 练习题（${questions.length} 题）`} style={{ marginBottom: 12 }}>
                 {questions.length === 0 ? (
                   <Empty description="该知识点暂无练习题" />
@@ -465,7 +490,6 @@ export default function StudentLearning() {
                     return (
                       <QuestionCard key={q.id}
                         question={q} index={qIdx}
-                        selected={selectedAnswers[q.id]}
                         result={submitResults[q.id]}
                         disabled={!!submitResults[q.id]}
                         parsedOptions={parsed?.options || []}
@@ -481,7 +505,6 @@ export default function StudentLearning() {
                 )}
               </Card>
 
-              {/* 导航按钮 */}
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16 }}>
                 <Button icon={<ArrowLeftOutlined />} disabled={currentKpIndex === 0}
                   onClick={() => switchKp(currentKpIndex - 1)}>上一课</Button>
