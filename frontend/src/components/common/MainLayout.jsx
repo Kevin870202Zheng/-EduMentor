@@ -27,6 +27,12 @@ const teacherMenuItems = [
   { key: '/teacher/courses', icon: <FileTextOutlined />, label: '课程管理' },
 ];
 
+const adminMenuItems = [
+  { key: '/admin/dashboard', icon: <DashboardOutlined />, label: '系统概览' },
+  { key: '/admin/teachers', icon: <UserOutlined />, label: '教师管理' },
+  { key: '/admin/students', icon: <TeamOutlined />, label: '学生管理' },
+];
+
 export default function MainLayout({ role = 'student' }) {
   const [collapsed, setCollapsed] = useState(false);
   const [roleModalOpen, setRoleModalOpen] = useState(false);
@@ -36,9 +42,13 @@ export default function MainLayout({ role = 'student' }) {
   const location = useLocation();
   const { user, logout } = useAuth();
 
-  const menuItems = role === 'teacher' ? teacherMenuItems : studentMenuItems;
-  const title = role === 'teacher' ? 'EduMentor 教学端' : '智学导师 EduMentor';
-  const displayName = user?.real_name || user?.username || (role === 'teacher' ? '张老师' : '同学');
+  let menuItems;
+  if (role === 'teacher') menuItems = teacherMenuItems;
+  else if (role === 'admin') menuItems = adminMenuItems;
+  else menuItems = studentMenuItems;
+
+  const title = role === 'teacher' ? 'EduMentor 教学端' : role === 'admin' ? 'EduMentor 管理端' : '智学导师 EduMentor';
+  const displayName = user?.real_name || user?.username || (role === 'teacher' ? '张老师' : role === 'admin' ? '管理员' : '同学');
 
   // Load student courses and set current course
   useEffect(() => {
@@ -95,7 +105,7 @@ export default function MainLayout({ role = 'student' }) {
   };
 
   const userMenuItems = [
-    { key: 'profile', icon: <UserOutlined />, label: <span>{displayName}<Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>({role === 'teacher' ? '教师' : '学生'})</Text></span>, disabled: true },
+    { key: 'profile', icon: <UserOutlined />, label: <span>{displayName}<Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>({role === 'teacher' ? '教师' : role === 'admin' ? '管理员' : '学生'})</Text></span>, disabled: true },
     { type: 'divider' },
     { key: 'switch-role', icon: <SwapOutlined />, label: '切换角色', onClick: () => setRoleModalOpen(true) },
     { key: 'logout', icon: <LogoutOutlined />, label: '退出登录', danger: true, onClick: handleLogout },
@@ -107,7 +117,7 @@ export default function MainLayout({ role = 'student' }) {
     <Layout style={{ minHeight: '100vh' }}>
       <Sider collapsible collapsed={collapsed} onCollapse={setCollapsed} style={{ background: '#fff' }} theme="light">
         <div style={{ height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid #f0f0f0', cursor: 'pointer' }}
-          onClick={() => navigate(role === 'teacher' ? '/teacher/dashboard' : '/student/dashboard')}>
+          onClick={() => navigate(role === 'teacher' ? '/teacher/dashboard' : role === 'admin' ? '/admin/dashboard' : '/student/dashboard')}>
           <BookOutlined style={{ fontSize: 24, color: '#1677ff' }} />
           {!collapsed && <Text strong style={{ marginLeft: 8, fontSize: 16 }}>{title}</Text>}
         </div>
@@ -148,9 +158,12 @@ export default function MainLayout({ role = 'student' }) {
                 当前课程: <Text strong>{currentCourse.courseName}</Text>
               </Text>
             )}
+            {role === 'admin' && (
+              <Text type="secondary" style={{ fontSize: 12 }}>管理控制台</Text>
+            )}
             <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
               <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Avatar icon={<UserOutlined />} style={{ backgroundColor: role === 'teacher' ? '#722ed1' : '#1677ff' }} />
+                <Avatar icon={<UserOutlined />} style={{ backgroundColor: role === 'teacher' ? '#722ed1' : role === 'admin' ? '#eb2f96' : '#1677ff' }} />
                 <Text>{displayName}</Text>
               </div>
             </Dropdown>

@@ -37,7 +37,9 @@ export default function ProtectedRoute({ children, allowedRoles }) {
   // 指定了角色白名单但用户角色不匹配
   if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(user?.role)) {
     // 根据用户角色跳转到对应的首页
-    const homePath = user?.role === 'teacher' ? '/teacher/dashboard' : '/student/dashboard';
+    const homePath = user?.role === 'teacher' ? '/teacher/dashboard'
+      : user?.role === 'admin' ? '/admin/dashboard'
+      : '/student/dashboard';
     return <Navigate to={homePath} replace />;
   }
 

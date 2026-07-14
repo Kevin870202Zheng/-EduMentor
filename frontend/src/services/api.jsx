@@ -346,4 +346,15 @@ export const learningAPI = {
     api.get('/diagnosis/profile', { params: { studentId, courseId } }),
 };
 
+// ============ 模块十五：管理员 ============
+export const adminAPI = {
+  getStats: () => api.get('/admin/stats'),
+  listUsers: (role) => api.get('/admin/users', { params: { role } }),
+  getUser: (id) => api.get(`/admin/users/${id}`),
+  createTeacher: (data) => api.post('/admin/users/teacher', data),
+  deleteUser: (id) => api.delete(`/admin/users/${id}`),
+  toggleStatus: (id, active) => api.put(`/admin/users/${id}/status`, { active }),
+  resetPassword: (id, newPassword) => api.put(`/admin/users/${id}/reset-password`, { newPassword }),
+};
+
 export default api;

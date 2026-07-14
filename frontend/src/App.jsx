@@ -19,6 +19,9 @@ const StudentLearning = lazy(() => import('./pages/StudentLearning'));
 const TeacherDashboard = lazy(() => import('./pages/TeacherDashboard'));
 const TeacherCourseManage = lazy(() => import('./pages/TeacherCourseManage'));
 const TeacherCourseList = lazy(() => import('./pages/TeacherCourseList'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const AdminTeachers = lazy(() => import('./pages/AdminTeachers'));
+const AdminStudents = lazy(() => import('./pages/AdminStudents'));
 
 function PageLoading() {
   return (
@@ -83,6 +86,21 @@ function App() {
                 <Route path="dashboard" element={<TeacherDashboard />} />
                 <Route path="courses" element={<TeacherCourseList />} />
                 <Route path="courses/:courseCode/manage" element={<TeacherCourseManage />} />
+              </Route>
+
+              {/* 管理员路由 */}
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <MainLayout role="admin" />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<Navigate to="dashboard" replace />} />
+                <Route path="dashboard" element={<AdminDashboard />} />
+                <Route path="teachers" element={<AdminTeachers />} />
+                <Route path="students" element={<AdminStudents />} />
               </Route>
 
               {/* 404 */}
