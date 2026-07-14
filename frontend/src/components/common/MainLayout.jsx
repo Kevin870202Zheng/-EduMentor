@@ -4,7 +4,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   DashboardOutlined, NodeIndexOutlined, QuestionCircleOutlined,
   FileExclamationOutlined, UserOutlined, BookOutlined,
-  LogoutOutlined, SwapOutlined, FileTextOutlined, ReadOutlined,
+  LogoutOutlined, SwapOutlined, FileTextOutlined, ReadOutlined, TeamOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../../context/AuthContext';
 import { enrollmentAPI } from '../../services/api';
