@@ -257,7 +257,7 @@ public class CourseExtractionService {
             int skipCount = 0;
 
             for (ExtractedKnowledgePoint ekp : result.knowledgePoints) {
-                if (ekp.name == null || ekp.name.isBlank()) continue;
+                if (ekp == null || ekp.name == null || ekp.name.isBlank()) continue;
                 String name = ekp.name.trim();
 
                 // 检查是否已存在同名知识点
@@ -288,6 +288,7 @@ public class CourseExtractionService {
             int relNewCount = 0;
             int relSkipCount = 0;
             for (ExtractedRelation er : result.relations) {
+                if (er == null || er.source == null || er.target == null) continue;
                 UUID sourceId = kpNameToId.get(er.source);
                 UUID targetId = kpNameToId.get(er.target);
                 if (sourceId == null || targetId == null) continue;
@@ -317,6 +318,7 @@ public class CourseExtractionService {
             int qNewCount = 0;
             int qSkipCount = 0;
             for (ExtractedQuestion eq : result.questions) {
+                if (eq == null) continue;
                 // LLM 有时用 stem 字段代替 content，或 options 中有题目描述
                 if (eq.content == null || eq.content.isBlank()) {
                     if (eq.stem != null && !eq.stem.isBlank()) {
@@ -636,7 +638,8 @@ public class CourseExtractionService {
         if (chunk.questions != null) {
             Map<String, ExtractedQuestion> existingQs = new LinkedHashMap<>();
             for (ExtractedQuestion eq : merged.questions) {
-                if (eq.content != null) existingQs.put(eq.content.trim(), eq);
+                if (eq == null || eq.content == null) continue;
+                existingQs.put(eq.content.trim(), eq);
             }
             for (ExtractedQuestion eq : chunk.questions) {
                 // LLM 有时用 stem 字段代替 content
