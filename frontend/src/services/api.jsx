@@ -329,6 +329,7 @@ export const questionManageAPI = {
   update: (id, data) => api.put(`/v1/questions/${id}`, data),
   delete: (id) => api.delete(`/v1/questions/${id}`),
   listByKp: (kpId) => api.get('/v1/questions', { params: { knowledgePointId: kpId } }),
+  generate: (data) => api.post('/v1/questions/generate', data),
 };
 
 // ============ 模块十三-A：题目分析（AI 智能分析） ============

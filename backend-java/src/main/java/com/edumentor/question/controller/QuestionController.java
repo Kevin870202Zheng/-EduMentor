@@ -3,7 +3,10 @@ package com.edumentor.question.controller;
 import com.edumentor.common.response.ApiResponse;
 import com.edumentor.question.dto.QuestionCreateRequest;
 import com.edumentor.question.dto.QuestionDto;
+import com.edumentor.question.dto.QuestionGenerateRequest;
+import com.edumentor.question.dto.QuestionGenerateResult;
 import com.edumentor.question.dto.QuestionUpdateRequest;
+import com.edumentor.question.service.QuestionGenerateService;
 import com.edumentor.question.service.QuestionService;
 import com.edumentor.user.entity.User;
 import jakarta.validation.Valid;
@@ -15,16 +18,27 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * 题目管理 REST API — 教师端习题 CRUD。
+ * 题目管理 REST API — 教师端习题 CRUD + AI 出题。
  */
 @RestController
 @RequestMapping("/api/v1/questions")
 public class QuestionController {
 
     private final QuestionService questionService;
+    private final QuestionGenerateService questionGenerateService;
 
-    public QuestionController(QuestionService questionService) {
+    public QuestionController(QuestionService questionService,
+                              QuestionGenerateService questionGenerateService) {
         this.questionService = questionService;
+        this.questionGenerateService = questionGenerateService;
+    }
+
+    @PostMapping("/generate")
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    public ApiResponse<QuestionGenerateResult> generateQuestions(
+            @Valid @RequestBody QuestionGenerateRequest request) {
+        QuestionGenerateResult result = questionGenerateService.generate(request);
+        return ApiResponse.success(result, "成功生成 " + result.generated() + " 道习题");
     }
 
     @PostMapping

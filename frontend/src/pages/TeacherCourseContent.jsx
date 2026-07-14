@@ -6,7 +6,7 @@ import {
 } from 'antd';
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, FileTextOutlined,
-  BookOutlined, QuestionCircleOutlined,
+  BookOutlined, QuestionCircleOutlined, RobotOutlined,
 } from '@ant-design/icons';
 import { knowledgePointAPI, questionManageAPI, courseAPI } from '../services/api';
 
@@ -30,6 +30,14 @@ const DIFFICULTY_OPTIONS = [
   { label: '★★★★★ 困难', value: 5 },
 ];
 
+const DEFAULT_AI_COUNTS = {
+  SINGLE_CHOICE: 2,
+  MULTIPLE_CHOICE: 1,
+  TRUE_FALSE: 1,
+  FILL_BLANK: 0,
+  SHORT_ANSWER: 0,
+};
+
 export default function TeacherCourseContent() {
   const { courseCode } = useParams();
   const [courseInfo, setCourseInfo] = useState(null);
@@ -48,6 +56,12 @@ export default function TeacherCourseContent() {
   const [editingQ, setEditingQ] = useState(null);
   const [qKpId, setQKpId] = useState(null);
   const [qForm] = Form.useForm();
+
+  // AI 出题弹窗
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [aiKpId, setAiKpId] = useState(null);
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiForm] = Form.useForm();
 
   useEffect(() => {
     loadData();
@@ -115,7 +129,7 @@ export default function TeacherCourseContent() {
       setKpModalOpen(false);
       loadData();
     } catch (err) {
-      if (err.errorFields) return; // validation error
+      if (err.errorFields) return;
       message.error('保存失败');
     }
   };
@@ -161,7 +175,6 @@ export default function TeacherCourseContent() {
   const handleQSave = async () => {
     try {
       const values = await qForm.validateFields();
-      // 解析选项文本为JSON
       if (values.options && typeof values.options === 'string') {
         const lines = values.options.split('\n').filter(l => l.trim());
         const optMap = {};
@@ -172,7 +185,6 @@ export default function TeacherCourseContent() {
         });
         values.options = Object.keys(optMap).length > 0 ? JSON.stringify(optMap) : undefined;
       }
-
       if (editingQ) {
         await questionManageAPI.update(editingQ.id, values);
         message.success('习题已更新');
@@ -196,6 +208,48 @@ export default function TeacherCourseContent() {
     } catch (err) {
       message.error('删除失败');
     }
+  };
+
+  // ========== AI 出题 ==========
+
+  const openAiGenerate = (kpId) => {
+    setAiKpId(kpId);
+    aiForm.resetFields();
+    aiForm.setFieldsValue({ ...DEFAULT_AI_COUNTS });
+    setAiModalOpen(true);
+  };
+
+  const handleAiGenerate = async () => {
+    if (!aiKpId || !courseInfo?.id) return;
+    const values = await aiForm.validateFields();
+
+    // 过滤数量为0的题型
+    const counts = {};
+    let total = 0;
+    Object.entries(values).forEach(([key, val]) => {
+      if (val > 0) { counts[key] = val; total += val; }
+    });
+    if (total === 0) {
+      message.warning('请至少选择一道题');
+      return;
+    }
+
+    setAiGenerating(true);
+    try {
+      const res = await questionManageAPI.generate({
+        courseId: courseInfo.id,
+        knowledgePointId: aiKpId,
+        counts,
+      });
+      const data = res?.data || res;
+      const generated = data?.generated || 0;
+      message.success(`AI 成功生成 ${generated} 道习题`);
+      setAiModalOpen(false);
+      if (aiKpId) loadQuestions(aiKpId);
+    } catch (err) {
+      message.error('AI 出题失败: ' + (err.response?.data?.message || err.message || '未知错误'));
+    }
+    setAiGenerating(false);
   };
 
   // ========== 渲染 ==========
@@ -263,6 +317,8 @@ export default function TeacherCourseContent() {
                     <Text strong>习题列表（{qs.length} 题）</Text>
                     <Button type="primary" size="small" icon={<PlusOutlined />} style={{ marginLeft: 12 }}
                       onClick={() => openCreateQ(record.id)}>新增习题</Button>
+                    <Button size="small" icon={<RobotOutlined />} style={{ marginLeft: 8 }}
+                      onClick={() => openAiGenerate(record.id)}>AI 出题</Button>
                   </div>
                   {qs.length === 0 ? (
                     <Empty description="暂无习题" image={Empty.PRESENTED_IMAGE_SIMPLE} />
@@ -355,6 +411,35 @@ export default function TeacherCourseContent() {
           <Form.Item name="difficulty" label="难度">
             <Select options={DIFFICULTY_OPTIONS} style={{ width: 200 }} />
           </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* AI 出题弹窗 */}
+      <Modal title="🤖 AI 智能出题" open={aiModalOpen}
+        onOk={handleAiGenerate} onCancel={() => setAiModalOpen(false)}
+        width={480} okText="🤖 生成" cancelText="取消"
+        confirmLoading={aiGenerating}>
+        <Form form={aiForm} layout="vertical">
+          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+            AI 将根据该知识点的课程内容智能生成习题，自动匹配难度。
+          </Text>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
+            <Form.Item name="SINGLE_CHOICE" label="单选题">
+              <InputNumber min={0} max={10} style={{ width: '100%' }} />
+            </Form.Item>
+            <Form.Item name="MULTIPLE_CHOICE" label="多选题">
+              <InputNumber min={0} max={10} style={{ width: '100%' }} />
+            </Form.Item>
+            <Form.Item name="TRUE_FALSE" label="判断题">
+              <InputNumber min={0} max={10} style={{ width: '100%' }} />
+            </Form.Item>
+            <Form.Item name="FILL_BLANK" label="填空题">
+              <InputNumber min={0} max={10} style={{ width: '100%' }} />
+            </Form.Item>
+            <Form.Item name="SHORT_ANSWER" label="简答题">
+              <InputNumber min={0} max={10} style={{ width: '100%' }} />
+            </Form.Item>
+          </div>
         </Form>
       </Modal>
     </div>
