@@ -21,6 +21,8 @@ import java.util.UUID;
  * @param importance  重要程度（1-5）
  * @param subject     学科
  * @param tags        标签（JSON 字符串数组）
+ * @param type         节点类型（VOLUME/PART/CHAPTER/SECTION/LEAF）
+ * @param sequencePath 路径编号（如 "1.2.3"）
  * @param orderIndex  排序序号
  * @param createdAt   创建时间
  * @param updatedAt   更新时间
@@ -39,6 +41,8 @@ public record KnowledgePointDto(
         int importance,
         String subject,
         String tags,
+        String type,
+        String sequencePath,
         int orderIndex,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
@@ -61,6 +65,8 @@ public record KnowledgePointDto(
                 entity.getImportance(),
                 entity.getSubject(),
                 entity.getTags(),
+                entity.getType(),
+                entity.getSequencePath(),
                 entity.getOrderIndex(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()

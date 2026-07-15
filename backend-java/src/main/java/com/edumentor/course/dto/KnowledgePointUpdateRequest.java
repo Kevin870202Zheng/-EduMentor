@@ -25,4 +25,5 @@ public class KnowledgePointUpdateRequest {
     private String tags;
     private Integer orderIndex;
     private UUID parentKpId;
+    private String type;
 }

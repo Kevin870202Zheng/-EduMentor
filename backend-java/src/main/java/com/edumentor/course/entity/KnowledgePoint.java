@@ -50,6 +50,12 @@ public class KnowledgePoint extends BaseEntity {
     @Column(columnDefinition = "jsonb")
     private String tags;
 
+    @Column(name = "type", nullable = false, length = 16)
+    private String type = "LEAF";
+
+    @Column(name = "sequence_path", length = 32)
+    private String sequencePath;
+
     @Column(name = "order_index")
     private Integer orderIndex = 0;
 
@@ -66,6 +72,8 @@ public class KnowledgePoint extends BaseEntity {
         dto.put("importance", importance);
         dto.put("subject", subject);
         dto.put("tags", tags);
+        dto.put("type", type);
+        dto.put("sequencePath", sequencePath);
         dto.put("orderIndex", orderIndex);
         dto.put("createdAt", getCreatedAt());
         dto.put("updatedAt", getUpdatedAt());

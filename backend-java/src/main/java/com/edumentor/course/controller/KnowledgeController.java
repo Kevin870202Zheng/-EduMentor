@@ -204,6 +204,33 @@ public class KnowledgeController {
     }
 
     /**
+     * AI 生成/更新课程知识点树结构（教师/管理员权限）。
+     */
+    @PostMapping("/courses/{courseId}/points/tree/generate")
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    @Operation(summary = "AI 生成树结构", description = "利用 AI 生成课程知识点的编→卷→章→节树状结构，支持增量更新")
+    public ApiResponse<TreeGenerateResult> generateTreeStructure(
+            @Parameter(description = "课程 ID") @PathVariable UUID courseId,
+            @Valid @RequestBody TreeGenerateRequest request) {
+        TreeGenerateResult result = knowledgeService.generateTreeStructure(courseId, request);
+        return ApiResponse.success(result, "树结构生成成功");
+    }
+
+    /**
+     * 移动知识点（教师/管理员权限）。
+     */
+    @PutMapping("/points/{id}/move")
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    @Operation(summary = "移动知识点", description = "将知识点移动到新的父节点或调整排序位置")
+    public ApiResponse<KnowledgePointDto> moveKnowledgePoint(
+            @Parameter(description = "知识点 ID") @PathVariable UUID id,
+            @Parameter(description = "新的父节点 ID（null 表示根层级）") @RequestParam(required = false) UUID parentKpId,
+            @Parameter(description = "排序序号") @RequestParam(required = false) Integer orderIndex) {
+        KnowledgePointDto kp = knowledgeService.moveKnowledgePoint(id, parentKpId, orderIndex);
+        return ApiResponse.success(kp, "知识点已移动");
+    }
+
+    /**
      * 删除知识点（教师/管理员权限）。
      */
     @DeleteMapping("/points/{id}")

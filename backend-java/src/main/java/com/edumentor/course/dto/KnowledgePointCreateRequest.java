@@ -46,5 +46,7 @@ public class KnowledgePointCreateRequest {
 
     private UUID parentKpId;
 
+    private String type;
+
     private Integer orderIndex;
 }

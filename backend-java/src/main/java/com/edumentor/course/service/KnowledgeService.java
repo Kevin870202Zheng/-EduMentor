@@ -11,6 +11,10 @@ import com.edumentor.course.entity.enums.RelationType;
 import com.edumentor.course.repository.CourseRepository;
 import com.edumentor.course.repository.KnowledgePointRepository;
 import com.edumentor.course.repository.KnowledgeRelationRepository;
+import com.edumentor.engine.llm.LLMService;
+import com.edumentor.engine.llm.LLMResponse;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.criteria.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,6 +28,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -48,13 +54,19 @@ public class KnowledgeService {
     private final CourseRepository courseRepository;
     private final KnowledgePointRepository knowledgePointRepository;
     private final KnowledgeRelationRepository knowledgeRelationRepository;
+    private final LLMService llmService;
+    private final ObjectMapper objectMapper;
 
     public KnowledgeService(CourseRepository courseRepository,
                             KnowledgePointRepository knowledgePointRepository,
-                            KnowledgeRelationRepository knowledgeRelationRepository) {
+                            KnowledgeRelationRepository knowledgeRelationRepository,
+                            LLMService llmService,
+                            ObjectMapper objectMapper) {
         this.courseRepository = courseRepository;
         this.knowledgePointRepository = knowledgePointRepository;
         this.knowledgeRelationRepository = knowledgeRelationRepository;
+        this.llmService = llmService;
+        this.objectMapper = objectMapper;
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -322,6 +334,7 @@ public class KnowledgeService {
         kp.setSubject(request.getSubject());
         kp.setTags(request.getTags() != null ? request.getTags() : "[]");
         kp.setOrderIndex(request.getOrderIndex() != null ? request.getOrderIndex() : 0);
+        kp.setType(request.getType() != null ? request.getType() : "LEAF");
 
         KnowledgePoint saved = knowledgePointRepository.save(kp);
         log.info("知识点创建成功: id={}, name={}", saved.getId(), saved.getName());
@@ -377,6 +390,10 @@ public class KnowledgeService {
                 throw new ResourceNotFoundException("父知识点", request.getParentKpId());
             }
             kp.setParentKpId(request.getParentKpId());
+        }
+
+        if (request.getType() != null) {
+            kp.setType(request.getType());
         }
 
         KnowledgePoint saved = knowledgePointRepository.save(kp);
@@ -841,4 +858,511 @@ public class KnowledgeService {
             int level,
             boolean hasChild
     ) {}
+
+    // ═══════════════════════════════════════════════════════════════
+    //  AI 树结构生成
+    // ═══════════════════════════════════════════════════════════════
+
+    private static final Pattern JSON_ARRAY_PATTERN = Pattern.compile(
+            "\\[.*\\]", Pattern.DOTALL);
+    private static final Pattern JSON_OBJECT_PATTERN = Pattern.compile(
+            "\\{.*\\}", Pattern.DOTALL);
+
+    /**
+     * AI 生成/更新课程知识点树结构。
+     * <p>
+     * 核心流程：
+     * <ol>
+     *   <li>加载课程所有知识点和已有树结构</li>
+     *   <li>计算差异（新增/删除/变更的知识点）</li>
+     *   <li>构建 Prompt 并调用 LLM</li>
+     *   <li>解析 LLM 返回的 JSON 树结构</li>
+     *   <li>合并已有树节点（保留稳定节点的 UUID）</li>
+     *   <li>保存到数据库</li>
+     * </ol>
+     *
+     * @param courseId 课程 ID
+     * @param request  生成请求（含粒度参数）
+     * @return 树生成结果（含统计和孤立知识点）
+     */
+    @Transactional
+    public TreeGenerateResult generateTreeStructure(UUID courseId, TreeGenerateRequest request) {
+        log.info("AI 生成树结构: courseId={}, granularity={}", courseId, request.getGranularity());
+
+        // 1. 加载课程和知识点
+        Course course = courseRepository.findById(courseId)
+                .orElseThrow(() -> new ResourceNotFoundException("课程", courseId));
+        List<KnowledgePoint> allKps = knowledgePointRepository
+                .findByCourseIdOrderByOrderIndexAsc(courseId);
+        if (allKps.size() < 3) {
+            throw new ValidationException("知识点太少（至少 3 个），无法生成树结构");
+        }
+
+        // 2. 分离已有树节点和中点（LEAF）
+        List<KnowledgePoint> existingTreeNodes = allKps.stream()
+                .filter(kp -> !"LEAF".equals(kp.getType()))
+                .collect(Collectors.toList());
+        List<KnowledgePoint> leafKps = allKps.stream()
+                .filter(kp -> "LEAF".equals(kp.getType()))
+                .collect(Collectors.toList());
+
+        // 3. 构建 Prompt
+        String prompt = buildTreePrompt(course, existingTreeNodes, leafKps, request);
+        log.debug("树生成 Prompt 长度: {} 字符", prompt.length());
+
+        // 4. 调用 LLM
+        LLMResponse response = llmService.ask(LLM_TREE_SYSTEM_PROMPT, prompt);
+        String content = response.getContent();
+        log.debug("LLM 返回: {} 字符", content.length());
+
+        // 5. 解析 JSON
+        List<TreeGenerateResult.TreeNode> generatedTree = parseTreeJson(content);
+        if (generatedTree == null || generatedTree.isEmpty()) {
+            throw new ValidationException("AI 未能生成有效的树结构，请重试");
+        }
+
+        // 6. 合并已有节点 ID（保留稳定性）
+        Map<String, UUID> existingNodeNameToId = new HashMap<>();
+        for (KnowledgePoint tn : existingTreeNodes) {
+            existingNodeNameToId.put(tn.getName().trim(), tn.getId());
+        }
+
+        // 6.1 知识点名称→ID 映射（用于 LLM 只返回名称时的匹配）
+        Map<String, UUID> leafKpNameToId = new HashMap<>();
+        for (KnowledgePoint lkp : leafKps) {
+            leafKpNameToId.put(lkp.getName().trim(), lkp.getId());
+        }
+
+        // 7. 统计信息
+        int[] stats = new int[]{0, 0, 0, 0, 0, 0, 0};
+        // stats: [total, new, kept, removed, volumes, chapters, sections]
+        List<UUID> orphanedIds = new ArrayList<>();
+
+        // 8. 递归处理和保存
+        List<KnowledgePoint> allToSave = new ArrayList<>();
+        int[] orderAcc = {0};
+        for (TreeGenerateResult.TreeNode node : generatedTree) {
+            processTreeNode(node, null, courseId, course.getCourseCode(),
+                    existingNodeNameToId, leafKpNameToId, allToSave, stats, orderAcc);
+        }
+
+        // 8.1 删除旧的树节点（不再存在于新树中的）
+        Set<UUID> keptIds = allToSave.stream()
+                .map(KnowledgePoint::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        for (KnowledgePoint oldTn : existingTreeNodes) {
+            UUID oid = oldTn.getId();
+            if (oid != null && !keptIds.contains(oid)) {
+                // 将其子节点解除父引用
+                List<KnowledgePoint> children = knowledgePointRepository
+                        .findByParentKpId(oid);
+                for (KnowledgePoint child : children) {
+                    child.setParentKpId(null);
+                    knowledgePointRepository.save(child);
+                }
+                knowledgePointRepository.delete(oldTn);
+                stats[3]++; // removed
+            }
+        }
+
+        // 8.2 删除旧树节点后，重新查询所有 LEAF（因为旧树节点删除时，其子 LEAF 的 parentKpId 被清空了）
+        List<KnowledgePoint> allLeavesNow = knowledgePointRepository
+                .findByCourseIdOrderByOrderIndexAsc(courseId).stream()
+                .filter(kp -> "LEAF".equals(kp.getType()))
+                .collect(Collectors.toList());
+
+        // 收集所有 parentKpId 仍为 null 的 LEAF
+        // 包括：未被 LLM 处理的（名称未匹配）、被 LLM 放在顶层的（parent 为 null）、被旧树节点删除释放的
+        List<KnowledgePoint> allOrphanLeaves = new ArrayList<>();
+        for (KnowledgePoint leaf : allLeavesNow) {
+            if (leaf.getParentKpId() == null) {
+                allOrphanLeaves.add(leaf);
+                orphanedIds.add(leaf.getId());
+            }
+        }
+
+        // 为孤立知识点找到第一个 VOLUME（作为"未归类"节的父节点）
+        KnowledgePoint volumeParent = null;
+        for (KnowledgePoint saved : allToSave) {
+            if ("VOLUME".equals(saved.getType())) {
+                volumeParent = saved;
+                break;
+            }
+        }
+
+        if (!allOrphanLeaves.isEmpty()) {
+            // 创建「未归类知识点」SECTION，先保存获取 ID
+            KnowledgePoint uncategorizedSection = new KnowledgePoint();
+            uncategorizedSection.setName("未归类知识点");
+            uncategorizedSection.setType("SECTION");
+            uncategorizedSection.setCourseId(courseId);
+            uncategorizedSection.setSubject(course.getCourseCode());
+            uncategorizedSection.setOrderIndex(999);
+            uncategorizedSection.setDescription("AI 未能自动归类的知识点，请手动调整到合适章节");
+            uncategorizedSection.setDifficulty(3);
+            uncategorizedSection.setImportance(3);
+            if (volumeParent != null) {
+                uncategorizedSection.setParentKpId(volumeParent.getId());
+            }
+            // 先保存以获取 ID
+            uncategorizedSection = knowledgePointRepository.save(uncategorizedSection);
+            allToSave.add(uncategorizedSection);
+            stats[0]++; // total +1
+
+            // 将所有孤立 LEAF 挂到「未归类知识点」节下
+            int leafOrder = 1;
+            for (KnowledgePoint orphan : allOrphanLeaves) {
+                orphan.setParentKpId(uncategorizedSection.getId());
+                orphan.setOrderIndex(leafOrder++);
+                if (!allToSave.contains(orphan)) {
+                    allToSave.add(orphan);
+                }
+                stats[2]++; // kept
+            }
+        }
+
+        // 9. 保存所有树节点
+        knowledgePointRepository.saveAll(allToSave);
+
+        // 10. 构建返回结果
+        List<TreeGenerateResult.TreeNode> resultTree = buildResultTree(allToSave, courseId);
+
+        log.info("树结构生成完成: courseId={}, total={}, new={}, kept={}, removed={}",
+                courseId, stats[0], stats[1], stats[2], stats[3]);
+
+        return new TreeGenerateResult(
+                resultTree,
+                new TreeGenerateResult.TreeStats(
+                        stats[0], stats[1], stats[2], stats[3],
+                        stats[4], stats[5], stats[6],
+                        (int) allLeavesNow.stream().filter(l -> l.getParentKpId() == null).count()
+                ),
+                orphanedIds
+        );
+    }
+
+    private static final String LLM_TREE_SYSTEM_PROMPT = """
+            你是一个课程知识结构专家。请根据提供的课程知识点列表，生成或更新该课程的树状知识结构。
+            
+            要求：
+            1. 按照「编(VOLUME) → 卷(PART) → 章(CHAPTER) → 节(SECTION) → 知识点(LEAF)」五层结构组织
+            2. 优先保留已有的树结构：对于已有的编/卷/章/节节点，尽量保留其名称和层级关系
+            3. 将新增知识点放入最合适的已有章节中，必要时创建新的章节
+            4. 已删除的知识点对应的章节节点保留（如果还有其他有效知识点）
+            5. 内容变更的知识点保持在原位置不变
+            6. 返回 JSON 数组，格式如下，不要包含其他内容。注意：LEAF 节点必须有 kpId 字段（引用已有知识点的 ID 或 null 表示新建）。
+
+            【关键规则】：
+            - 所有 LEAF 类型的节点（知识点）必须放在 SECTION 节点下作为其子节点
+            - 不允许 LEAF 节点出现在 VOLUME、PART 或 CHAPTER 的直接子节点中
+            - 如果某个知识点没有合适的 SECTION 位置，创建一个新的 SECTION 来收纳它
+            - 每个 LEAF 都必须是树中最深层的节点（不能再有子节点）
+            - 输出必须是完整的树结构，不要省略任何知识点
+
+            JSON 格式示例：
+            [
+              {
+                "name": "第一编 法的基本原理",
+                "type": "VOLUME",
+                "order": 1,
+                "children": [
+                  {
+                    "name": "第一章 法的概念",
+                    "type": "CHAPTER",
+                    "order": 1,
+                    "children": [
+                      {
+                        "name": "第一节 法的定义",
+                        "type": "SECTION",
+                        "order": 1,
+                        "children": [
+                          {"kpId": null, "name": "法的词源", "type": "LEAF", "order": 1}
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+            """;
+
+    private String buildTreePrompt(Course course,
+                                   List<KnowledgePoint> existingTreeNodes,
+                                   List<KnowledgePoint> leafKps,
+                                   TreeGenerateRequest request) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("=== 课程信息 ===\n");
+        sb.append("名称: ").append(course.getName()).append("\n");
+        sb.append("学科: ").append(course.getSubject()).append("\n");
+        sb.append("描述: ").append(Optional.ofNullable(course.getDescription()).orElse("")).append("\n");
+        sb.append("生成粒度: ").append(request.getGranularity()).append("\n\n");
+
+        // 已有树结构
+        if (!existingTreeNodes.isEmpty()) {
+            sb.append("=== 已有树结构（请优先保留这些节点名称和层级关系）===\n");
+            List<KnowledgePoint> roots = existingTreeNodes.stream()
+                    .filter(kp -> kp.getParentKpId() == null)
+                    .collect(Collectors.toList());
+            for (KnowledgePoint root : roots) {
+                sb.append("- ").append(root.getName())
+                        .append(" [").append(root.getType()).append("]")
+                        .append(" id:").append(root.getId()).append("\n");
+                appendChildren(existingTreeNodes, root.getId(), sb, 1);
+            }
+            sb.append("\n");
+        }
+
+        // 所有知识点 — 只传名称，后端再做名称映射
+        sb.append("=== 所有知识点列表（请将这些知识点归类到合适的章/节下）===\n");
+        // 如果知识点太多，分批或只传名称
+        int batchSize = Math.min(leafKps.size(), 500);
+        for (int i = 0; i < batchSize; i++) {
+            KnowledgePoint kp = leafKps.get(i);
+            sb.append("- ").append(kp.getName());
+            // 可选：加上描述（如果存在且简短）
+            if (kp.getDescription() != null && !kp.getDescription().isBlank()
+                    && kp.getDescription().length() < 80) {
+                sb.append("（").append(kp.getDescription()).append("）");
+            }
+            sb.append("\n");
+        }
+        if (leafKps.size() > batchSize) {
+            sb.append("... 等 ").append(leafKps.size()).append(" 个知识点\n");
+        }
+
+        // 新增/变更知识点标注
+        sb.append("\n=== 变化说明 ===\n");
+        sb.append("（1）已有树节点请尽量保留其名称和层级\n");
+        sb.append("（2）新增知识点请根据内容归入合适的章节\n");
+        sb.append("（3）如果某些知识点没有合适的章节，可以新建章节来容纳它们\n");
+        sb.append("（4）返回格式必须是 JSON 数组，每个节点包含 name, type, order, children/kpId 字段\n");
+        sb.append("（5）【重要】所有知识点（LEAF）必须放在 SECTION 节点下作为子节点，不允许直接放在 VOLUME/CHAPTER 下\n");
+
+        return sb.toString();
+    }
+
+    private void appendChildren(List<KnowledgePoint> allNodes, UUID parentId,
+                                StringBuilder sb, int indent) {
+        String prefix = "  ".repeat(indent) + "- ";
+        for (KnowledgePoint child : allNodes) {
+            if (parentId.equals(child.getParentKpId())) {
+                sb.append(prefix).append(child.getName())
+                        .append(" [").append(child.getType()).append("]")
+                        .append(" id:").append(child.getId()).append(" 包含子知识点:");
+                // 列出此节点下的 LEAF 知识点
+                List<KnowledgePoint> leafChildren = knowledgePointRepository
+                        .findByParentKpId(child.getId());
+                for (KnowledgePoint lc : leafChildren) {
+                    if ("LEAF".equals(lc.getType())) {
+                        sb.append(lc.getName()).append(", ");
+                    }
+                }
+                sb.append("\n");
+                appendChildren(allNodes, child.getId(), sb, indent + 1);
+            }
+        }
+    }
+
+    private List<TreeGenerateResult.TreeNode> parseTreeJson(String content) {
+        try {
+            // 提取 JSON 数组
+            Matcher matcher = JSON_ARRAY_PATTERN.matcher(content);
+            if (matcher.find()) {
+                String json = matcher.group();
+                return objectMapper.readValue(json,
+                        new TypeReference<List<TreeGenerateResult.TreeNode>>() {});
+            }
+        } catch (Exception e) {
+            log.warn("解析树结构 JSON 失败: {}", e.getMessage());
+        }
+        return null;
+    }
+
+    private void processTreeNode(TreeGenerateResult.TreeNode node,
+                                  KnowledgePoint parent,
+                                  UUID courseId, String courseCode,
+                                  Map<String, UUID> existingNodeNameToId,
+                                  Map<String, UUID> leafKpNameToId,
+                                  List<KnowledgePoint> allToSave,
+                                  int[] stats, int[] orderAcc) {
+        String type = Optional.ofNullable(node.type()).orElse("LEAF");
+        String name = Optional.ofNullable(node.name()).orElse("未命名");
+        stats[0]++;
+
+        // 确定节点 ID
+        UUID nodeId = null;
+        if ("LEAF".equals(type)) {
+            if (node.kpId() != null) {
+                // LLM 直接返回了 ID
+                nodeId = node.kpId();
+            } else if (leafKpNameToId.containsKey(name.trim())) {
+                // LLM 只返回了名称，通过名称匹配
+                nodeId = leafKpNameToId.get(name.trim());
+                leafKpNameToId.remove(name.trim());
+                stats[2]++; // kept
+            } else {
+                stats[1]++; // new
+            }
+        } else {
+            // 中间节点：尝试匹配已有节点
+            String key = name.trim();
+            if (existingNodeNameToId.containsKey(key)) {
+                nodeId = existingNodeNameToId.get(key);
+                existingNodeNameToId.remove(key);
+                stats[2]++; // kept
+            } else {
+                stats[1]++; // new
+            }
+        }
+
+        orderAcc[0]++;
+
+        // 创建或更新 KnowledgePoint
+        KnowledgePoint kp;
+        if (nodeId != null) {
+            kp = knowledgePointRepository.findById(nodeId)
+                    .orElse(new KnowledgePoint());
+            kp.setId(nodeId);
+        } else {
+            kp = new KnowledgePoint();
+        }
+
+        kp.setName(name);
+        kp.setType(type);
+        kp.setCourseId(courseId);
+        kp.setOrderIndex(orderAcc[0]);
+        kp.setParentKpId(parent != null ? parent.getId() : null);
+
+        if (kp.getDescription() == null) {
+            kp.setDescription("");
+        }
+        if (kp.getDifficulty() == null) {
+            kp.setDifficulty(3);
+        }
+        if (kp.getImportance() == null) {
+            kp.setImportance(3);
+        }
+        if (kp.getSubject() == null || !courseCode.equals(kp.getSubject())) {
+            kp.setSubject(courseCode);
+        }
+
+        // 统计
+        switch (type) {
+            case "VOLUME" -> stats[4]++;
+            case "CHAPTER" -> stats[5]++;
+            case "SECTION" -> stats[6]++;
+        }
+
+        allToSave.add(kp);
+
+        // 递归处理子节点
+        if (node.children() != null) {
+            // 将当前节点的子 LEAF 的 parentKpId 设为当前节点
+            for (TreeGenerateResult.TreeNode child : node.children()) {
+                processTreeNode(child, kp, courseId, courseCode,
+                        existingNodeNameToId, leafKpNameToId, allToSave, stats, orderAcc);
+            }
+        }
+    }
+
+    private List<TreeGenerateResult.TreeNode> buildResultTree(
+            List<KnowledgePoint> allTreeNodes, UUID courseId) {
+        List<KnowledgePoint> roots = allTreeNodes.stream()
+                .filter(kp -> kp.getParentKpId() == null)
+                .sorted(Comparator.comparingInt(KnowledgePoint::getOrderIndex))
+                .collect(Collectors.toList());
+
+        List<TreeGenerateResult.TreeNode> result = new ArrayList<>();
+        for (KnowledgePoint root : roots) {
+            result.add(buildTreeNode(root, allTreeNodes));
+        }
+        return result;
+    }
+
+    private TreeGenerateResult.TreeNode buildTreeNode(
+            KnowledgePoint kp, List<KnowledgePoint> allNodes) {
+        List<KnowledgePoint> children = allNodes.stream()
+                .filter(c -> kp.getId().equals(c.getParentKpId()))
+                .sorted(Comparator.comparingInt(KnowledgePoint::getOrderIndex))
+                .collect(Collectors.toList());
+
+        List<TreeGenerateResult.TreeNode> childNodes = new ArrayList<>();
+        for (KnowledgePoint child : children) {
+            childNodes.add(buildTreeNode(child, allNodes));
+        }
+
+        return new TreeGenerateResult.TreeNode(
+                kp.getId(),
+                kp.getName(),
+                kp.getType(),
+                kp.getOrderIndex() != null ? kp.getOrderIndex() : 0,
+                childNodes,
+                "UNCHANGED"
+        );
+    }
+
+    /**
+     * 移动知识点到新的父节点。
+     *
+     * @param id          知识点 ID
+     * @param parentKpId  新的父节点 ID（null 表示移到根层级）
+     * @param orderIndex  在新的父节点下的排序序号
+     * @return 更新后的知识点 DTO
+     */
+    @Transactional
+    public KnowledgePointDto moveKnowledgePoint(UUID id, UUID parentKpId, Integer orderIndex) {
+        log.info("移动知识点: id={}, newParentId={}, orderIndex={}", id, parentKpId, orderIndex);
+
+        KnowledgePoint kp = knowledgePointRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("知识点", id));
+
+        // 校验不能将自己设为父节点
+        if (parentKpId != null && parentKpId.equals(id)) {
+            throw new ValidationException("不能将知识点自身设为父节点");
+        }
+
+        // 校验不能将节点移入自己的子节点（防止循环引用）
+        if (parentKpId != null) {
+            KnowledgePoint parent = knowledgePointRepository.findById(parentKpId)
+                    .orElseThrow(() -> new ResourceNotFoundException("父知识点", parentKpId));
+            if (!parent.getCourseId().equals(kp.getCourseId())) {
+                throw new ValidationException("父知识点必须属于同一课程");
+            }
+            // 检查循环引用
+            if (isDescendant(id, parentKpId)) {
+                throw new ValidationException("不能将知识点移入其自身子节点中");
+            }
+        }
+
+        kp.setParentKpId(parentKpId);
+        if (orderIndex != null) {
+            kp.setOrderIndex(orderIndex);
+        }
+
+        KnowledgePoint saved = knowledgePointRepository.save(kp);
+        return KnowledgePointDto.fromEntity(saved);
+    }
+
+    /**
+     * 检查 targetId 是否是 sourceId 的后代节点。
+     */
+    private boolean isDescendant(UUID sourceId, UUID targetId) {
+        Set<UUID> visited = new HashSet<>();
+        Queue<UUID> queue = new LinkedList<>();
+        queue.add(targetId);
+        while (!queue.isEmpty()) {
+            UUID current = queue.poll();
+            if (current.equals(sourceId)) return true;
+            if (visited.contains(current)) continue;
+            visited.add(current);
+            List<KnowledgePoint> children = knowledgePointRepository.findByParentKpId(current);
+            for (KnowledgePoint child : children) {
+                if (!visited.contains(child.getId())) {
+                    queue.add(child.getId());
+                }
+            }
+        }
+        return false;
+    }
 }

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
-import { Card, Typography, Button, Spin, Tag, Progress, Radio, Checkbox, Input, Space, Alert, Empty, List, message, Collapse } from 'antd';
-import { CheckCircleOutlined, CloseCircleOutlined, ArrowLeftOutlined, ArrowRightOutlined, RobotOutlined } from '@ant-design/icons';
-import { courseAPI, learningAPI, answerAPI, questionAnalysisAPI } from '../services/api';
+import { Card, Typography, Button, Spin, Tag, Progress, Radio, Checkbox, Input, Space, Alert, Empty, List, Tree, message, Collapse } from 'antd';
+import { CheckCircleOutlined, CloseCircleOutlined, ArrowLeftOutlined, ArrowRightOutlined, RobotOutlined, BookOutlined, FolderOutlined, FileTextOutlined } from '@ant-design/icons';
+import { courseAPI, learningAPI, answerAPI, questionAnalysisAPI, knowledgePointAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 const { Title, Text, Paragraph } = Typography;
@@ -244,6 +244,7 @@ export default function StudentLearning() {
   const [submitting, setSubmitting] = useState(false);
   const [courseInfo, setCourseInfo] = useState(null);
   const [knowledgePoints, setKnowledgePoints] = useState([]);
+  const [treeNodes, setTreeNodes] = useState([]);
   const [currentKpIndex, setCurrentKpIndex] = useState(0);
   const [questions, setQuestions] = useState([]);
   const [masteryMap, setMasteryMap] = useState({});
@@ -340,12 +341,15 @@ export default function StudentLearning() {
       const course = infoRes?.data || infoRes;
       setCourseInfo(course);
       if (course?.id) {
-        const [kpRes, diagRes] = await Promise.all([
+        const [kpRes, treeRes, diagRes] = await Promise.all([
           learningAPI.getKpsByCourse(course.id),
+          knowledgePointAPI.getTree(course.id),
           user?.id ? learningAPI.getDiagnosisProfile(user.id, course.id) : Promise.resolve(null),
         ]);
         const kps = kpRes?.data || kpRes || [];
+        const tree = treeRes?.data || treeRes || [];
         setKnowledgePoints(kps);
+        setTreeNodes(tree);
         if (diagRes?.data?.knowledgeMasteries) {
           const map = {};
           diagRes.data.knowledgeMasteries.forEach(d => {
@@ -386,17 +390,106 @@ export default function StudentLearning() {
 
   // ─── useMemo 缓存 ───
 
-  const kpListItems = useMemo(() => {
-    return knowledgePoints.map((kp, idx) => {
-      const val = masteryMap[kp.id];
-      let status;
-      if (val == null) status = { color: '#d9d9d9', label: '未学习', percent: 0 };
-      else if (val >= 0.8) status = { color: '#52c41a', label: '已掌握', percent: Math.round(val * 100) };
-      else if (val >= 0.5) status = { color: '#1677ff', label: '学习中', percent: Math.round(val * 100) };
-      else status = { color: '#faad14', label: '待巩固', percent: Math.round(val * 100) };
-      return { kp, idx, status, isActive: idx === currentKpIndex };
+  // 构建树形导航数据
+  const treeData = useMemo(() => {
+    if (!treeNodes.length) return [];
+
+    // 按 parentKpId 分组
+    const childrenMap = {};
+    treeNodes.forEach(n => {
+      const pid = n.knowledgePoint.parentKpId || 'root';
+      if (!childrenMap[pid]) childrenMap[pid] = [];
+      childrenMap[pid].push(n);
     });
-  }, [knowledgePoints, masteryMap, currentKpIndex]);
+
+    // 获取掌握度状态
+    const getMasteryStatus = (kpId) => {
+      const val = masteryMap[kpId];
+      if (val == null) return { color: '#d9d9d9', label: '未学习', percent: 0, count: 0, total: 0 };
+      if (val >= 0.8) return { color: '#52c41a', label: '已掌握', percent: Math.round(val * 100), count: 1, total: 1 };
+      if (val >= 0.5) return { color: '#1677ff', label: '学习中', percent: Math.round(val * 100), count: 0, total: 1 };
+      return { color: '#faad14', label: '待巩固', percent: Math.round(val * 100), count: 0, total: 1 };
+    };
+
+    // 计算节点的聚合掌握度（递归）
+    const calcAggregatedMastery = (node) => {
+      const children = childrenMap[node.knowledgePoint.id] || [];
+      if (children.length === 0) {
+        return getMasteryStatus(node.knowledgePoint.id);
+      }
+      let total = 0, count = 0, leafCount = 0, masteredCount = 0;
+      children.forEach(child => {
+        const childStatus = calcAggregatedMastery(child);
+        if (childStatus.percent > 0) { total += childStatus.percent; count++; }
+        if (childStatus.total > 0) {
+          leafCount += childStatus.total;
+          masteredCount += childStatus.count || 0;
+        }
+      });
+      // 统计叶子节点数
+      const leafTotal = leafCount > 0 ? leafCount : children.length;
+      const leafMastered = leafCount > 0 ? masteredCount : Math.round(count * (total / count / 100));
+
+      if (count === 0) return { color: '#d9d9d9', label: '未学习', percent: 0, count: 0, total: leafTotal };
+      const avg = Math.round(total / count);
+      let color = '#d9d9d9', label = '未学习';
+      if (avg >= 80) { color = '#52c41a'; label = '已掌握'; }
+      else if (avg >= 50) { color = '#1677ff'; label = '学习中'; }
+      else if (avg > 0) { color = '#faad14'; label = '待巩固'; }
+      return { color, label, percent: avg, count: leafMastered, total: leafTotal };
+    };
+
+    // 节点类型图标
+    const nodeIcon = (type) => {
+      switch (type) {
+        case 'VOLUME': return <BookOutlined style={{ color: '#722ed1' }} />;
+        case 'PART': return <FolderOutlined style={{ color: '#2f54eb' }} />;
+        case 'CHAPTER': return <FolderOutlined style={{ color: '#1677ff' }} />;
+        case 'SECTION': return <FileTextOutlined style={{ color: '#13c2c2' }} />;
+        default: return <FileTextOutlined style={{ color: '#52c41a' }} />;
+      }
+    };
+
+    // 递归构建树节点（含层级编号）
+    const buildChildren = (parentId, parentPath) => {
+      const items = childrenMap[parentId] || [];
+      return items
+        .sort((a, b) => (a.knowledgePoint.orderIndex || 0) - (b.knowledgePoint.orderIndex || 0))
+        .map((item, idx) => {
+          const kp = item.knowledgePoint;
+          const mastery = calcAggregatedMastery(item);
+          const path = parentPath ? `${parentPath}.${idx + 1}` : `${idx + 1}`;
+          return {
+            key: kp.id,
+            type: kp.type,
+            isLeaf: !item.hasChild,
+            title: (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 2, padding: '1px 0' }}>
+                <span style={{ color: '#bbb', fontSize: 10, minWidth: 28, textAlign: 'right' }}>{path}</span>
+                {nodeIcon(kp.type)}
+                <span style={{
+                  flex: 1, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  color: currentKp?.id === kp.id ? '#1677ff' : 'inherit',
+                  fontWeight: currentKp?.id === kp.id ? 600 : 'normal',
+                  marginLeft: 2,
+                }}>{kp.name}</span>
+                {!item.isLeaf && mastery.total > 0 && (
+                  <Text type="secondary" style={{ fontSize: 10, minWidth: 28 }}>
+                    {mastery.count}/{mastery.total}
+                  </Text>
+                )}
+                <Tag color={mastery.color} style={{
+                  margin: 0, fontSize: 10, lineHeight: '14px', minWidth: 36, textAlign: 'center', padding: '0 4px',
+                }}>{mastery.label}</Tag>
+              </div>
+            ),
+            children: buildChildren(kp.id, path),
+          };
+        });
+    };
+
+    return buildChildren('root', '');
+  }, [treeNodes, masteryMap, currentKp]);
 
   const parsedQuestions = useMemo(() => {
     return questions.map(q => ({ id: q.id, options: parseOptions(q) }));
@@ -407,6 +500,18 @@ export default function StudentLearning() {
     const learned = knowledgePoints.filter(kp => (masteryMap[kp.id] || 0) >= 0.5).length;
     return { total, learned, percent: total > 0 ? Math.round(learned / total * 100) : 0 };
   }, [knowledgePoints, masteryMap]);
+
+  // ─── Tree 选择处理 ───
+
+  const handleTreeSelect = useCallback((selectedKeys) => {
+    if (selectedKeys.length === 0) return;
+    const kpId = selectedKeys[0];
+    const idx = knowledgePoints.findIndex(k => k.id === kpId);
+    if (idx >= 0) {
+      setCurrentKpIndex(idx);
+      loadQuestions(kpId);
+    }
+  }, [knowledgePoints]);
 
   // ─── 渲染 ───
 
@@ -430,26 +535,19 @@ export default function StudentLearning() {
       </div>
 
       <div style={{ display: 'flex', gap: 16 }}>
-        <Card size="small" style={{ width: 240, flexShrink: 0, maxHeight: 600, overflow: 'auto' }}>
-          <Text strong style={{ display: 'block', marginBottom: 8 }}>📖 知识点列表</Text>
-          <List size="small" dataSource={kpListItems} renderItem={(item) => (
-            <List.Item key={item.kp.id} onClick={() => switchKp(item.idx)}
-              style={{
-                cursor: 'pointer', padding: '6px 8px', borderRadius: 4,
-                background: item.isActive ? '#e6f4ff' : 'transparent',
-                borderLeft: item.isActive ? '3px solid #1677ff' : '3px solid transparent',
-              }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
-                <Tag color={item.status.color}
-                  style={{ margin: 0, fontSize: 10, lineHeight: '16px', minWidth: 48, textAlign: 'center' }}>
-                  {item.status.label}
-                </Tag>
-                <Text style={{ flex: 1, fontSize: 13 }} ellipsis={{ tooltip: item.kp.name }}>
-                  {item.idx + 1}. {item.kp.name}
-                </Text>
-              </div>
-            </List.Item>
-          )} />
+        <Card size="small" style={{ width: 320, flexShrink: 0, maxHeight: '70vh', overflow: 'auto' }}>
+          <Text strong style={{ display: 'block', marginBottom: 8 }}>📖 知识结构</Text>
+          {treeData.length === 0 ? (
+            <Empty description="暂无知识结构" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          ) : (
+            <Tree
+              treeData={treeData}
+              defaultExpandedKeys={treeData.slice(0, 2).map(n => n.key)}
+              showIcon={false}
+              onSelect={handleTreeSelect}
+              selectedKeys={currentKp ? [currentKp.id] : []}
+            />
+          )}
         </Card>
 
         <div style={{ flex: 1 }}>
@@ -469,8 +567,14 @@ export default function StudentLearning() {
                       )}
                     </Space>
                   </div>
-                  <Progress type="circle" percent={kpListItems[currentKpIndex]?.status.percent || 0}
-                    size={48} strokeColor={kpListItems[currentKpIndex]?.status.color || '#d9d9d9'}
+                  <Progress type="circle" percent={currentKp ? Math.round((masteryMap[currentKp.id] || 0) * 100) : 0}
+                    size={48} strokeColor={(() => {
+                      const val = currentKp ? masteryMap[currentKp.id] : 0;
+                      if (!val) return '#d9d9d9';
+                      if (val >= 0.8) return '#52c41a';
+                      if (val >= 0.5) return '#1677ff';
+                      return '#faad14';
+                    })()}
                     format={p => p > 0 ? `${p}%` : '?'} />
                 </div>
               </Card>

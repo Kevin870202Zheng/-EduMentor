@@ -40,6 +40,9 @@ llm:
     secret-key: ${WENXIN_SECRET_KEY:}
   ollama:
     base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+  deepseek:
+    api-key: ${DEEPSEEK_API_KEY:}
+    api-base: ${DEEPSEEK_API_BASE:https://api.deepseek.com}
   rate-limit:
     max-requests-per-minute: ${LLM_RATE_LIMIT:120}
     max-tokens-per-minute: ${LLM_MAX_TOKENS_PER_MINUTE:200000}

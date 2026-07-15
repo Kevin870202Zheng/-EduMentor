@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import {
-  Card, Typography, Button, Table, Tag, Space, Modal, Form, Input, InputNumber,
-  Select, Popconfirm, message, Empty, Spin, Divider, Collapse,
+  Card, Typography, Button, Tag, Space, Modal, Form, Input, InputNumber,
+  Select, Popconfirm, message, Empty, Spin, Divider, Tree,
 } from 'antd';
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, FileTextOutlined,
   BookOutlined, QuestionCircleOutlined, RobotOutlined,
+  ApartmentOutlined, FolderOutlined, FolderOpenOutlined,
+  FileOutlined,
 } from '@ant-design/icons';
 import { knowledgePointAPI, questionManageAPI, courseAPI } from '../services/api';
 
@@ -38,13 +40,98 @@ const DEFAULT_AI_COUNTS = {
   SHORT_ANSWER: 0,
 };
 
+// 节点类型配置
+const NODE_TYPE_CONFIG = {
+  VOLUME: { label: '编', color: 'purple', icon: <BookOutlined /> },
+  PART: { label: '卷', color: 'geekblue', icon: <FolderOpenOutlined /> },
+  CHAPTER: { label: '章', color: 'blue', icon: <FolderOutlined /> },
+  SECTION: { label: '节', color: 'cyan', icon: <FileOutlined /> },
+  LEAF: { label: '知识点', color: 'green', icon: <FileTextOutlined /> },
+};
+
+// 将扁平树节点列表转为 Ant Design Tree 的 data 结构（含层级编号）
+const buildTreeData = (nodes, questionsMap) => {
+  if (!nodes || nodes.length === 0) return [];
+
+  // 按 parentKpId 分组
+  const childrenMap = {};
+  nodes.forEach(n => {
+    const pid = n.knowledgePoint.parentKpId || 'root';
+    if (!childrenMap[pid]) childrenMap[pid] = [];
+    childrenMap[pid].push(n);
+  });
+
+  // 递归构建
+  const buildChildren = (parentId, parentPath) => {
+    const items = childrenMap[parentId] || [];
+    return items
+      .sort((a, b) => (a.knowledgePoint.orderIndex || 0) - (b.knowledgePoint.orderIndex || 0))
+      .map((item, idx) => {
+        const kp = item.knowledgePoint;
+        const typeConfig = NODE_TYPE_CONFIG[kp.type] || NODE_TYPE_CONFIG.LEAF;
+        const path = parentPath ? `${parentPath}.${idx + 1}` : `${idx + 1}`;
+        const qs = questionsMap?.[kp.id] || [];
+        return {
+          key: kp.id,
+          title: (
+            <span>
+              <span style={{ color: '#999', fontSize: 11, marginRight: 4 }}>{path}</span>
+              {typeConfig.icon}
+              <span style={{ marginLeft: 4, fontSize: 13 }}>{kp.name}</span>
+              <Tag style={{ marginLeft: 4, fontSize: 10, lineHeight: '16px' }}
+                color={typeConfig.color}>
+                {typeConfig.label}
+              </Tag>
+              {qs.length > 0 && kp.type === 'LEAF' && (
+                <Text type="secondary" style={{ fontSize: 10 }}>({qs.length}题)</Text>
+              )}
+            </span>
+          ),
+          type: kp.type || 'LEAF',
+          raw: item,
+          isLeaf: !item.hasChild,
+          icon: typeConfig.icon,
+          children: buildChildren(kp.id, path),
+        };
+      });
+  };
+
+  return buildChildren('root', '');
+};
+
+/**
+ * 渲染选项文本（用于习题列表展示）
+ */
+function renderOptions(options) {
+  if (!options) return null;
+  let parsed = options;
+  if (typeof parsed === 'string') {
+    try { parsed = JSON.parse(parsed); } catch { return <Text>{parsed}</Text>; }
+  }
+  if (Array.isArray(parsed)) {
+    return parsed.map((o, i) => {
+      const label = typeof o === 'object' ? o.label : String.fromCharCode(65 + i);
+      const text = typeof o === 'object' ? o.text : o;
+      return <div key={i}><Text>{label}. {text}</Text></div>;
+    });
+  }
+  if (typeof parsed === 'object') {
+    return Object.entries(parsed).map(([k, v]) => (
+      <div key={k}><Text>{k}. {v}</Text></div>
+    ));
+  }
+  return null;
+}
+
 export default function TeacherCourseContent() {
   const { courseCode } = useParams();
   const [courseInfo, setCourseInfo] = useState(null);
-  const [kps, setKps] = useState([]);
+  const [kps, setKps] = useState([]);       // 扁平列表
+  const [treeNodes, setTreeNodes] = useState([]); // 树形数据（扁平带层级）
   const [loading, setLoading] = useState(true);
   const [expandedKpId, setExpandedKpId] = useState(null);
   const [questions, setQuestions] = useState({});
+  const [selectedKp, setSelectedKp] = useState(null); // 当前选中的知识点
 
   // 知识点编辑弹窗
   const [kpModalOpen, setKpModalOpen] = useState(false);
@@ -63,6 +150,12 @@ export default function TeacherCourseContent() {
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiForm] = Form.useForm();
 
+  // AI 生成树结构弹窗
+  const [treeGenModalOpen, setTreeGenModalOpen] = useState(false);
+  const [treeGenLoading, setTreeGenLoading] = useState(false);
+  const [treeGenResult, setTreeGenResult] = useState(null);
+  const [granularity, setGranularity] = useState('STANDARD');
+
   useEffect(() => {
     loadData();
   }, [courseCode]);
@@ -74,8 +167,15 @@ export default function TeacherCourseContent() {
       const course = infoRes?.data || infoRes;
       setCourseInfo(course);
       if (course?.id) {
-        const kpRes = await knowledgePointAPI.listByCourse(course.id);
-        setKps(kpRes?.data || kpRes || []);
+        // 加载知识点列表和树结构
+        const [kpRes, treeRes] = await Promise.all([
+          knowledgePointAPI.listByCourse(course.id),
+          knowledgePointAPI.getTree(course.id),
+        ]);
+        const flatKps = kpRes?.data || kpRes || [];
+        const treeData = treeRes?.data || treeRes || [];
+        setKps(flatKps);
+        setTreeNodes(treeData);
       }
     } catch (err) {
       message.error('加载课程内容失败');
@@ -92,12 +192,18 @@ export default function TeacherCourseContent() {
     }
   };
 
-  const handleExpandKp = (kpId) => {
-    if (expandedKpId === kpId) {
-      setExpandedKpId(null);
-    } else {
+  // ========== Tree 选择 ==========
+
+  const handleTreeSelect = (selectedKeys, info) => {
+    if (selectedKeys.length > 0) {
+      const kpId = selectedKeys[0];
+      const kp = kps.find(k => k.id === kpId);
+      setSelectedKp(kp || null);
       setExpandedKpId(kpId);
       if (!questions[kpId]) loadQuestions(kpId);
+    } else {
+      setSelectedKp(null);
+      setExpandedKpId(null);
     }
   };
 
@@ -106,7 +212,16 @@ export default function TeacherCourseContent() {
   const openCreateKp = () => {
     setEditingKp(null);
     kpForm.resetFields();
-    if (courseInfo?.id) kpForm.setFieldsValue({ courseId: courseInfo.id, difficulty: 3 });
+    if (courseInfo?.id) {
+      kpForm.setFieldsValue({
+        courseId: courseInfo.id,
+        difficulty: 3,
+        importance: 3,
+        subject: courseInfo.courseCode,
+        type: 'LEAF',
+        parentKpId: selectedKp?.id || null,
+      });
+    }
     setKpModalOpen(true);
   };
 
@@ -138,9 +253,10 @@ export default function TeacherCourseContent() {
     try {
       await knowledgePointAPI.delete(id);
       message.success('知识点已删除');
+      if (selectedKp?.id === id) setSelectedKp(null);
       loadData();
     } catch (err) {
-      message.error('删除失败');
+      message.error('删除失败: ' + (err.response?.data?.message || err.message));
     }
   };
 
@@ -223,7 +339,6 @@ export default function TeacherCourseContent() {
     if (!aiKpId || !courseInfo?.id) return;
     const values = await aiForm.validateFields();
 
-    // 过滤数量为0的题型
     const counts = {};
     let total = 0;
     Object.entries(values).forEach(([key, val]) => {
@@ -252,78 +367,169 @@ export default function TeacherCourseContent() {
     setAiGenerating(false);
   };
 
+  // ========== AI 生成树结构 ==========
+
+  const openTreeGenerate = () => {
+    setGranularity('STANDARD');
+    setTreeGenResult(null);
+    setTreeGenModalOpen(true);
+  };
+
+  const handleTreeGenerate = async () => {
+    if (!courseInfo?.id) return;
+    setTreeGenLoading(true);
+    setTreeGenResult(null);
+    try {
+      const res = await knowledgePointAPI.generateTree(courseInfo.id, { granularity });
+      const data = res?.data || res;
+      setTreeGenResult(data);
+      message.success('树结构生成成功');
+      setTreeGenModalOpen(false);
+      // 重新加载数据
+      await loadData();
+    } catch (err) {
+      message.error('生成失败: ' + (err.response?.data?.message || err.message || '未知错误'));
+    }
+    setTreeGenLoading(false);
+  };
+
+  // ========== Tree 拖拽 ==========
+
+  const handleTreeDrop = async (info) => {
+    const dropKey = info.node.key;
+    const dragKey = info.dragNode.key;
+    const dropToGap = info.dropToGap;  // false: 拖入内部, true: 拖到间隙
+    const dropPos = info.dropPosition; // -1: 之前, 1: 之后
+
+    if (dragKey === dropKey) return;
+
+    let newParentKpId = null;
+    let newOrder = 0;
+
+    if (!dropToGap) {
+      // 拖入目标节点内部 → 成为其子节点
+      newParentKpId = dropKey;
+      // 计算目标节点的现有子节点数
+      const siblings = treeNodes.filter(n =>
+        n.knowledgePoint.parentKpId === dropKey
+      );
+      newOrder = siblings.length; // 排在最后
+    } else {
+      // 拖到目标节点之前或之后 → 成为其同级节点
+      const dropNode = treeNodes.find(n => n.knowledgePoint.id === dropKey);
+      newParentKpId = dropNode?.knowledgePoint.parentKpId || null;
+
+      // 获取该层级的所有兄弟节点，按 orderIndex 排序
+      const siblings = treeNodes
+        .filter(n => n.knowledgePoint.parentKpId === newParentKpId)
+        .sort((a, b) => (a.knowledgePoint.orderIndex || 0) - (b.knowledgePoint.orderIndex || 0));
+
+      if (dropPos < 0) {
+        // 放在目标节点之前
+        const idx = siblings.findIndex(n => n.knowledgePoint.id === dropKey);
+        newOrder = idx >= 0 ? Math.max(0, (siblings[idx]?.knowledgePoint.orderIndex || 0) - 1) : 0;
+      } else {
+        // 放在目标节点之后
+        const idx = siblings.findIndex(n => n.knowledgePoint.id === dropKey);
+        newOrder = idx >= 0 ? (siblings[idx]?.knowledgePoint.orderIndex || 0) + 1 : siblings.length;
+      }
+    }
+
+    try {
+      await knowledgePointAPI.moveNode(dragKey, { parentKpId: newParentKpId, orderIndex: newOrder });
+      message.success('节点已移动');
+      await loadData();
+    } catch (err) {
+      message.error('移动失败: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
   // ========== 渲染 ==========
 
   if (loading) return <Spin size="large" style={{ display: 'flex', justifyContent: 'center', marginTop: 100 }} />;
 
-  const kpColumns = [
-    {
-      title: '#', dataIndex: 'orderIndex', key: 'orderIndex', width: 50,
-      render: (v) => <Text type="secondary">{(v ?? 0) + 1}</Text>,
-    },
-    {
-      title: '知识点名称', dataIndex: 'name', key: 'name',
-      render: (text, record) => (
-        <a onClick={() => handleExpandKp(record.id)}>
-          <BookOutlined style={{ marginRight: 6 }} />
-          {text || '未命名'}
-        </a>
-      ),
-    },
-    {
-      title: '描述', dataIndex: 'description', key: 'description', width: 300,
-      render: (t) => <Text type="secondary" ellipsis={{ tooltip: t }}>{t || '-'}</Text>,
-    },
-    {
-      title: '难度', dataIndex: 'difficulty', key: 'difficulty', width: 100,
-      render: (v) => <Tag>{'★'.repeat(v || 3)}</Tag>,
-    },
-    {
-      title: '内容长度', dataIndex: 'content', key: 'contentLen', width: 80,
-      render: (v) => <Text type="secondary">{v ? v.length : 0}字</Text>,
-    },
-    {
-      title: '操作', key: 'action', width: 180,
-      render: (_, record) => (
-        <Space>
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEditKp(record)}>编辑</Button>
-          <Popconfirm title="确定删除此知识点？关联的习题也将一同删除。" onConfirm={() => handleDeleteKp(record.id)} okText="确定" cancelText="取消">
-            <Button type="link" danger size="small" icon={<DeleteOutlined />}>删除</Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
+  // 将 treeNodes 转为 Tree 组件的 treeData（传入 questions 用于显示习题数）
+  const treeData = buildTreeData(treeNodes, questions);
+
+  // 选中的知识点的习题列表
+  const selectedQuestions = selectedKp ? (questions[selectedKp.id] || []) : [];
 
   return (
     <div>
+      {/* 顶部标题栏 */}
       <Card title="📝 课程内容管理" extra={
-        <Button type="primary" icon={<PlusOutlined />} onClick={openCreateKp}>新增知识点</Button>
+        <Space>
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreateKp}>新增知识点</Button>
+          <Button icon={<ApartmentOutlined />} onClick={openTreeGenerate}
+            loading={treeGenLoading}>🔄 生成树结构</Button>
+        </Space>
       }>
-        <Table
-          dataSource={kps}
-          columns={kpColumns}
-          rowKey="id"
-          pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `共 ${t} 个知识点` }}
-          size="small"
-          expandable={{
-            expandedRowKeys: expandedKpId ? [expandedKpId] : [],
-            onExpand: (expanded, record) => handleExpandKp(record.id),
-            expandedRowRender: (record) => {
-              const qs = questions[record.id] || [];
-              return (
-                <div style={{ padding: '8px 0' }}>
-                  <div style={{ marginBottom: 8 }}>
-                    <Text strong>习题列表（{qs.length} 题）</Text>
-                    <Button type="primary" size="small" icon={<PlusOutlined />} style={{ marginLeft: 12 }}
-                      onClick={() => openCreateQ(record.id)}>新增习题</Button>
-                    <Button size="small" icon={<RobotOutlined />} style={{ marginLeft: 8 }}
-                      onClick={() => openAiGenerate(record.id)}>AI 出题</Button>
+        <div style={{ display: 'flex', gap: 20 }}>
+          {/* 左侧：树形知识点导航 */}
+          <div style={{ width: 380, flexShrink: 0 }}>
+            <Card size="small" title="📖 知识点结构" bodyStyle={{ padding: '8px 0', maxHeight: '70vh', overflow: 'auto' }}>
+              {treeData.length === 0 ? (
+                <Empty description="暂无知识点，请先上传课程资料并发布" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+              ) : (
+                <Tree
+                  treeData={treeData}
+                  defaultExpandedKeys={treeData.slice(0, 3).map(n => n.key)}
+                  showIcon={false}
+                  draggable
+                  onSelect={handleTreeSelect}
+                  onDrop={handleTreeDrop}
+                  selectedKeys={selectedKp ? [selectedKp.id] : []}
+                  style={{ padding: '0 8px', fontSize: 13 }}
+                />
+              )}
+              <Divider style={{ margin: '8px 0' }} />
+              <Text type="secondary" style={{ display: 'block', textAlign: 'center', fontSize: 12, padding: 4 }}>
+                💡 可以拖拽节点调整结构，选中节点后管理习题
+              </Text>
+            </Card>
+          </div>
+
+          {/* 右侧：选中知识点的习题和操作 */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {selectedKp ? (
+              <div>
+                {/* 知识点详情和操作 */}
+                <Card size="small" style={{ marginBottom: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <Space>
+                        <Tag color={NODE_TYPE_CONFIG[selectedKp.type]?.color}>
+                          {NODE_TYPE_CONFIG[selectedKp.type]?.label || '知识点'}
+                        </Tag>
+                        <Text strong style={{ fontSize: 15 }}>{selectedKp.name}</Text>
+                        <Tag>{'★'.repeat(selectedKp.difficulty || 3)}</Tag>
+                      </Space>
+                      <div style={{ marginTop: 4 }}>
+                        <Text type="secondary">{selectedKp.description || '-'}</Text>
+                      </div>
+                    </div>
+                    <Space>
+                      <Button type="link" size="small" icon={<EditOutlined />}
+                        onClick={() => openEditKp(selectedKp)}>编辑</Button>
+                      <Popconfirm title="确定删除此知识点？"
+                        onConfirm={() => handleDeleteKp(selectedKp.id)}
+                        okText="确定" cancelText="取消">
+                        <Button type="link" danger size="small" icon={<DeleteOutlined />}>删除</Button>
+                      </Popconfirm>
+                      <Button size="small" icon={<PlusOutlined />}
+                        onClick={() => openCreateQ(selectedKp.id)}>新增习题</Button>
+                      <Button size="small" icon={<RobotOutlined />}
+                        onClick={() => openAiGenerate(selectedKp.id)}>AI 出题</Button>
+                    </Space>
                   </div>
-                  {qs.length === 0 ? (
-                    <Empty description="暂无习题" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                </Card>
+
+                {/* 习题列表 */}
+                <Card size="small" title={`📝 习题列表（${selectedQuestions.length} 题）`}>
+                  {selectedQuestions.length === 0 ? (
+                    <Empty description="该知识点暂无习题" image={Empty.PRESENTED_IMAGE_SIMPLE} />
                   ) : (
-                    qs.map((q, idx) => (
+                    selectedQuestions.map((q, idx) => (
                       <div key={q.id} style={{
                         padding: '8px 12px', marginBottom: 6, background: '#fafafa',
                         borderRadius: 6, border: '1px solid #f0f0f0',
@@ -336,8 +542,10 @@ export default function TeacherCourseContent() {
                           </Space>
                           <Space>
                             <Button type="link" size="small" icon={<EditOutlined />}
-                              onClick={() => openEditQ(q, record.id)}>编辑</Button>
-                            <Popconfirm title="确定删除此题？" onConfirm={() => handleDeleteQ(q.id, record.id)} okText="确定" cancelText="取消">
+                              onClick={() => openEditQ(q, selectedKp.id)}>编辑</Button>
+                            <Popconfirm title="确定删除此题？"
+                              onConfirm={() => handleDeleteQ(q.id, selectedKp.id)}
+                              okText="确定" cancelText="取消">
                               <Button type="link" danger size="small" icon={<DeleteOutlined />}>删除</Button>
                             </Popconfirm>
                           </Space>
@@ -354,11 +562,15 @@ export default function TeacherCourseContent() {
                       </div>
                     ))
                   )}
-                </div>
-              );
-            },
-          }}
-        />
+                </Card>
+              </div>
+            ) : (
+              <Card>
+                <Empty description="请在左侧树结构中选择一个知识点" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+              </Card>
+            )}
+          </div>
+        </div>
       </Card>
 
       {/* 知识点编辑弹窗 */}
@@ -366,7 +578,7 @@ export default function TeacherCourseContent() {
         onOk={handleKpSave} onCancel={() => setKpModalOpen(false)} width={640} okText="保存" cancelText="取消">
         <Form form={kpForm} layout="vertical">
           <Form.Item name="courseId" hidden><Input /></Form.Item>
-          <Form.Item name="name" label="知识点名称" rules={[{ required: true, message: '请输入名称' }]}>
+          <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
             <Input placeholder="如：法的概念" />
           </Form.Item>
           <Form.Item name="description" label="简要描述" rules={[{ required: true, message: '请输入描述' }]}>
@@ -376,11 +588,36 @@ export default function TeacherCourseContent() {
             <TextArea rows={6} placeholder="学生可直接据此学习的核心知识要点" />
           </Form.Item>
           <Space style={{ width: '100%' }}>
+            <Form.Item name="type" label="节点类型">
+              <Select style={{ width: 140 }}>
+                <Select.Option value="VOLUME">编 (Volume)</Select.Option>
+                <Select.Option value="PART">卷 (Part)</Select.Option>
+                <Select.Option value="CHAPTER">章 (Chapter)</Select.Option>
+                <Select.Option value="SECTION">节 (Section)</Select.Option>
+                <Select.Option value="LEAF">知识点 (Leaf)</Select.Option>
+              </Select>
+            </Form.Item>
+            <Form.Item name="parentKpId" label="父节点">
+              <Select style={{ width: 200 }} allowClear placeholder="根节点（不选）"
+                showSearch filterOption={(input, option) =>
+                  option.children?.includes(input) || false}>
+                {kps.filter(k => k.id !== editingKp?.id).map(kp => (
+                  <Select.Option key={kp.id} value={kp.id}>
+                    {kp.name}
+                  </Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+          </Space>
+          <Space style={{ width: '100%' }}>
             <Form.Item name="difficulty" label="难度" rules={[{ required: true }]}>
               <Select options={DIFFICULTY_OPTIONS} style={{ width: 160 }} />
             </Form.Item>
+            <Form.Item name="importance" label="重要程度" rules={[{ required: true }]}>
+              <Select options={DIFFICULTY_OPTIONS} style={{ width: 160 }} />
+            </Form.Item>
             <Form.Item name="orderIndex" label="排序序号">
-              <InputNumber min={0} style={{ width: 120 }} />
+              <InputNumber min={0} style={{ width: 100 }} />
             </Form.Item>
           </Space>
         </Form>
@@ -442,27 +679,40 @@ export default function TeacherCourseContent() {
           </div>
         </Form>
       </Modal>
+
+      {/* AI 生成树结构弹窗 */}
+      <Modal title="🔄 AI 生成树结构" open={treeGenModalOpen}
+        onOk={handleTreeGenerate} onCancel={() => setTreeGenModalOpen(false)}
+        width={520} okText="🤖 生成" cancelText="取消"
+        confirmLoading={treeGenLoading}>
+        <div>
+          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+            AI 将根据当前课程的所有知识点，自动生成编→章→节的树状结构。
+            已有结构将被参考保留，AI 会把新增知识点放入合适的层级位置。
+          </Text>
+
+          <div style={{ background: '#f5f5f5', padding: 12, borderRadius: 8, marginBottom: 16 }}>
+            <Text strong>当前课程概览</Text>
+            <div style={{ marginTop: 8 }}>
+              <Text>知识点总数：<Tag color="blue">{kps.length}</Tag></Text>
+              {treeNodes.length > 0 && (
+                <Text style={{ marginLeft: 16 }}>
+                  已有树节点：<Tag color="green">{treeNodes.length}</Tag>
+                </Text>
+              )}
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <Text strong>生成粒度</Text>
+            <Select value={granularity} onChange={setGranularity} style={{ width: '100%', marginTop: 8 }}>
+              <Select.Option value="STANDARD">标准（编 → 章 → 节）</Select.Option>
+              <Select.Option value="COMPACT">精简（章 → 节，适合小课程）</Select.Option>
+              <Select.Option value="FULL">完整（编 → 卷 → 章 → 节）</Select.Option>
+            </Select>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
-}
-
-function renderOptions(options) {
-  if (!options) return null;
-  let parsed = options;
-  if (typeof parsed === 'string') {
-    try { parsed = JSON.parse(parsed); } catch { return <Text>{parsed}</Text>; }
-  }
-  if (Array.isArray(parsed)) {
-    return parsed.map((o, i) => {
-      const label = typeof o === 'object' ? o.label : String.fromCharCode(65 + i);
-      const text = typeof o === 'object' ? o.text : o;
-      return <div key={i}><Text>{label}. {text}</Text></div>;
-    });
-  }
-  if (typeof parsed === 'object') {
-    return Object.entries(parsed).map(([k, v]) => (
-      <div key={k}><Text>{k}. {v}</Text></div>
-    ));
-  }
-  return null;
 }

@@ -320,6 +320,9 @@ export const knowledgePointAPI = {
   update: (id, data) => api.put(`/knowledge/points/${id}`, data),
   delete: (id) => api.delete(`/knowledge/points/${id}`),
   listByCourse: (courseId) => api.get(`/knowledge/courses/${courseId}/points`),
+  getTree: (courseId) => api.get(`/knowledge/courses/${courseId}/points/tree`),
+  generateTree: (courseId, data) => api.post(`/knowledge/courses/${courseId}/points/tree/generate`, data),
+  moveNode: (id, params) => api.put(`/knowledge/points/${id}/move`, null, { params }),
 };
 
 // ============ 模块十三：习题管理（教师用CRUD） ============

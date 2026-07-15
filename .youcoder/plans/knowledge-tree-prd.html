@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>知识点树状结构 — PRD 产品需求文档</title>
+<style>
+  :root { --primary: #1677ff; --bg: #f5f7fa; --card: #fff; --text: #1f1f1f; --muted: #666; --border: #e8e8e8; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; padding: 40px 24px; }
+  .container { max-width: 960px; margin: 0 auto; }
+  header { margin-bottom: 40px; }
+  header h1 { font-size: 28px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
+  header .meta { color: var(--muted); font-size: 14px; }
+  header .meta span { margin-right: 20px; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+  .badge.p0 { background: #fff1f0; color: #cf1322; }
+  .badge.p1 { background: #fff7e6; color: #d46b08; }
+  .badge.p2 { background: #f6ffed; color: #389e0d; }
+  .toc { background: var(--card); border-radius: 10px; padding: 24px; margin-bottom: 32px; border: 1px solid var(--border); }
+  .toc h2 { font-size: 16px; margin-bottom: 12px; }
+  .toc ol { padding-left: 20px; }
+  .toc li { margin-bottom: 4px; }
+  .toc a { color: var(--primary); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  section { background: var(--card); border-radius: 10px; padding: 28px 32px; margin-bottom: 24px; border: 1px solid var(--border); }
+  section h2 { font-size: 20px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid var(--primary); }
+  section h3 { font-size: 16px; margin: 20px 0 10px; color: #333; }
+  section h4 { font-size: 14px; margin: 16px 0 8px; color: #555; }
+  section p, section li { font-size: 14px; margin-bottom: 8px; }
+  section ul, section ol { padding-left: 20px; }
+  section table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  section th, section td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+  section th { background: #fafafa; font-weight: 600; }
+  .highlight { background: #fffbe6; padding: 12px 16px; border-left: 4px solid #faad14; border-radius: 6px; margin: 12px 0; font-size: 14px; }
+  .info { background: #e6f4ff; padding: 12px 16px; border-left: 4px solid var(--primary); border-radius: 6px; margin: 12px 0; font-size: 14px; }
+  .tree-viz { background: #f6ffed; padding: 16px; border-radius: 8px; margin: 12px 0; font-family: monospace; font-size: 13px; line-height: 2; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+  .arch-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 12px 0; }
+  .arch-card { border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+  .arch-card h4 { margin-top: 0; }
+  .status-ok { color: #52c41a; }
+  .status-new { color: var(--primary); }
+  .status-change { color: #faad14; }
+  .flow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 12px 0; font-size: 13px; }
+  .flow-step { background: var(--primary); color: #fff; padding: 4px 12px; border-radius: 16px; font-weight: 500; }
+  .flow-arrow { color: var(--muted); font-size: 18px; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+<h1>🌳 知识点树状结构</h1>
+<div class="meta">
+  <span>📅 版本: v1.0</span>
+  <span>👤 产品: EduMentor</span>
+  <span>🏷️ 优先级: P0</span>
+</div>
+</header>
+
+<div class="toc">
+<h2>目录</h2>
+<ol>
+  <li><a href="#background">背景与现状</a></li>
+  <li><a href="#goals">功能目标</a></li>
+  <li><a href="#structure">树状结构定义</a></li>
+  <li><a href="#teacher">教师端设计</a></li>
+  <li><a href="#student">学生端设计</a></li>
+  <li><a href="#generation">AI 树结构生成算法</a></li>
+  <li><a href="#api">API 设计</a></li>
+  <li><a href="#data">数据模型变更</a></li>
+  <li><a href="#files">文件改动清单</a></li>
+  <li><a href="#plan">实施计划</a></li>
+</ol>
+</div>
+
+<section id="background">
+<h2>1. 背景与现状</h2>
+
+<h3>现有问题</h3>
+<p>目前知识点在教师端和学生端均以<strong>扁平列表</strong>展示。例如教师端展示的知识点列表（「法的概念」「法的渊源」「法的制定」「刑法概述」「犯罪构成」等）全部平铺无序，<strong>缺乏学科内在的逻辑层级关系</strong>。</p>
+<p>教师在解析上传资料时提取出的知识点是离散的，没有按照「编→章→节」的教材体系组织；学生在学习时看到的是零散的知识点列表，无法理解知识点之间的从属关系和逻辑递进。</p>
+
+<div class="info">
+<strong>核心痛点：</strong>知识点是孤立的，学生难以形成体系化的知识结构认知；教师缺乏一个高效的工具来将零散知识点组织成逻辑树。
+</div>
+
+<h3>现有基础</h3>
+<ul>
+  <li><code>KnowledgePoint</code> 实体已存在 <code>parentKpId</code> 字段（UUID，可为 null）— 天然支持父子层级</li>
+  <li><code>KnowledgeService</code> 已存在 <code>getKnowledgePointTree()</code> 方法— 返回 <code>KnowledgePointTreeNode(KnowledgePointDto, level, hasChild)</code></li>
+  <li><code>KnowledgeController</code> 已有 <code>GET /api/knowledge/courses/{courseId}/points/tree</code> 端点</li>
+  <li>知识点已有 <code>orderIndex</code> 排序字段</li>
+  <li>教师端课程内容管理页面以 Ant Design Table 展示扁平知识点列表（<code>TeacherCourseContent.jsx</code>）</li>
+  <li>学生端页面以左侧扁平列表展示所有知识点（<code>StudentLearning.jsx</code>）</li>
+</ul>
+</section>
+
+<section id="goals">
+<h2>2. 功能目标</h2>
+
+<div class="arch-grid">
+<div class="arch-card">
+<h4>🎯 核心目标</h4>
+<p>将课程知识点组织为「编→卷→章→节→知识点」的五层树状结构，让学生按照教材逻辑循序渐进地学习。</p>
+</div>
+<div class="arch-card">
+<h4>⚡ 交互目标</h4>
+<p>教师端提供「AI 生成树结构」按钮，一键基于课程所有知识点（包括已有和新知识点）自动生成/更新树结构。支持手动微调。</p>
+</div>
+<div class="arch-card">
+<h4>🔄 稳定性目标</h4>
+<p>重复生成时保留已有结构调整（如已有结构有效则不破坏），只对新增/删除/变化的知识点做增量调整，确保学生端学习进度不因为树重构而丢失。</p>
+</div>
+<div class="arch-card">
+<h4>📱 体验目标</h4>
+<p>学生端知识点导航从扁平列表改为可展开/折叠的树形导航，配合进度展示，清晰可见知识体系全貌。</p>
+</div>
+</div>
+</section>
+
+<section id="structure">
+<h2>3. 树状结构定义</h2>
+
+<h3>层级模型</h3>
+<table>
+<tr><th>层级</th><th>名称</th><th>数据库中的角色</th><th>说明</th></tr>
+<tr><td>0</td><td><strong>课程（根）</strong></td><td><code>Course</code></td><td>课程的根节点，不在知识点的 parentKpId 体系中</td></tr>
+<tr><td>1</td><td><strong>编 (Volume)</strong></td><td><code>KnowledgePoint</code> 但 type='VOLUME'</td><td>课程的最大分区，如「民法总则编」「刑法总论编」</td></tr>
+<tr><td>2</td><td><strong>卷 (Part)</strong></td><td><code>KnowledgePoint</code> 但 type='PART'</td><td>编下的细分（部分课程没有此层级）</td></tr>
+<tr><td>3</td><td><strong>章 (Chapter)</strong></td><td><code>KnowledgePoint</code> 但 type='CHAPTER'</td><td>标准教材的章，如「第一章 法的概念」</td></tr>
+<tr><td>4</td><td><strong>节 (Section)</strong></td><td><code>KnowledgePoint</code> 但 type='SECTION'</td><td>章下的节，如「第一节 法的定义」</td></tr>
+<tr><td>5</td><td><strong>知识点 (Leaf)</strong></td><td><code>KnowledgePoint</code> 但 type='LEAF'</td><td>实际的学习单元（含练习题）</td></tr>
+</table>
+
+<div class="info">
+<strong>关键设计决策：</strong>「编」「卷」「章」「节」也是 KnowledgePoint 实体，只是 <code>type</code> 字段不同。它们也有 <code>content</code>（课程大纲描述）和 <code>parentKpId</code>，形成树状链。<br>
+<strong>理由：</strong>（1）不需要新建表或实体；（2）知识点关系（prerequisite）可以关联到章/节层面；（3）掌握度可以聚合计算；（4）前端树状渲染逻辑统一。
+</div>
+
+<h3>字段扩展</h3>
+<p>在 <code>KnowledgePoint</code> 实体中新增以下字段支持树结构：</p>
+<table>
+<tr><th>字段名</th><th>类型</th><th>说明</th></tr>
+<tr><td><code>type</code></td><td><code>String</code></td><td>节点类型：<code>VOLUME</code> / <code>PART</code> / <code>CHAPTER</code> / <code>SECTION</code> / <code>LEAF</code>（已有知识点默认值为 <code>LEAF</code>）</td></tr>
+<tr><td><code>sequencePath</code></td><td><code>String</code></td><td>路径编号，如 "1.2.3" 表示第一编第二章第三节（用于排序）</td></tr>
+</table>
+
+<div class="highlight">
+<strong>向后兼容：</strong>已有知识点的 <code>type</code> 自动设为 <code>LEAF</code>，<code>sequencePath</code> 设为 null，不影响现有功能。
+</div>
+
+<h3>树结构示例（法学概论）</h3>
+<div class="tree-viz">
+📘 法学概论（课程）
+├── 📖 第一编 法的基本原理
+│   ├── 第一章 法的概念与本质
+│   │   ├── 第一节 法的定义
+│   │   │   ├── 📝 法的词源
+│   │   │   ├── 📝 法的本质学说
+│   │   │   └── 📝 法的特征
+│   │   ├── 第二节 法的渊源与分类
+│   │   │   ├── 📝 法的渊源
+│   │   │   ├── 📝 法的分类
+│   │   │   └── 📝 法的效力
+│   │   └── 第三节 法的要素
+│   │       ├── 📝 法律概念
+│   │       └── 📝 法律规则
+│   └── 第二章 法的运行
+│       ├── 第一节 立法
+│       │   └── 📝 立法程序
+│       └── 第二节 司法
+│           └── 📝 司法原则
+└── 📖 第二编 宪法
+    └── 第一章 宪法基本理论
+        └── 📝 宪法的概念与特征
+</div>
+</section>
+
+<section id="teacher">
+<h2>4. 教师端设计</h2>
+
+<h3>4.1 页面改动</h3>
+<p>在「课程内容管理」页面中，在「新增知识点」按钮旁增加新按钮：</p>
+
+<table>
+<tr><th>按钮</th><th>位置</th><th>触发</th></tr>
+<tr><td><strong>🔄 生成树结构</strong></td><td>顶部按钮栏右侧</td><td>触发 AI 树结构生成弹窗</td></tr>
+</table>
+
+<h3>4.2 AI 生成树结构弹窗</h3>
+<ul>
+  <li><strong>前置条件</strong>：课程必须已有至少 3 个知识点（否则提示"知识点太少，无法生成树结构"）</li>
+  <li><strong>弹窗内容</strong>：
+    <ul>
+      <li>提示文案："AI 将根据当前课程的所有知识点，自动生成编→章→节的树状结构。已有结构将被参考保留，AI 会把新增知识点放入合适的层级位置。"</li>
+      <li>显示当前知识点总量、已有树节点数（编/章/节的数量）</li>
+      <li><strong>生成粒度配置</strong>：下拉选择「按大学教材标准粒度（编→章→节）」或「按小节粒度（仅章→节）」</li>
+      <li>「确定生成」按钮 + loading 状态</li>
+    </ul>
+  </li>
+</ul>
+
+<h3>4.3 知识点列表改为树形展示</h3>
+<p>知识点列表从<strong>扁平 Table</strong> 改为<strong>可展开的 Tree 组件</strong>展示：</p>
+<ul>
+  <li>使用 Ant Design <code>Tree</code> 组件（或 <code>Table</code> 配合 <code>tree-data</code> 模式）</li>
+  <li>每个节点显示图标（📖 编/📕 章/📄 节/📝 知识点）</li>
+  <li>点击知识点显示其习题列表（保留原有展开功能）</li>
+  <li>支持拖拽调整顺序（需要在 Tree 上启用 draggable）</li>
+  <li>工具栏在选中的知识点上操作（编辑、删除、AI 出题、新增习题）</li>
+</ul>
+
+<div class="info">
+<strong>交互细节：</strong>教师可以手动拖拽调整树结构。手动调整后再点「生成树结构」，AI 会以当前手动调整后的结构为基础做增量生成，而不会彻底推倒重来。
+</div>
+
+<h3>4.4 差异对比模式</h3>
+<p>当课程已有树结构，再次点击「生成树结构」时，弹窗增加：</p>
+<ul>
+  <li>📊 上次生成后的变化概览：</li>
+  <li style="margin-left:20px">✅ 已有树节点：10 个（编×2，章×5，节×3）</li>
+  <li style="margin-left:20px">🆕 新增知识点：3 个</li>
+  <li style="margin-left:20px">🗑️ 已删除知识点：1 个（仅标记不删除）</li>
+  <li style="margin-left:20px">🔄 变化知识点：2 个（内容有更新）</li>
+  <li>渲染方式：在树中的新增/变化/删除节点旁添加差异标签（<code>🆕 新增</code> / <code>🔄 变更</code> / <code>🗑️ 待删除</code>）</li>
+</ul>
+
+</section>
+
+<section id="student">
+<h2>5. 学生端设计</h2>
+
+<h3>5.1 知识点导航改为树形目录</h3>
+<p>学生端学习页面的左侧知识点列表从扁平列表改为<strong>可折叠展开的树形导航</strong>：</p>
+<ul>
+  <li>默认展开到「章」层级（全部展开也可以，看数据量）</li>
+  <li>每个节点左侧显示掌握度小圆点颜色（未学习/学习中/已掌握）</li>
+  <li>点击「节」或「知识点」节点 → 加载该节点下的所有子知识点题目的合集（聚合模式）或跳转到第一个知识点</li>
+</ul>
+
+<h3>5.2 学习内容布局</h3>
+<p>当用户在树中选择一个节点时：</p>
+<ul>
+  <li>点击<strong>「编」或「章」</strong>→ 显示该层级下所有子知识点的内容概览页面（聚合摘要）</li>
+  <li>点击<strong>「节」</strong>→ 加载该节下的所有知识点为连续学习内容（按 orderIndex 排序）</li>
+  <li>点击<strong>「知识点（LEAF）」</strong>→ 保持现有行为：显示知识点内容 + 练习题</li>
+</ul>
+
+<h3>5.3 进度可视化的树</h3>
+<ul>
+  <li>编/章/节节点显示聚合掌握度进度条（基于子节点的掌握度平均值）</li>
+  <li>节点图标颜色区分：<span style="color:#52c41a">🟢 已掌握（≥80%）</span> / <span style="color:#1677ff">🔵 学习中（50-79%）</span> / <span style="color:#faad14">🟡 待巩固（20-49%）</span> / <span style="color:#d9d9d9">⚪ 未学习（＜20%）</span></li>
+  <li>顶部展示整体学习进度百分比</li>
+</ul>
+
+<h3>5.4 学情诊断的树状联动</h3>
+<ul>
+  <li>智能答疑辅导：在提问时系统可感知当前学习的树节点上下文</li>
+  <li>学习路径建议：基于树结构生成「推荐学习路径」（先学编1→章1→节1，再编1→章1→节2，推荐学习路径...</li>
+  <li>错题复盘：按树结构分类展示薄弱点（错误集中在「法理学·法的运行·司法」章节）</li>
+</ul>
+
+</section>
+
+<section id="generation">
+<h2>6. AI 树结构生成算法</h2>
+
+<h3>6.1 算法流程</h3>
+<div class="flow">
+<span class="flow-step">收集知识点</span>
+<span class="flow-arrow">→</span>
+<span class="flow-step">加载已有树</span>
+<span class="flow-arrow">→</span>
+<span class="flow-step">比对 diff</span>
+<span class="flow-arrow">→</span>
+<span class="flow-step">Prompt 构建</span>
+<span class="flow-arrow">→</span>
+<span class="flow-step">LLM 生成</span>
+<span class="flow-arrow">→</span>
+<span class="flow-step">解析合并</span>
+<span class="flow-arrow">→</span>
+<span class="flow-step">保存入库</span>
+</div>
+
+<h3>6.2 输入参数</h3>
+<p>调用 LLM 时，将以下信息组装为 Prompt：</p>
+<table>
+<tr><th>数据维度</th><th>内容</th><th>作用</th></tr>
+<tr><td>📌 课程信息</td><td>课程名称、描述、学科</td><td>让 AI 理解学科背景</td></tr>
+<tr><td>📝 全部知识点</td><td>所有知识点的 name + description + content 摘要（每条 100 字以内）</td><td>让 AI 了解有什么内容需要组织</td></tr>
+<tr><td>🏗️ 现有树结构</td><td>已有的编/卷/章/节节点名称和层级关系（序列化 JSON）</td><td><strong>稳定性关键：告知 AI 已有结构</strong></td></tr>
+<tr><td>🔍 差异数据</td><td>
+  - 新增知识点列表（上次生成之后新出现的）<br>
+  - 已删除知识点列表（曾存在但现已不在）<br>
+  - 内容变更的知识点列表
+</td><td>让 AI 做增量调整</td></tr>
+</table>
+
+<h3>6.3 Prompt 模板（核心）</h3>
+<div class="highlight">
+<strong>系统指令：</strong><br>
+你是一个课程知识结构专家。请根据提供的课程知识点列表，生成或更新该课程的树状知识结构。<br><br>
+<strong>要求：</strong><br>
+1. 按照「编 → 章 → 节 → 知识点」四层结构组织，使用最合适的层级深度<br>
+2. <strong>优先保留已有的树结构</strong>：对于已有的编/卷/章/节节点，尽量保留其名称和层级关系<br>
+3. 将新增知识点放入最合适的已有章节中，必要时创建新的章节<br>
+4. 已删除的知识点对应的章节节点保留（如果还有其他有效知识点）<br>
+5. 内容变更的知识点保持在原位置不变<br>
+6. 每个节点用 type 标记：VOLUME / PART / CHAPTER / SECTION / LEAF<br>
+7. 返回纯 JSON 数组，不要包含其他内容<br><br>
+<strong>输出格式：</strong><br>
+[{"name":"编的名称","type":"VOLUME","order":1,"children":[<br>
+&nbsp;&nbsp;{"name":"章的名称","type":"CHAPTER","order":1,"children":[<br>
+&nbsp;&nbsp;&nbsp;&nbsp;{"name":"节的名称","type":"SECTION","order":1,"children":[<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{"kpId":"知识点ID","name":"知识点名称","type":"LEAF","order":1},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;...<br>
+&nbsp;&nbsp;&nbsp;&nbsp;]},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;...<br>
+&nbsp;&nbsp;]},<br>
+&nbsp;&nbsp;...<br>
+]},...]
+</div>
+
+<h3>6.4 稳定性保障策略</h3>
+<table>
+<tr><th>策略</th><th>说明</th></tr>
+<tr><td><strong>保留旧节点 ID</strong></td><td>已有树节点（VOLUME/CHAPTER/SECTION）保存后有 UUID，再次生成时传给 Prompt，AI 在返回中引用这些 UUID，程序解析时保留原有 ID</td></tr>
+<tr><td><strong>模糊匹配</strong></td><td>如果 AI 返回的新节点 name 与旧节点 name 相似度 > 0.8（如「法的概念与本质」vs「法的概念」），自动匹配为同一节点</td></tr>
+<tr><td><strong>知识点位置不动</strong></td><td>已有 LEAF 节点（知识点）在已有树中已有位置，除非知识点的 name/content 变化超过 50%，否则保留原位置</td></tr>
+<tr><td><strong>后端校验</strong></td><td>解析 LLM 返回后，做交叉校验：所有 LEAF 的 kpId 必须在课程知识点范围内；任何遗漏的知识点自动追加到「其他」节</td></tr>
+</table>
+
+<h3>6.5 手动调整支持</h3>
+<ul>
+  <li>教师可以拖拽树节点调整层级</li>
+  <li>教师可以手动创建/删除节点（在编辑知识点弹窗中 <code>parentKpId</code> 改为树选择器）</li>
+  <li>再次 AI 生成时，手动调整被视为「已有树结构」的一部分被保留</li>
+</ul>
+
+</section>
+
+<section id="api">
+<h2>7. API 设计</h2>
+
+<h3>7.1 新增 API</h3>
+<table>
+<tr><th>方法</th><th>路径</th><th>说明</th><th>权限</th></tr>
+<tr><td><code>POST</code></td><td><code>/api/knowledge/courses/{courseId}/points/tree/generate</code></td><td>AI 生成/更新课程知识点树结构</td><td>TEACHER / ADMIN</td></tr>
+<tr><td><code>PUT</code></td><td><code>/api/knowledge/points/{id}/move</code></td><td>移动知识点到新父节点</td><td>TEACHER / ADMIN</td></tr>
+</table>
+
+<h3>7.2 请求/响应定义</h3>
+
+<p><strong>POST /api/knowledge/courses/{courseId}/points/tree/generate</strong></p>
+<table>
+<tr><th>请求体字段</th><th>类型</th><th>说明</th></tr>
+<tr><td><code>granularity</code></td><td><code>String</code></td><td>生成粒度：<code>STANDARD</code>（编→章→节）或 <code>COMPACT</code>（仅章→节）</td></tr>
+</table>
+<p>响应体：</p>
+<table>
+<tr><th>字段</th><th>类型</th><th>说明</th></tr>
+<tr><td><code>tree</code></td><td><code>TreeNode[]</code></td><td>完整的嵌套树结构</td></tr>
+<tr><td><code>stats</code></td><td><code>Object</code></td><td>统计：总节点数、新增节点数、保留节点数、删除节点数</td></tr>
+<tr><td><code>orphanedKpIds</code></td><td><code>UUID[]</code></td><td>未找到归属的知识点 ID 列表（如果有）</td></tr>
+</table>
+
+<p><strong>PUT /api/knowledge/points/{id}/move</strong></p>
+<table>
+<tr><th>请求体字段</th><th>类型</th><th>说明</th></tr>
+<tr><td><code>parentKpId</code></td><td><code>UUID</code></td><td>新的父节点 ID（null 表示移到根层级）</td></tr>
+<tr><td><code>orderIndex</code></td><td><code>Integer</code></td><td>在新父节点下的排序位置</td></tr>
+</table>
+
+<h3>7.3 现有 API 增强</h3>
+<table>
+<tr><th>方法</th><th>路径</th><th>增强内容</th></tr>
+<tr><td><code>GET</code></td><td><code>/api/knowledge/courses/{courseId}/points/tree</code></td><td>返回的 tree 中每个节点包含 type 字段和差异标记</td></tr>
+<tr><td><code>GET</code></td><td><code>/api/knowledge/courses/{courseId}/points</code></td><td>可选参数 <code>type</code> 过滤节点类型</td></tr>
+<tr><td><code>POST</code></td><td><code>/api/knowledge/points</code></td><td><code>KnowledgePointCreateRequest</code> 增加 <code>type</code> 和 <code>parentKpId</code> 字段</td></tr>
+<tr><td><code>PUT</code></td><td><code>/api/knowledge/points/{id}</code></td><td><code>KnowledgePointUpdateRequest</code> 增加 <code>type</code> 字段</td></tr>
+</table>
+
+</section>
+
+<section id="data">
+<h2>8. 数据模型变更</h2>
+
+<table>
+<tr><th>变更</th><th>说明</th></tr>
+<tr><td><code>knowledge_points.type</code></td><td>新增字段，<code>VARCHAR(16)</code>，默认 <code>'LEAF'</code>，可选值：VOLUME/PART/CHAPTER/SECTION/LEAF</td></tr>
+<tr><td><code>knowledge_points.sequence_path</code></td><td>新增字段，<code>VARCHAR(32)</code>，可为 null，如 "1.2.3"</td></tr>
+<tr><td>索引</td><td>新增 <code>idx_kp_type</code> 索引</td></tr>
+</table>
+
+<div class="info">
+<strong>无新建表：</strong>所有树节点都存储在 <code>knowledge_points</code> 表中，通过 <code>type</code> 区分。已有数据的 type 自动设为 LEAF。LEAF 节点保留其 <code>content</code>（学习内容）。VOLUME/CHAPTER/SECTION 节点的 content 可以存该层级的教学大纲概述。
+</div>
+</section>
+
+<section id="files">
+<h2>9. 文件改动清单</h2>
+
+<table>
+<tr><th>#</th><th>文件</th><th>改动类型</th><th>说明</th></tr>
+<tr><td>1</td><td><code>KnowledgePoint.java</code></td><td>修改</td><td>新增 <code>type</code> 和 <code>sequencePath</code> 字段，含默认值</td></tr>
+<tr><td>2</td><td><code>KnowledgePointDto.java</code></td><td>修改</td><td>新增 <code>type</code> 和 <code>sequencePath</code> 字段</td></tr>
+<tr><td>3</td><td><code>KnowledgePointCreateRequest.java</code></td><td>修改</td><td>新增 <code>type</code> 字段</td></tr>
+<tr><td>4</td><td><code>KnowledgePointUpdateRequest.java</code></td><td>修改</td><td>新增 <code>type</code> 字段</td></tr>
+<tr><td>5</td><td><code>KnowledgeService.java</code></td><td>修改</td><td>
+  - 新增 <code>generateTreeStructure(courseId, granularity)</code> 核心方法<br>
+  - 增强 <code>getKnowledgePointTree()</code> 返回 type 字段<br>
+  - 新增 <code>moveKnowledgePoint(id, parentKpId, orderIndex)</code><br>
+  - 新增 <code>buildTreeDiff()</code> 方法<br>
+  - <code>KnowledgePointTreeNode</code> 增加 type 字段
+</td></tr>
+<tr><td>6</td><td><code>KnowledgeController.java</code></td><td>修改</td><td>新增 <code>POST .../tree/generate</code> 和 <code>PUT .../{id}/move</code> 端点</td></tr>
+<tr><td>7</td><td><code>TreeGenerateRequest.java</code></td><td><strong>新建</strong></td><td>请求 DTO：granularity</td></tr>
+<tr><td>8</td><td><code>TreeGenerateResult.java</code></td><td><strong>新建</strong></td><td>响应 DTO：tree, stats, orphanedKpIds</td></tr>
+<tr><td>9</td><td><code>TeacherCourseContent.jsx</code></td><td>修改</td><td>
+  - 知识点列表改为 Tree 组件展示（可折叠/展开）<br>
+  - 新增「生成树结构」按钮 + 弹窗<br>
+  - 新增拖拽排序<br>
+  - 编辑弹窗增加 type 选择器
+</td></tr>
+<tr><td>10</td><td><code>StudentLearning.jsx</code></td><td>修改</td><td>左侧列表改为树形导航，显示掌握度聚合，支持层级展开</td></tr>
+<tr><td>11</td><td><code>api.jsx</code></td><td>修改</td><td>新增 <code>knowledgePointAPI.generateTree()</code> 和 <code>knowledgePointAPI.moveNode()</code></td></tr>
+<tr><td>12</td><td><code>application.yml</code></td><td>修改</td><td>（可能）需要配置 LLM 调用的相关信息</td></tr>
+</table>
+
+<div class="highlight">
+<strong>改动规模估算：</strong>后端约 200 行新增代码（Service 核心逻辑 + Controller + DTO），前端约 200 行修改（组件重写 + 新增弹窗 + API 对接）。总计约 400 行新增/修改代码。
+</div>
+
+</section>
+
+<section id="plan">
+<h2>10. 实施计划</h2>
+
+<table>
+<tr><th>阶段</th><th>内容</th><th>预计工作量</th></tr>
+<tr><td><strong>Phase 1: 后端数据层</strong></td><td>
+  - KnowledgePoint 实体新增 type + sequencePath<br>
+  - DTO 更新<br>
+  - 数据库 migration（如有）
+</td><td>小（30 分钟）</td></tr>
+<tr><td><strong>Phase 2: 后端核心逻辑</strong></td><td>
+  - TreeGenerateService 的 AI 生成逻辑<br>
+  - Prompt 构建 + LLM 调用 + 结果解析 + 合并<br>
+  - buildTreeDiff 差异对比<br>
+  - moveKnowledgePoint 方法
+</td><td>大（2-3 小时）</td></tr>
+<tr><td><strong>Phase 3: 后端 API</strong></td><td>
+  - 新增 Controller 端点<br>
+  - 新增 DTO<br>
+  - 增强现有 tree 端点
+</td><td>中（1 小时）</td></tr>
+<tr><td><strong>Phase 4: 教师端</strong></td><td>
+  - 知识点列表改为 Tree 组件<br>
+  - 生成树结构按钮 + 弹窗<br>
+  - 拖拽排序<br>
+  - 编辑弹窗增加 type
+</td><td>大（2-3 小时）</td></tr>
+<tr><td><strong>Phase 5: 学生端</strong></td><td>
+  - 左侧导航改为树形<br>
+  - 聚合掌握度<br>
+  - 层级展开/折叠
+</td><td>中（1-2 小时）</td></tr>
+<tr><td><strong>Phase 6: 编译验证 + 测试</strong></td><td>编译、部署到服务器、功能验证</td><td>中（1 小时）</td></tr>
+</table>
+
+<div style="background: #fff7e6; padding: 16px; border-left: 4px solid #faad14; border-radius: 6px; margin-top: 16px;">
+<strong>⚠️ 风险和注意事项：</strong>
+<ol style="margin-top: 8px;">
+  <li><strong>LLM 生成质量不确定：</strong>需要准备多个学科的测试课程（法学、数学、计算机等）验证 Prompt 效果。如果效果不理想，需要迭代 Prompt</li>
+  <li><strong>已有数据迁移：</strong>已有知识点的 type 全部设为 LEAF，不会出现不兼容</li>
+  <li><strong>掌握度聚合：</strong>学生端树的聚合掌握度基于子知识点掌握度的加权平均值，当前学情诊断 API 需要确认是否支持子节点聚合查询</li>
+  <li><strong>拖拽排序：</strong>Ant Design Tree 的 draggable 需要手动处理 onDrop 事件，更新 parentKpId 和 orderIndex</li>
+  <li><strong>移动端适配：</strong>树形导航在窄屏幕上可能需要折叠为抽屉菜单</li>
+</ol>
+</div>
+</section>
+
+</div>
+</body>
+</html>
