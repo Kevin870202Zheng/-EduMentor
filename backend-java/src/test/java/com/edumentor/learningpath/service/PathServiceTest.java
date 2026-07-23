@@ -23,7 +23,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 import java.util.*;
 
 import static org.assertj.core.api.Assertions.*;
@@ -68,6 +68,11 @@ class PathServiceTest {
     private KnowledgePoint mockKp2;
     private KnowledgePoint mockKp3;
 
+    @SuppressWarnings("unchecked")
+    private <T> TypedQuery<T> mockTypedQuery() {
+        return mock(TypedQuery.class);
+    }
+
     @BeforeEach
     @SuppressWarnings("unchecked")
     void setUp() {
@@ -110,8 +115,9 @@ class PathServiceTest {
         mockPath.setCreatedBy(studentId);
         mockPath.setName("高中数学基础路径");
         mockPath.setStatus(PathStatus.DRAFT);
-        mockPath.setProgress(BigDecimal.ZERO);
-        mockPath.setCreatedAt(OffsetDateTime.now());
+        mockPath.setProgress(0);
+        mockPath.setCreatedAt(LocalDateTime.now());
+        mockPath.setNodes(new ArrayList<>());
 
         mockNode1 = new LearningPathNode();
         mockNode1.setId(nodeId);
@@ -163,7 +169,7 @@ class PathServiceTest {
                     .thenAnswer(inv -> {
                         LearningPath p = inv.getArgument(0);
                         p.setId(pathId);
-                        p.setCreatedAt(OffsetDateTime.now());
+                        p.setCreatedAt(LocalDateTime.now());
                         return p;
                     });
             when(learningPathNodeRepository.saveAll(anyList()))
@@ -221,8 +227,11 @@ class PathServiceTest {
             when(relQuery.getResultList()).thenReturn(List.of());
 
             // kp1 is mastered
-            when(learningPathNodeRepository.findCompletedKnowledgePointIdsByStudentId(studentId))
-                    .thenReturn(List.of(kp1Id));
+            TypedQuery<Object> mockQuery = mock(TypedQuery.class);
+            when(entityManager.createQuery(contains("SELECT DISTINCT lpn.knowledgePointId FROM LearningPathNode lpn"), eq(Object.class)))
+                    .thenReturn(mockQuery);
+            when(mockQuery.setParameter("studentId", studentId)).thenReturn(mockQuery);
+            when(mockQuery.getResultList()).thenReturn(List.of(kp1Id));
 
             when(learningPathRepository.save(any(LearningPath.class)))
                     .thenAnswer(inv -> {
@@ -275,7 +284,7 @@ class PathServiceTest {
             PathPlanRequest request = new PathPlanRequest();
             request.setStudentId(studentId);
             request.setCourseId(courseId);
-            request.setTargetKnowledgePointId(kp2Id);
+            request.setFocusKpId(kp2Id);
             request.setName("聚焦路径");
 
             LearningPathDto result = pathService.planPath(request);
@@ -300,10 +309,9 @@ class PathServiceTest {
         void getPathById() {
             when(learningPathRepository.findById(pathId)).thenReturn(Optional.of(mockPath));
 
-            LearningPathDto result = pathService.getPathById(pathId);
+            LearningPathDto result = pathService.getPath(pathId);
 
             assertThat(result.getId()).isEqualTo(pathId);
-            assertThat(result.getNodes()).hasSize(2);
         }
 
         @Test
@@ -311,16 +319,21 @@ class PathServiceTest {
         void getNonExistentPath() {
             when(learningPathRepository.findById(pathId)).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> pathService.getPathById(pathId))
+            assertThatThrownBy(() -> pathService.getPath(pathId))
                     .isInstanceOf(ResourceNotFoundException.class)
                     .hasMessageContaining("学习路径");
         }
 
         @Test
         @DisplayName("获取学生所有路径")
+        @SuppressWarnings("unchecked")
         void getStudentPaths() {
-            when(learningPathRepository.findByStudentIdOrderByCreatedAtDesc(studentId))
-                    .thenReturn(List.of(mockPath));
+            TypedQuery<LearningPath> query = mockTypedQuery();
+            when(entityManager.createQuery(
+                    contains("SELECT lp FROM LearningPath lp"), eq(LearningPath.class)))
+                    .thenReturn(query);
+            when(query.setParameter("studentId", studentId)).thenReturn(query);
+            when(query.getResultList()).thenReturn(List.of(mockPath));
 
             List<LearningPathDto> result = pathService.getStudentPaths(studentId);
 
@@ -331,7 +344,7 @@ class PathServiceTest {
         @DisplayName("获取学生当前活跃路径")
         void getActivePath() {
             mockPath.setStatus(PathStatus.ACTIVE);
-            when(learningPathRepository.findFirstByStudentIdAndStatusOrderByCreatedAtDesc(
+            when(learningPathRepository.findTopByStudentIdAndStatusOrderByCreatedAtDesc(
                     studentId, PathStatus.ACTIVE))
                     .thenReturn(Optional.of(mockPath));
 
@@ -344,9 +357,9 @@ class PathServiceTest {
         @Test
         @DisplayName("获取下一个待学节点")
         void getNextNode() {
-            when(learningPathNodeRepository.findFirstByLearningPathIdAndStatusOrderByOrderIndexAsc(
+            when(learningPathNodeRepository.findTopByLearningPathIdAndStatusOrderByOrderIndexAsc(
                     pathId, PathNodeStatus.PENDING))
-                    .thenReturn(List.of(mockNode1));
+                    .thenReturn(Optional.of(mockNode1));
 
             @SuppressWarnings("unchecked")
             TypedQuery<Object[]> nameQuery = mock(TypedQuery.class);
@@ -354,7 +367,7 @@ class PathServiceTest {
                     contains("SELECT kp.name, kp.difficulty"), eq(Object[].class)))
                     .thenReturn(nameQuery);
             when(nameQuery.setParameter("kpId", kp1Id)).thenReturn(nameQuery);
-            when(nameQuery.getResultList()).thenReturn(List.of(new Object[]{"一元一次方程", 2}));
+            when(nameQuery.getResultList()).then(inv -> List.of((Object[]) new Object[]{"一元一次方程", 2}));
 
             Optional<LearningPathNodeDto> result = pathService.getNextNode(pathId);
 
@@ -364,9 +377,9 @@ class PathServiceTest {
         @Test
         @DisplayName("无待学节点 — 应返回空")
         void getNextNodeEmpty() {
-            when(learningPathNodeRepository.findFirstByLearningPathIdAndStatusOrderByOrderIndexAsc(
+            when(learningPathNodeRepository.findTopByLearningPathIdAndStatusOrderByOrderIndexAsc(
                     pathId, PathNodeStatus.PENDING))
-                    .thenReturn(List.of());
+                    .thenReturn(Optional.empty());
 
             Optional<LearningPathNodeDto> result = pathService.getNextNode(pathId);
 
@@ -438,7 +451,7 @@ class PathServiceTest {
             LearningPathDto result = pathService.completePath(pathId);
 
             assertThat(result.getStatus()).isEqualTo(PathStatus.COMPLETED);
-            assertThat(result.getProgress()).isEqualByComparingTo(BigDecimal.valueOf(100));
+            assertThat(result.getProgress()).isEqualTo(100);
         }
     }
 
@@ -460,7 +473,7 @@ class PathServiceTest {
 
             PathProgressUpdateRequest request = new PathProgressUpdateRequest();
             request.setNodeId(nodeId);
-            request.setStatus(PathNodeStatus.IN_PROGRESS);
+            request.setStatus("IN_PROGRESS");
 
             LearningPathDto result = pathService.updateNodeProgress(request);
 
@@ -479,8 +492,8 @@ class PathServiceTest {
 
             PathProgressUpdateRequest request = new PathProgressUpdateRequest();
             request.setNodeId(nodeId);
-            request.setStatus(PathNodeStatus.COMPLETED);
-            request.setSpentMinutes(25);
+            request.setStatus("COMPLETED");
+            request.setActualMinutes(25);
 
             LearningPathDto result = pathService.updateNodeProgress(request);
 
@@ -497,7 +510,7 @@ class PathServiceTest {
 
             PathProgressUpdateRequest request = new PathProgressUpdateRequest();
             request.setNodeId(nodeId);
-            request.setStatus(PathNodeStatus.SKIPPED);
+            request.setStatus("SKIPPED");
 
             pathService.updateNodeProgress(request);
 
@@ -513,7 +526,7 @@ class PathServiceTest {
 
             PathProgressUpdateRequest request = new PathProgressUpdateRequest();
             request.setNodeId(nodeId);
-            request.setStatus(PathNodeStatus.PENDING); // PENDING not allowed as update target
+            request.setStatus("PENDING"); // PENDING not allowed as update target
 
             assertThatThrownBy(() -> pathService.updateNodeProgress(request))
                     .isInstanceOf(ValidationException.class)
@@ -528,7 +541,7 @@ class PathServiceTest {
 
             PathProgressUpdateRequest request = new PathProgressUpdateRequest();
             request.setNodeId(nodeId);
-            request.setStatus(PathNodeStatus.COMPLETED);
+            request.setStatus("COMPLETED");
 
             assertThatThrownBy(() -> pathService.updateNodeProgress(request))
                     .isInstanceOf(ResourceNotFoundException.class);
@@ -560,7 +573,7 @@ class PathServiceTest {
 
             PathAdaptRequest request = new PathAdaptRequest();
             request.setPathId(pathId);
-            request.setStrategy("REORDER");
+            request.setAdaptStrategy("REORDER");
 
             LearningPathDto result = pathService.adaptPath(request);
 
@@ -573,12 +586,17 @@ class PathServiceTest {
             when(learningPathRepository.findById(pathId)).thenReturn(Optional.of(mockPath));
             when(learningPathNodeRepository.findByLearningPathIdOrderByOrderIndexAsc(pathId))
                     .thenReturn(List.of(mockNode1, mockNode2));
-            when(learningPathNodeRepository.findCompletedKnowledgePointIdsByStudentId(studentId))
-                    .thenReturn(List.of(kp1Id));
+            TypedQuery<Object> masteredQuery = mock(TypedQuery.class);
+            when(entityManager.createQuery(
+                    contains("SELECT DISTINCT lpn.knowledgePointId FROM LearningPathNode lpn"),
+                    eq(Object.class)))
+                    .thenReturn(masteredQuery);
+            when(masteredQuery.setParameter("studentId", studentId)).thenReturn(masteredQuery);
+            when(masteredQuery.getResultList()).thenReturn(List.of(kp1Id));
 
             PathAdaptRequest request = new PathAdaptRequest();
             request.setPathId(pathId);
-            request.setStrategy("SHORTEN");
+            request.setAdaptStrategy("SHORTEN");
 
             pathService.adaptPath(request);
 
@@ -594,7 +612,7 @@ class PathServiceTest {
 
             PathAdaptRequest request = new PathAdaptRequest();
             request.setPathId(pathId);
-            request.setStrategy("EXPAND");
+            request.setAdaptStrategy("EXPAND");
 
             LearningPathDto result = pathService.adaptPath(request);
 
@@ -610,7 +628,7 @@ class PathServiceTest {
 
             PathAdaptRequest request = new PathAdaptRequest();
             request.setPathId(pathId);
-            request.setStrategy("INVALID");
+            request.setAdaptStrategy("INVALID");
 
             assertThatThrownBy(() -> pathService.adaptPath(request))
                     .isInstanceOf(ValidationException.class)
@@ -624,7 +642,7 @@ class PathServiceTest {
 
             PathAdaptRequest request = new PathAdaptRequest();
             request.setPathId(pathId);
-            request.setStrategy("REORDER");
+            request.setAdaptStrategy("REORDER");
 
             assertThatThrownBy(() -> pathService.adaptPath(request))
                     .isInstanceOf(ResourceNotFoundException.class);

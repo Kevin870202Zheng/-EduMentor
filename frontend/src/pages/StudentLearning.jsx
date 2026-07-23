@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
-import { Card, Typography, Button, Spin, Tag, Progress, Radio, Checkbox, Input, Space, Alert, Empty, List, Tree, message, Collapse } from 'antd';
-import { CheckCircleOutlined, CloseCircleOutlined, ArrowLeftOutlined, ArrowRightOutlined, RobotOutlined, BookOutlined, FolderOutlined, FileTextOutlined } from '@ant-design/icons';
-import { courseAPI, learningAPI, answerAPI, questionAnalysisAPI, knowledgePointAPI } from '../services/api';
+import { Card, Typography, Button, Spin, Tag, Progress, Radio, Checkbox, Input, Space, Alert, Empty, List, Tree, message, Collapse, Select, Form, Tabs, Modal, Table } from 'antd';
+import { CheckCircleOutlined, CloseCircleOutlined, ArrowLeftOutlined, ArrowRightOutlined, RobotOutlined, BookOutlined, FolderOutlined, FileTextOutlined, FormOutlined, TeamOutlined, PlusOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
+import { courseAPI, learningAPI, answerAPI, questionAnalysisAPI, knowledgePointAPI, peerQuizAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 const { Title, Text, Paragraph } = Typography;
@@ -258,6 +258,23 @@ export default function StudentLearning() {
   // ─── ref 存储所有答案（不触发渲染） ───
   const answerRefs = useRef({});
 
+  // ─── 出题考核状态 ───
+  const [showCreateQuiz, setShowCreateQuiz] = useState(false);
+  const [availableStudents, setAvailableStudents] = useState([]);
+  const [quizTitle, setQuizTitle] = useState('');
+  const [selectedParticipants, setSelectedParticipants] = useState([]);
+  const [quizQuestions, setQuizQuestions] = useState([]);
+  const [creatingQuiz, setCreatingQuiz] = useState(false);
+  const [pendingQuizzes, setPendingQuizzes] = useState([]);
+  const [createdQuizzes, setCreatedQuizzes] = useState([]);
+  const [completedQuizzes, setCompletedQuizzes] = useState([]);
+  const [activeTab, setActiveTab] = useState('exercises');
+  const [selectedQuizDetail, setSelectedQuizDetail] = useState(null);
+  const [selectedQuizResults, setSelectedQuizResults] = useState(null);
+  const [quizAnswers, setQuizAnswers] = useState({});
+  const [submittingQuiz, setSubmittingQuiz] = useState(false);
+  const [loadingQuizzes, setLoadingQuizzes] = useState(false);
+
   // ─── 稳定的事件回调 ───
 
   const handleSelectAnswer = useCallback((questionId, value) => {
@@ -313,6 +330,119 @@ export default function StudentLearning() {
     }
     setAnalyzingQuestions(prev => ({ ...prev, [qId]: false }));
   }, []);
+
+  // ─── 出题考核处理函数 ───
+
+  const openCreateQuiz = useCallback(async () => {
+    if (!courseInfo?.id) return;
+    try {
+      const res = await peerQuizAPI.getCourseMates(courseInfo.id);
+      const students = res?.data || res || [];
+      setAvailableStudents(students.filter(s => s.studentId !== user?.id));
+    } catch (e) {
+      setAvailableStudents([]);
+    }
+    setQuizTitle('考核 - ' + (currentKp?.name || '知识点'));
+    setSelectedParticipants([]);
+    setQuizQuestions([{ content: '', questionType: 'SINGLE_CHOICE', options: { A: '', B: '', C: '', D: '' }, correctAnswer: '', explanation: '' }]);
+    setShowCreateQuiz(true);
+  }, [courseInfo?.id, currentKp, user?.id]);
+
+  const addQuestionToForm = () => {
+    setQuizQuestions(prev => [...prev, { content: '', questionType: 'SINGLE_CHOICE', options: { A: '', B: '', C: '', D: '' }, correctAnswer: '', explanation: '' }]);
+  };
+
+  const removeQuestionFromForm = (idx) => {
+    setQuizQuestions(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const updateQuestionField = (idx, field, value) => {
+    setQuizQuestions(prev => prev.map((q, i) => i === idx ? { ...q, [field]: value } : q));
+  };
+
+  const updateQuestionOption = (idx, optKey, value) => {
+    setQuizQuestions(prev => prev.map((q, i) => i === idx ? { ...q, options: { ...q.options, [optKey]: value } } : q));
+  };
+
+  const handleCreateQuiz = async () => {
+    if (!quizTitle.trim()) { message.warning('请输入考核标题'); return; }
+    if (selectedParticipants.length === 0) { message.warning('请选择被考核学生'); return; }
+    const validQuestions = quizQuestions.filter(q => q.content.trim() && q.correctAnswer.trim());
+    if (validQuestions.length === 0) { message.warning('请添加至少一道完整题目'); return; }
+    setCreatingQuiz(true);
+    try {
+      await peerQuizAPI.create({
+        quiz: {
+          title: quizTitle,
+          courseId: courseInfo.id,
+          knowledgePointId: currentKp?.id || null,
+          participantIds: selectedParticipants,
+        },
+        questions: validQuestions,
+      });
+      message.success('考核发布成功！');
+      setShowCreateQuiz(false);
+      setActiveTab('created');
+      loadPeerQuizzes();
+    } catch (err) {
+      message.error('发布失败: ' + (err.message || '未知错误'));
+    }
+    setCreatingQuiz(false);
+  };
+
+  const loadPeerQuizzes = useCallback(async () => {
+    if (!user?.id) return;
+    setLoadingQuizzes(true);
+    try {
+      const [pendingRes, createdRes, completedRes] = await Promise.all([
+        peerQuizAPI.getPending().catch(() => ({ data: [] })),
+        peerQuizAPI.getMyCreated().catch(() => ({ data: [] })),
+        peerQuizAPI.getCompleted().catch(() => ({ data: [] })),
+      ]);
+      setPendingQuizzes(pendingRes?.data || pendingRes || []);
+      setCreatedQuizzes(createdRes?.data || createdRes || []);
+      setCompletedQuizzes(completedRes?.data || completedRes || []);
+    } catch (e) { /* ignore */ }
+    setLoadingQuizzes(false);
+  }, [user?.id]);
+
+  const handleTakeQuiz = async (quizId) => {
+    try {
+      const res = await peerQuizAPI.getDetail(quizId);
+      setSelectedQuizDetail(res?.data || res);
+      setQuizAnswers({});
+    } catch (err) {
+      message.error('加载考核详情失败');
+    }
+  };
+
+  const handleSubmitPeerQuiz = async (quizId) => {
+    setSubmittingQuiz(true);
+    try {
+      await peerQuizAPI.submit(quizId);
+      message.success('考核提交成功！');
+      setSelectedQuizDetail(null);
+      loadPeerQuizzes();
+    } catch (err) {
+      message.error('提交失败: ' + (err.message || '未知错误'));
+    }
+    setSubmittingQuiz(false);
+  };
+
+  const handleViewResults = async (quizId) => {
+    try {
+      const res = await peerQuizAPI.getResults(quizId);
+      setSelectedQuizResults(res?.data || res);
+    } catch (err) {
+      message.error('加载结果失败');
+    }
+  };
+
+  useEffect(() => {
+    if (user?.id && courseInfo?.id) {
+      loadPeerQuizzes();
+    }
+  }, [user?.id, courseInfo?.id, loadPeerQuizzes]);
 
   // ─── 数据加载 ───
 
@@ -585,29 +715,90 @@ export default function StudentLearning() {
                 </Card>
               )}
 
-              <Card size="small" title={`📝 练习题（${questions.length} 题）`} style={{ marginBottom: 12 }}>
-                {questions.length === 0 ? (
-                  <Empty description="该知识点暂无练习题" />
-                ) : (
-                  questions.map((q, qIdx) => {
-                    const parsed = parsedQuestions.find(p => p.id === q.id);
-                    return (
-                      <QuestionCard key={q.id}
-                        question={q} index={qIdx}
-                        result={submitResults[q.id]}
-                        disabled={!!submitResults[q.id]}
-                        parsedOptions={parsed?.options || []}
-                        submitting={submitting}
-                        analyzing={analyzingQuestions[q.id]}
-                        analysisResult={analysisResults[q.id]}
-                        onSelectAnswer={handleSelectAnswer}
-                        onSubmitAnswer={handleSubmitAnswer}
-                        onAnalyze={handleAnalyzeQuestion}
-                      />
-                    );
-                  })
-                )}
-              </Card>
+              <Tabs activeKey={activeTab} onChange={setActiveTab} style={{ marginBottom: 0 }}
+                items={[
+                  {
+                    key: 'exercises',
+                    label: `📝 练习题（${questions.length} 题）`,
+                    children: (
+                      <div>
+                        {questions.length === 0 ? (
+                          <Empty description="该知识点暂无练习题" />
+                        ) : (
+                          questions.map((q, qIdx) => {
+                            const parsed = parsedQuestions.find(p => p.id === q.id);
+                            return (
+                              <QuestionCard key={q.id}
+                                question={q} index={qIdx}
+                                result={submitResults[q.id]}
+                                disabled={!!submitResults[q.id]}
+                                parsedOptions={parsed?.options || []}
+                                submitting={submitting}
+                                analyzing={analyzingQuestions[q.id]}
+                                analysisResult={analysisResults[q.id]}
+                                onSelectAnswer={handleSelectAnswer}
+                                onSubmitAnswer={handleSubmitAnswer}
+                                onAnalyze={handleAnalyzeQuestion}
+                              />
+                            );
+                          })
+                        )}
+                      </div>
+                    ),
+                  },
+                  {
+                    key: 'pending',
+                    label: `⏳ 待考核（${pendingQuizzes.length}）`,
+                    children: (
+                      <div>
+                        {loadingQuizzes ? <Spin style={{ display: 'block', margin: '20px auto' }} /> :
+                         pendingQuizzes.length === 0 ? <Empty description="暂无待考核任务" /> :
+                         pendingQuizzes.map(q => (
+                           <Card key={q.id} size="small" style={{ marginBottom: 8 }}
+                             hoverable onClick={() => handleTakeQuiz(q.id)}>
+                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                               <div>
+                                 <Text strong>{q.title}</Text>
+                                 <br />
+                                 <Text type="secondary">出题人: {q.creatorName} · {q.questionCount} 题</Text>
+                               </div>
+                               <Tag color="blue">待完成</Tag>
+                             </div>
+                           </Card>
+                         ))
+                        }
+                      </div>
+                    ),
+                  },
+                  {
+                    key: 'created',
+                    label: `📋 我出的题（${createdQuizzes.length}）`,
+                    children: (
+                      <div>
+                        {loadingQuizzes ? <Spin style={{ display: 'block', margin: '20px auto' }} /> :
+                         createdQuizzes.length === 0 ? <Empty description="你还没有出过题" /> :
+                         createdQuizzes.map(q => (
+                           <Card key={q.id} size="small" style={{ marginBottom: 8 }}>
+                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                               <div>
+                                 <Text strong>{q.title}</Text>
+                                 <br />
+                                 <Text type="secondary">{q.participantCount} 人参与 · {q.completedCount} 人完成 · {q.questionCount} 题</Text>
+                               </div>
+                               <Space>
+                                 <Tag color={q.status === 'OPEN' ? 'green' : 'default'}>{q.status === 'OPEN' ? '进行中' : '已关闭'}</Tag>
+                                 <Button size="small" icon={<EyeOutlined />}
+                                   onClick={(e) => { e.stopPropagation(); handleViewResults(q.id); }}>查看结果</Button>
+                               </Space>
+                             </div>
+                           </Card>
+                         ))
+                        }
+                      </div>
+                    ),
+                  },
+                ]}
+              />
 
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16 }}>
                 <Button icon={<ArrowLeftOutlined />} disabled={currentKpIndex === 0}
@@ -615,6 +806,8 @@ export default function StudentLearning() {
                 <Button type="primary" icon={<ArrowRightOutlined />}
                   disabled={currentKpIndex >= progressInfo.total - 1}
                   onClick={() => switchKp(currentKpIndex + 1)}>下一课</Button>
+                <Button type="dashed" icon={<FormOutlined />}
+                  onClick={openCreateQuiz}>出题考核</Button>
               </div>
             </div>
           ) : (
@@ -622,6 +815,123 @@ export default function StudentLearning() {
           )}
         </div>
       </div>
+
+      {/* ─── 出题考核弹窗 ─── */}
+      <Modal title="📝 出题考核" open={showCreateQuiz}
+        onCancel={() => setShowCreateQuiz(false)}
+        width={800} footer={null} destroyOnClose>
+        <Form layout="vertical">
+          <Form.Item label="考核标题">
+            <Input value={quizTitle} onChange={e => setQuizTitle(e.target.value)} placeholder="输入考核标题" />
+          </Form.Item>
+          <Form.Item label="选择被考核学生（可多选）">
+            <Select mode="multiple" style={{ width: '100%' }}
+              placeholder="搜索并选择学生"
+              value={selectedParticipants}
+              onChange={setSelectedParticipants}
+              options={availableStudents.map(s => ({ value: s.studentId, label: s.displayName }))}
+            />
+          </Form.Item>
+          <Form.Item label={<Space>题目列表 <Button type="link" size="small" icon={<PlusOutlined />} onClick={addQuestionToForm}>添加题目</Button></Space>}>
+            <div style={{ maxHeight: 400, overflow: 'auto' }}>
+              {quizQuestions.map((q, idx) => (
+                <Card key={idx} size="small" style={{ marginBottom: 8 }}
+                  title={`第 ${idx + 1} 题`}
+                  extra={quizQuestions.length > 1 && <Button type="text" danger icon={<DeleteOutlined />} onClick={() => removeQuestionFromForm(idx)} />}>
+                  <Select style={{ width: 140, marginBottom: 8 }}
+                    value={q.questionType}
+                    onChange={v => updateQuestionField(idx, 'questionType', v)}
+                    options={[
+                      { value: 'SINGLE_CHOICE', label: '单选题' },
+                      { value: 'MULTIPLE_CHOICE', label: '多选题' },
+                      { value: 'TRUE_FALSE', label: '判断题' },
+                      { value: 'FILL_BLANK', label: '填空题' },
+                      { value: 'SHORT_ANSWER', label: '简答题' },
+                    ]} />
+                  <Input.TextArea rows={2} style={{ marginBottom: 8 }} placeholder="题目内容"
+                    value={q.content} onChange={e => updateQuestionField(idx, 'content', e.target.value)} />
+                  {(q.questionType === 'SINGLE_CHOICE' || q.questionType === 'MULTIPLE_CHOICE') && (
+                    <div>
+                      {['A','B','C','D'].map(k => (
+                        <Input key={k} style={{ width: '48%', margin: '2px 1%' }} size="small"
+                          placeholder={`选项 ${k}`}
+                          value={q.options?.[k] || ''}
+                          onChange={e => updateQuestionOption(idx, k, e.target.value)} />
+                      ))}
+                    </div>
+                  )}
+                  {q.questionType === 'TRUE_FALSE' && (
+                    <Radio.Group value={q.correctAnswer} onChange={e => updateQuestionField(idx, 'correctAnswer', e.target.value)}>
+                      <Radio value="A">正确</Radio>
+                      <Radio value="B">错误</Radio>
+                    </Radio.Group>
+                  )}
+                  <Input style={{ marginTop: 4 }} size="small" placeholder="正确答案"
+                    value={q.correctAnswer} onChange={e => updateQuestionField(idx, 'correctAnswer', e.target.value)} />
+                  <Input style={{ marginTop: 4 }} size="small" placeholder="解析（可选）"
+                    value={q.explanation} onChange={e => updateQuestionField(idx, 'explanation', e.target.value)} />
+                </Card>
+              ))}
+            </div>
+          </Form.Item>
+          <div style={{ textAlign: 'right' }}>
+            <Button style={{ marginRight: 8 }} onClick={() => setShowCreateQuiz(false)}>取消</Button>
+            <Button type="primary" onClick={handleCreateQuiz} loading={creatingQuiz}>发布考核</Button>
+          </div>
+        </Form>
+      </Modal>
+
+      {/* ─── 答题弹窗 ─── */}
+      <Modal title={`📋 ${selectedQuizDetail?.title || '考核详情'}`}
+        open={!!selectedQuizDetail}
+        onCancel={() => setSelectedQuizDetail(null)}
+        width={700}
+        footer={selectedQuizDetail ? <Button type="primary" onClick={() => handleSubmitPeerQuiz(selectedQuizDetail.id)} loading={submittingQuiz}>提交答案</Button> : null}>
+        {selectedQuizDetail?.questions?.map((q, idx) => (
+          <div key={q.id} style={{ marginBottom: 16, padding: 12, background: '#fafafa', borderRadius: 8 }}>
+            <Text strong>{idx + 1}. {q.content} <Tag color="blue">{getTypeLabel(q.questionType)}</Tag></Text>
+            {q.options && ['SINGLE_CHOICE','MULTIPLE_CHOICE','TRUE_FALSE'].includes(q.questionType) && (
+              <Radio.Group style={{ display: 'block', marginTop: 8 }}
+                onChange={e => setQuizAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}>
+                {Object.entries(q.options).map(([k, v]) => (
+                  <Radio key={k} value={k} style={{ display: 'block', marginBottom: 4 }}>
+                    {k}. {typeof v === 'string' ? v : v?.text || v?.label || ''}
+                  </Radio>
+                ))}
+              </Radio.Group>
+            )}
+            {['FILL_BLANK','SHORT_ANSWER','ESSAY'].includes(q.questionType) && (
+              <Input.TextArea style={{ marginTop: 8 }} rows={3} placeholder="请输入答案"
+                onChange={e => setQuizAnswers(prev => ({ ...prev, [q.id]: e.target.value }))} />
+            )}
+          </div>
+        ))}
+        {(!selectedQuizDetail?.questions || selectedQuizDetail.questions.length === 0) && <Empty description="暂无题目" />}
+      </Modal>
+
+      {/* ─── 考核结果弹窗 ─── */}
+      <Modal title={selectedQuizResults?.title || '考核结果'}
+        open={!!selectedQuizResults}
+        onCancel={() => setSelectedQuizResults(null)}
+        width={600} footer={null}>
+        {selectedQuizResults?.participants?.length > 0 ? (
+          <Table dataSource={selectedQuizResults.participants} rowKey="id" size="small" pagination={false}
+            columns={[
+              { title: '学生', dataIndex: 'studentName', key: 'name' },
+              { title: '状态', dataIndex: 'status', key: 'status',
+                render: s => s === 'COMPLETED' ? <Tag color="green">已完成</Tag> : <Tag color="orange">待完成</Tag>
+              },
+              { title: '得分', key: 'score',
+                render: (_, r) => r.status === 'COMPLETED' ? `${r.score || 0} / ${r.totalQuestions || 0}` : '-'
+              },
+              { title: '完成时间', dataIndex: 'completedAt', key: 'completedAt',
+                render: t => t ? new Date(t).toLocaleString('zh-CN') : '-'
+              },
+            ]} />
+        ) : (
+          <Empty description="暂无参与记录" />
+        )}
+      </Modal>
     </div>
   );
 }

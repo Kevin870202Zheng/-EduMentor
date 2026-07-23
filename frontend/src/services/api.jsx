@@ -156,15 +156,28 @@ export const qaAPI = {
 
     const controller = new AbortController();
 
+    // SSE 流式请求直连后端，避免 Vite 代理缓冲
+    const sseUrl = import.meta.env.DEV
+      ? `http://localhost:8080/api/qa/ask/stream?${params}`
+      : `${API_BASE}/qa/ask/stream?${params}`;
+
     (async () => {
       try {
-        const response = await fetch(`${API_BASE}/qa/ask/stream?${params}`, {
+        const response = await fetch(sseUrl, {
           headers: { Authorization: `Bearer ${token}` },
           signal: controller.signal,
         });
 
+        // SSE 流式响应，无额外日志
+
         if (!response.ok) {
           onError(`请求失败 (${response.status})`);
+          return;
+        }
+
+        if (!response.body) {
+          console.error('SSE: response.body is null - ReadableStream not supported');
+          onError('浏览器不支持流式读取');
           return;
         }
 
@@ -172,23 +185,30 @@ export const qaAPI = {
         const decoder = new TextDecoder();
         let buffer = '';
         let currentEvent = '';
+        let chunkCount = 0;
 
         while (true) {
           const { done, value } = await reader.read();
-          if (done) break;
+          if (done) {
+            // 流式传输完成
+            break;
+          }
 
+          chunkCount++;
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split('\n');
           buffer = lines.pop(); // 不完整的行留到下次
 
           for (const line of lines) {
             const trimmed = line.trim();
-            if (trimmed.startsWith('event: ')) {
-              currentEvent = trimmed.slice(7).trim();
-            } else if (trimmed.startsWith('data: ')) {
-              const jsonStr = trimmed.slice(6);
+            if (trimmed.startsWith('event:')) {
+              currentEvent = trimmed.slice(6).trim();
+            } else if (trimmed.startsWith('data:')) {
+              // data: 后可能有空格（兼容不同 SSE 实现）
+              const jsonStr = trimmed.startsWith('data: ') ? trimmed.slice(6) : trimmed.slice(5);
               try {
                 const parsed = JSON.parse(jsonStr);
+                console.log('SSE parsed event:', currentEvent, 'content type:', typeof parsed.content, 'len:', parsed.content?.length);
                 if (currentEvent === 'done') {
                   onDone?.(parsed);
                 } else if (currentEvent === 'error') {
@@ -197,7 +217,7 @@ export const qaAPI = {
                   // chunk 事件 / 默认当作内容块
                   onChunk?.(parsed.content || '');
                 }
-              } catch (_) { /* 忽略解析失败的行 */ }
+              } catch (_) { /* SSE 解析异常（忽略） */ }
             }
             // 空行重置 event（SSE 规范：空行分隔事件）
             if (trimmed === '') currentEvent = '';
@@ -358,6 +378,23 @@ export const adminAPI = {
   deleteUser: (id) => api.delete(`/admin/users/${id}`),
   toggleStatus: (id, active) => api.put(`/admin/users/${id}/status`, { active }),
   resetPassword: (id, newPassword) => api.put(`/admin/users/${id}/reset-password`, { newPassword }),
+};
+
+// export default api;
+
+// ============ 模块十六：学生互出题考核 ============
+export const peerQuizAPI = {
+  create: (data) => api.post('/v1/peer-quizzes', data),
+  getPending: () => api.get('/v1/peer-quizzes/pending'),
+  getCompleted: () => api.get('/v1/peer-quizzes/completed'),
+  getMyCreated: () => api.get('/v1/peer-quizzes/created'),
+  getDetail: (quizId) => api.get(`/v1/peer-quizzes/${quizId}`),
+  submit: (quizId) => api.post(`/v1/peer-quizzes/${quizId}/submit`),
+  close: (quizId) => api.put(`/v1/peer-quizzes/${quizId}/close`),
+  getResults: (quizId) => api.get(`/v1/peer-quizzes/${quizId}/results`),
+  getQuestionResults: (quizId, questionId) =>
+    api.get(`/v1/peer-quizzes/${quizId}/questions/${questionId}/results`),
+  getCourseMates: (courseId) => api.get(`/v1/peer-quizzes/students`, { params: { courseId } }),
 };
 
 export default api;

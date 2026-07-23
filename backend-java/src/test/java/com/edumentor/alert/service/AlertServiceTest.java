@@ -19,7 +19,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.*;
 
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 import java.util.*;
 
 import static org.assertj.core.api.Assertions.*;
@@ -48,14 +48,14 @@ class AlertServiceTest {
     private UUID teacherId;
     private AlertRecord mockAlert;
     private AlertRecord mockResolvedAlert;
-    private OffsetDateTime now;
+    private LocalDateTime now;
 
     @BeforeEach
     void setUp() {
         alertId = UUID.randomUUID();
         studentId = UUID.randomUUID();
         teacherId = UUID.randomUUID();
-        now = OffsetDateTime.now();
+        now = LocalDateTime.now();
 
         mockAlert = new AlertRecord(
                 studentId,
@@ -68,8 +68,8 @@ class AlertServiceTest {
         mockAlert.setTeacherId(teacherId);
         mockAlert.setCreatedAt(now);
         mockAlert.setExpiresAt(now.plusDays(14));
-        mockAlert.setRead(false);
-        mockAlert.setResolved(false);
+        mockAlert.setIsRead(false);
+        mockAlert.setIsResolved(false);
 
         mockResolvedAlert = new AlertRecord(
                 studentId,
@@ -79,7 +79,7 @@ class AlertServiceTest {
                 "已处理"
         );
         mockResolvedAlert.setId(UUID.randomUUID());
-        mockResolvedAlert.setResolved(true);
+        mockResolvedAlert.setIsResolved(true);
         mockResolvedAlert.setResolvedAt(now);
     }
 
@@ -121,7 +121,7 @@ class AlertServiceTest {
                     studentId, AlertType.TIME_PRESSURE, AlertSeverity.CRITICAL,
                     "紧急预警", null, null, null);
 
-            long expiryDays = result.getExpiresAt().toEpochSecond() - now.toEpochSecond();
+            long expiryDays = result.getExpiresAt().toEpochSecond(java.time.ZoneOffset.UTC) - now.toEpochSecond(java.time.ZoneOffset.UTC);
             assertThat(expiryDays).isLessThan(4 * 86400); // Less than 4 days
         }
 
@@ -550,7 +550,7 @@ class AlertServiceTest {
             expiredAlert.setId(UUID.randomUUID());
             expiredAlert.setExpiresAt(now.minusDays(1)); // Already expired
 
-            when(alertRecordRepository.findActiveAlerts(any(OffsetDateTime.class)))
+            when(alertRecordRepository.findActiveAlerts(any(LocalDateTime.class)))
                     .thenReturn(List.of(expiredAlert));
             when(alertRecordRepository.save(any(AlertRecord.class)))
                     .thenAnswer(inv -> inv.getArgument(0));
@@ -558,14 +558,14 @@ class AlertServiceTest {
             int count = alertService.cleanExpiredAlerts();
 
             assertThat(count).isEqualTo(1);
-            assertThat(expiredAlert.isResolved()).isTrue();
+            assertThat(expiredAlert.getIsResolved()).isTrue();
             assertThat(expiredAlert.getHandleNote()).contains("过期");
         }
 
         @Test
         @DisplayName("无过期预警 — 不执行任何操作")
         void cleanNoExpiredAlerts() {
-            when(alertRecordRepository.findActiveAlerts(any(OffsetDateTime.class)))
+            when(alertRecordRepository.findActiveAlerts(any(LocalDateTime.class)))
                     .thenReturn(List.of());
 
             int count = alertService.cleanExpiredAlerts();

@@ -13,5 +13,5 @@ public class TokenResponse {
     private String accessToken;
     private String refreshToken;
     private long expiresIn;
-    private String tokenType = "Bearer";
+    private final String tokenType = "Bearer";
 }

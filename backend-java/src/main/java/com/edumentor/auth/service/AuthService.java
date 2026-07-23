@@ -135,7 +135,6 @@ public class AuthService {
             .accessToken(pair.accessToken())
             .refreshToken(pair.refreshToken())
             .expiresIn(pair.expiresIn())
-            .tokenType("Bearer")
             .build();
     }
 }

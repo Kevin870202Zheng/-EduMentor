@@ -24,6 +24,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.*;
 
@@ -83,9 +84,9 @@ class KnowledgeServiceTest {
         mockCourse.setDescription("高中数学课程");
         mockCourse.setSubject("数学");
         mockCourse.setGradeLevel("高中");
-        mockCourse.setPublished(false);
+        mockCourse.setIsPublished(false);
         mockCourse.setCreatedBy(userId);
-        mockCourse.setCreatedAt(OffsetDateTime.now());
+        mockCourse.setCreatedAt(LocalDateTime.now());
 
         mockKp = new KnowledgePoint();
         mockKp.setId(kpId);
@@ -125,23 +126,26 @@ class KnowledgeServiceTest {
         @Test
         @DisplayName("创建课程 — 应返回创建后的 CourseDto")
         void createCourse() {
-            CourseCreateRequest request = new CourseCreateRequest(
-                    "高中数学", "高中数学课程", "数学", "高中", null);
+            CourseCreateRequest request = new CourseCreateRequest();
+            request.setName("高中数学");
+            request.setDescription("高中数学课程");
+            request.setSubject("数学");
+            request.setGradeLevel("高中");
 
             when(courseRepository.existsByName("高中数学")).thenReturn(false);
             when(courseRepository.save(any(Course.class))).thenAnswer(inv -> {
                 Course c = inv.getArgument(0);
                 c.setId(courseId);
-                c.setCreatedAt(OffsetDateTime.now());
+                c.setCreatedAt(LocalDateTime.now());
                 return c;
             });
 
             CourseDto result = knowledgeService.createCourse(request, userId);
 
             assertThat(result).isNotNull();
-            assertThat(result.getName()).isEqualTo("高中数学");
-            assertThat(result.getSubject()).isEqualTo("数学");
-            assertThat(result.getIsPublished()).isFalse();
+            assertThat(result.name()).isEqualTo("高中数学");
+            assertThat(result.subject()).isEqualTo("数学");
+            assertThat(result.isPublished()).isFalse();
 
             verify(courseRepository).save(courseCaptor.capture());
             assertThat(courseCaptor.getValue().getCreatedBy()).isEqualTo(userId);
@@ -150,8 +154,11 @@ class KnowledgeServiceTest {
         @Test
         @DisplayName("创建已存在的课程名 — 应抛出 DuplicateResourceException")
         void createDuplicateCourse() {
-            CourseCreateRequest request = new CourseCreateRequest(
-                    "高中数学", "desc", "数学", "高中", null);
+            CourseCreateRequest request = new CourseCreateRequest();
+            request.setName("高中数学");
+            request.setDescription("desc");
+            request.setSubject("数学");
+            request.setGradeLevel("高中");
 
             when(courseRepository.existsByName("高中数学")).thenReturn(true);
 
@@ -163,8 +170,9 @@ class KnowledgeServiceTest {
         @Test
         @DisplayName("更新课程 — 部分字段更新")
         void updateCourse() {
-            CourseUpdateRequest request = new CourseUpdateRequest(
-                    "高等数学", "updated desc", null, null, null, null);
+            CourseUpdateRequest request = new CourseUpdateRequest();
+            request.setName("高等数学");
+            request.setDescription("updated desc");
 
             when(courseRepository.findById(courseId)).thenReturn(Optional.of(mockCourse));
             when(courseRepository.existsByName("高等数学")).thenReturn(false);
@@ -172,15 +180,15 @@ class KnowledgeServiceTest {
 
             CourseDto result = knowledgeService.updateCourse(courseId, request);
 
-            assertThat(result.getName()).isEqualTo("高等数学");
-            assertThat(result.getDescription()).isEqualTo("updated desc");
+            assertThat(result.name()).isEqualTo("高等数学");
+            assertThat(result.description()).isEqualTo("updated desc");
         }
 
         @Test
         @DisplayName("更新不存在的课程 — 应抛出 ResourceNotFoundException")
         void updateNonExistentCourse() {
-            CourseUpdateRequest request = new CourseUpdateRequest(
-                    "新名称", null, null, null, null, null);
+            CourseUpdateRequest request = new CourseUpdateRequest();
+            request.setName("新名称");
 
             when(courseRepository.findById(courseId)).thenReturn(Optional.empty());
 
@@ -193,8 +201,8 @@ class KnowledgeServiceTest {
         @DisplayName("更新课程名与已有课程冲突 — 应抛出 DuplicateResourceException")
         void updateCourseNameConflict() {
             mockCourse.setName("原名称");
-            CourseUpdateRequest request = new CourseUpdateRequest(
-                    "已存在的名称", null, null, null, null, null);
+            CourseUpdateRequest request = new CourseUpdateRequest();
+            request.setName("已存在的名称");
 
             when(courseRepository.findById(courseId)).thenReturn(Optional.of(mockCourse));
             when(courseRepository.existsByName("已存在的名称")).thenReturn(true);
@@ -210,7 +218,7 @@ class KnowledgeServiceTest {
 
             CourseDto result = knowledgeService.getCourse(courseId);
 
-            assertThat(result.getName()).isEqualTo("高中数学");
+            assertThat(result.name()).isEqualTo("高中数学");
         }
 
         @Test
@@ -234,7 +242,7 @@ class KnowledgeServiceTest {
             Page<CourseDto> result = knowledgeService.listCourses(1, 10, null, "数学", false);
 
             assertThat(result.getContent()).hasSize(1);
-            assertThat(result.getContent().get(0).getName()).isEqualTo("高中数学");
+            assertThat(result.getContent().get(0).name()).isEqualTo("高中数学");
         }
 
         @Test
@@ -243,7 +251,7 @@ class KnowledgeServiceTest {
             Pageable pageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
             Page<Course> coursePage = new PageImpl<>(List.of(mockCourse));
 
-            when(courseRepository.findBySubjectAndIsPublishedTrue(eq("数学"), any(Pageable.class)))
+            when(courseRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(Pageable.class)))
                     .thenReturn(coursePage);
 
             Page<CourseDto> result = knowledgeService.listCourses(1, 10, "数学", null, true);
@@ -278,19 +286,19 @@ class KnowledgeServiceTest {
 
             CourseDto result = knowledgeService.publishCourse(courseId, true);
 
-            assertThat(result.getIsPublished()).isTrue();
+            assertThat(result.isPublished()).isTrue();
         }
 
         @Test
         @DisplayName("下架课程 — 状态应为未发布")
         void unpublishCourse() {
-            mockCourse.setPublished(true);
+            mockCourse.setIsPublished(true);
             when(courseRepository.findById(courseId)).thenReturn(Optional.of(mockCourse));
             when(courseRepository.save(any(Course.class))).thenAnswer(inv -> inv.getArgument(0));
 
             CourseDto result = knowledgeService.publishCourse(courseId, false);
 
-            assertThat(result.getIsPublished()).isFalse();
+            assertThat(result.isPublished()).isFalse();
         }
     }
 
@@ -305,12 +313,18 @@ class KnowledgeServiceTest {
         @Test
         @DisplayName("创建知识点 — 应返回创建后的 KnowledgePointDto")
         void createKnowledgePoint() {
-            KnowledgePointCreateRequest request = new KnowledgePointCreateRequest(
-                    courseId, null, "二次函数", "desc", null, 3, 4, "数学",
-                    "[\"重点\"]", 2);
+            KnowledgePointCreateRequest request = new KnowledgePointCreateRequest();
+            request.setCourseId(courseId);
+            request.setName("二次函数");
+            request.setDescription("desc");
+            request.setDifficulty(3);
+            request.setImportance(4);
+            request.setSubject("数学");
+            request.setTags("[\"重点\"]");
+            request.setOrderIndex(2);
 
             when(courseRepository.existsById(courseId)).thenReturn(true);
-            when(knowledgePointRepository.existsByCourseIdAndName(courseId, "二次函数")).thenReturn(false);
+            when(knowledgePointRepository.findByNameAndCourseId("二次函数", courseId)).thenReturn(Optional.empty());
             when(knowledgePointRepository.save(any(KnowledgePoint.class))).thenAnswer(inv -> {
                 KnowledgePoint kp = inv.getArgument(0);
                 kp.setId(UUID.randomUUID());
@@ -319,8 +333,8 @@ class KnowledgeServiceTest {
 
             KnowledgePointDto result = knowledgeService.createKnowledgePoint(request);
 
-            assertThat(result.getName()).isEqualTo("二次函数");
-            assertThat(result.getDifficulty()).isEqualTo(3);
+            assertThat(result.name()).isEqualTo("二次函数");
+            assertThat(result.difficulty()).isEqualTo(3);
 
             verify(knowledgePointRepository).save(kpCaptor.capture());
             assertThat(kpCaptor.getValue().getCourseId()).isEqualTo(courseId);
@@ -329,13 +343,17 @@ class KnowledgeServiceTest {
         @Test
         @DisplayName("创建知识点 — 带父知识点")
         void createKnowledgePointWithParent() {
-            KnowledgePointCreateRequest request = new KnowledgePointCreateRequest(
-                    courseId, parentKpId, "一元二次方程", null, null, 3, 3, null, null, null);
+            KnowledgePointCreateRequest request = new KnowledgePointCreateRequest();
+            request.setCourseId(courseId);
+            request.setParentKpId(parentKpId);
+            request.setName("一元二次方程");
+            request.setDifficulty(3);
+            request.setImportance(3);
 
             when(courseRepository.existsById(courseId)).thenReturn(true);
             when(knowledgePointRepository.existsById(parentKpId)).thenReturn(true);
             when(knowledgePointRepository.findById(parentKpId)).thenReturn(Optional.of(mockParentKp));
-            when(knowledgePointRepository.existsByCourseIdAndName(courseId, "一元二次方程")).thenReturn(false);
+            when(knowledgePointRepository.findByNameAndCourseId("一元二次方程", courseId)).thenReturn(Optional.empty());
             when(knowledgePointRepository.save(any(KnowledgePoint.class))).thenAnswer(inv -> {
                 KnowledgePoint kp = inv.getArgument(0);
                 kp.setId(kpId);
@@ -357,8 +375,12 @@ class KnowledgeServiceTest {
             otherCourseParent.setId(parentKpId);
             otherCourseParent.setCourseId(otherCourseId);
 
-            KnowledgePointCreateRequest request = new KnowledgePointCreateRequest(
-                    courseId, parentKpId, "新知识点", null, null, 3, 3, null, null, null);
+            KnowledgePointCreateRequest request = new KnowledgePointCreateRequest();
+            request.setCourseId(courseId);
+            request.setParentKpId(parentKpId);
+            request.setName("新知识点");
+            request.setDifficulty(3);
+            request.setImportance(3);
 
             when(courseRepository.existsById(courseId)).thenReturn(true);
             when(knowledgePointRepository.existsById(parentKpId)).thenReturn(true);
@@ -372,8 +394,11 @@ class KnowledgeServiceTest {
         @Test
         @DisplayName("创建知识点 — 课程不存在 — 应抛出 ResourceNotFoundException")
         void createKpWithNonExistentCourse() {
-            KnowledgePointCreateRequest request = new KnowledgePointCreateRequest(
-                    courseId, null, "新知识点", null, null, 3, 3, null, null, null);
+            KnowledgePointCreateRequest request = new KnowledgePointCreateRequest();
+            request.setCourseId(courseId);
+            request.setName("新知识点");
+            request.setDifficulty(3);
+            request.setImportance(3);
 
             when(courseRepository.existsById(courseId)).thenReturn(false);
 
@@ -385,11 +410,14 @@ class KnowledgeServiceTest {
         @Test
         @DisplayName("创建知识点 — 同名课程下知识点重复 — 应抛出 DuplicateResourceException")
         void createDuplicateKpName() {
-            KnowledgePointCreateRequest request = new KnowledgePointCreateRequest(
-                    courseId, null, "函数", null, null, 3, 3, null, null, null);
+            KnowledgePointCreateRequest request = new KnowledgePointCreateRequest();
+            request.setCourseId(courseId);
+            request.setName("函数");
+            request.setDifficulty(3);
+            request.setImportance(3);
 
             when(courseRepository.existsById(courseId)).thenReturn(true);
-            when(knowledgePointRepository.existsByCourseIdAndName(courseId, "函数")).thenReturn(true);
+            when(knowledgePointRepository.findByNameAndCourseId("函数", courseId)).thenReturn(Optional.of(mockKp));
 
             assertThatThrownBy(() -> knowledgeService.createKnowledgePoint(request))
                     .isInstanceOf(DuplicateResourceException.class);
@@ -398,22 +426,23 @@ class KnowledgeServiceTest {
         @Test
         @DisplayName("更新知识点 — 部分字段更新")
         void updateKnowledgePoint() {
-            KnowledgePointUpdateRequest request = new KnowledgePointUpdateRequest(
-                    "高级函数", "updated desc", null, null, null, null, null, null, null);
+            KnowledgePointUpdateRequest request = new KnowledgePointUpdateRequest();
+            request.setName("高级函数");
+            request.setDescription("updated desc");
 
             when(knowledgePointRepository.findById(kpId)).thenReturn(Optional.of(mockKp));
             when(knowledgePointRepository.save(any(KnowledgePoint.class))).thenAnswer(inv -> inv.getArgument(0));
 
             KnowledgePointDto result = knowledgeService.updateKnowledgePoint(kpId, request);
 
-            assertThat(result.getName()).isEqualTo("高级函数");
+            assertThat(result.name()).isEqualTo("高级函数");
         }
 
         @Test
         @DisplayName("更新知识点 — 将自己设为父节点 — 应抛出 ValidationException")
         void updateKpSetSelfAsParent() {
-            KnowledgePointUpdateRequest request = new KnowledgePointUpdateRequest(
-                    null, null, null, null, null, null, null, null, kpId);
+            KnowledgePointUpdateRequest request = new KnowledgePointUpdateRequest();
+            request.setParentKpId(kpId);
 
             when(knowledgePointRepository.findById(kpId)).thenReturn(Optional.of(mockKp));
 
@@ -429,7 +458,7 @@ class KnowledgeServiceTest {
 
             KnowledgePointDto result = knowledgeService.getKnowledgePoint(kpId);
 
-            assertThat(result.getName()).isEqualTo("函数");
+            assertThat(result.name()).isEqualTo("函数");
         }
 
         @Test
@@ -441,7 +470,7 @@ class KnowledgeServiceTest {
             List<KnowledgePointDto> result = knowledgeService.listKnowledgePointsByCourse(courseId);
 
             assertThat(result).hasSize(1);
-            assertThat(result.get(0).getName()).isEqualTo("函数");
+            assertThat(result.get(0).name()).isEqualTo("函数");
         }
 
         @Test
@@ -492,13 +521,15 @@ class KnowledgeServiceTest {
         @DisplayName("删除知识点 — 无子节点时成功删除")
         void deleteKpWithoutChildren() {
             when(knowledgePointRepository.existsById(kpId)).thenReturn(true);
-            when(knowledgePointRepository.findByParentKpIdOrderByOrderIndexAsc(kpId))
+            when(knowledgePointRepository.findByParentKpId(kpId))
+                    .thenReturn(List.of());
+            when(knowledgeRelationRepository.findBySourceKpIdOrTargetKpId(kpId, kpId))
                     .thenReturn(List.of());
 
             knowledgeService.deleteKnowledgePoint(kpId);
 
             verify(knowledgePointRepository).deleteById(kpId);
-            verify(knowledgeRelationRepository).deleteBySourceKpIdOrTargetKpId(kpId, kpId);
+            verify(knowledgeRelationRepository).deleteAll(anyList());
         }
 
         @Test
@@ -509,7 +540,7 @@ class KnowledgeServiceTest {
             child.setParentKpId(kpId);
 
             when(knowledgePointRepository.existsById(kpId)).thenReturn(true);
-            when(knowledgePointRepository.findByParentKpIdOrderByOrderIndexAsc(kpId))
+            when(knowledgePointRepository.findByParentKpId(kpId))
                     .thenReturn(List.of(child));
 
             assertThatThrownBy(() -> knowledgeService.deleteKnowledgePoint(kpId))
@@ -542,8 +573,12 @@ class KnowledgeServiceTest {
         @Test
         @DisplayName("创建知识点关系 — 成功创建")
         void createRelation() {
-            KnowledgeRelationCreateRequest request = new KnowledgeRelationCreateRequest(
-                    parentKpId, kpId, RelationType.PREREQUISITE, new BigDecimal("1.00"), "前置关系");
+            KnowledgeRelationCreateRequest request = new KnowledgeRelationCreateRequest();
+            request.setSourceKpId(parentKpId);
+            request.setTargetKpId(kpId);
+            request.setRelationType(RelationType.PREREQUISITE);
+            request.setWeight(new BigDecimal("1.00"));
+            request.setDescription("前置关系");
 
             when(knowledgePointRepository.existsById(parentKpId)).thenReturn(true);
             when(knowledgePointRepository.existsById(kpId)).thenReturn(true);
@@ -555,16 +590,18 @@ class KnowledgeServiceTest {
 
             KnowledgeRelationDto result = knowledgeService.createRelation(request);
 
-            assertThat(result.getSourceKpId()).isEqualTo(parentKpId);
-            assertThat(result.getTargetKpId()).isEqualTo(kpId);
-            assertThat(result.getRelationType()).isEqualTo(RelationType.PREREQUISITE);
+            assertThat(result.sourceKpId()).isEqualTo(parentKpId);
+            assertThat(result.targetKpId()).isEqualTo(kpId);
+            assertThat(result.relationType()).isEqualTo(RelationType.PREREQUISITE);
         }
 
         @Test
         @DisplayName("创建自引用关系 — 应抛出 ValidationException")
         void createSelfReferencingRelation() {
-            KnowledgeRelationCreateRequest request = new KnowledgeRelationCreateRequest(
-                    kpId, kpId, RelationType.PREREQUISITE, null, null);
+            KnowledgeRelationCreateRequest request = new KnowledgeRelationCreateRequest();
+            request.setSourceKpId(kpId);
+            request.setTargetKpId(kpId);
+            request.setRelationType(RelationType.PREREQUISITE);
 
             assertThatThrownBy(() -> knowledgeService.createRelation(request))
                     .isInstanceOf(ValidationException.class)
@@ -574,8 +611,10 @@ class KnowledgeServiceTest {
         @Test
         @DisplayName("创建重复关系 — 应抛出 DuplicateResourceException")
         void createDuplicateRelation() {
-            KnowledgeRelationCreateRequest request = new KnowledgeRelationCreateRequest(
-                    parentKpId, kpId, RelationType.PREREQUISITE, null, null);
+            KnowledgeRelationCreateRequest request = new KnowledgeRelationCreateRequest();
+            request.setSourceKpId(parentKpId);
+            request.setTargetKpId(kpId);
+            request.setRelationType(RelationType.PREREQUISITE);
 
             when(knowledgePointRepository.existsById(parentKpId)).thenReturn(true);
             when(knowledgePointRepository.existsById(kpId)).thenReturn(true);
@@ -622,14 +661,13 @@ class KnowledgeServiceTest {
         @Test
         @DisplayName("查询前置依赖关系")
         void getPrerequisites() {
-            when(knowledgeRelationRepository.findByTargetKpIdAndRelationType(
-                    kpId, RelationType.PREREQUISITE))
+            when(knowledgeRelationRepository.findByTargetKpId(kpId))
                     .thenReturn(List.of(mockRelation));
 
             List<KnowledgeRelationDto> result = knowledgeService.getPrerequisites(kpId);
 
             assertThat(result).hasSize(1);
-            assertThat(result.get(0).getSourceKpId()).isEqualTo(parentKpId);
+            assertThat(result.get(0).sourceKpId()).isEqualTo(parentKpId);
         }
     }
 
@@ -647,16 +685,16 @@ class KnowledgeServiceTest {
             when(courseRepository.existsById(courseId)).thenReturn(true);
             when(knowledgePointRepository.findByCourseIdOrderByOrderIndexAsc(courseId))
                     .thenReturn(List.of(mockKp));
-            when(knowledgeRelationRepository.findByCourseId(courseId))
+            when(knowledgeRelationRepository.findAll())
                     .thenReturn(List.of(mockRelation));
 
             KnowledgeGraphDto result = knowledgeService.getKnowledgeGraph(courseId);
 
-            assertThat(result.nodes()).hasSize(1);
-            assertThat(result.edges()).hasSize(1);
-            assertThat(result.nodes().get(0).name()).isEqualTo("函数");
-            assertThat(result.edges().get(0).sourceId()).isEqualTo(parentKpId);
-            assertThat(result.edges().get(0).targetId()).isEqualTo(kpId);
+            assertThat(result.getNodes()).hasSize(1);
+            assertThat(result.getEdges()).hasSize(1);
+            assertThat(result.getNodes().get(0).name()).isEqualTo("函数");
+            assertThat(result.getEdges().get(0).sourceId()).isEqualTo(parentKpId);
+            assertThat(result.getEdges().get(0).targetId()).isEqualTo(kpId);
         }
 
         @Test
@@ -675,13 +713,13 @@ class KnowledgeServiceTest {
             when(courseRepository.existsById(courseId)).thenReturn(true);
             when(knowledgePointRepository.findByCourseIdOrderByOrderIndexAsc(courseId))
                     .thenReturn(List.of());
-            when(knowledgeRelationRepository.findByCourseId(courseId))
+            when(knowledgeRelationRepository.findAll())
                     .thenReturn(List.of());
 
             KnowledgeGraphDto result = knowledgeService.getKnowledgeGraph(courseId);
 
-            assertThat(result.nodes()).isEmpty();
-            assertThat(result.edges()).isEmpty();
+            assertThat(result.getNodes()).isEmpty();
+            assertThat(result.getEdges()).isEmpty();
         }
     }
 }

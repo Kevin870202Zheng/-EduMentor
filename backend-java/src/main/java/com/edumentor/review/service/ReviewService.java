@@ -53,6 +53,7 @@ import java.util.stream.Collectors;
  * @author EduMentor Team
  */
 @Service
+@SuppressWarnings("unchecked")
 public class ReviewService {
 
     private static final Logger log = LoggerFactory.getLogger(ReviewService.class);
@@ -253,6 +254,7 @@ public class ReviewService {
      * @return 错题分析结果 DTO
      */
     @Transactional(readOnly = true)
+    @SuppressWarnings("unchecked")
     public ErrorAnalysisDto analyzeErrors(UUID studentId) {
         log.info("Analyzing errors for student: {}", studentId);
         ErrorAnalysisDto dto = new ErrorAnalysisDto();
@@ -649,6 +651,7 @@ public class ReviewService {
      * @return 创建的复习记录列表
      */
     @Transactional
+    @SuppressWarnings("unchecked")
     public List<ReviewRecord> supplementReviewSchedule(UUID studentId, int maxDailyReviews,
                                                        boolean prioritizeHighFrequency) {
         log.info("Supplementing review schedule for student={}, maxDaily={}, prioritizeHighFreq={}",
@@ -783,6 +786,7 @@ public class ReviewService {
      * @return 统计 DTO
      */
     @Transactional(readOnly = true)
+    @SuppressWarnings("unchecked")
     public ReviewStatisticsDto getStatistics(UUID studentId) {
         log.info("Getting review statistics for student: {}", studentId);
         ReviewStatisticsDto dto = new ReviewStatisticsDto();

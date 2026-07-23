@@ -187,48 +187,53 @@ public class OpenAIProvider implements LLMProviderAdapter {
     protected void doChatCompletionStream(List<ChatMessage> messages, ProviderConfig config,
                                         double temperature, int maxTokens,
                                         Consumer<LLMResponse> chunkConsumer) {
+        // 使用 Java 原生 HttpClient（替代 WebClient），避免 Reactor Netty 在 Tomcat 环境下的兼容性问题
         try {
             String requestBody = buildChatRequest(messages, config, temperature, maxTokens, true);
-            String apiBase = getApiBase(config);
+            String apiUri = getApiBase(config) + "/chat/completions";
 
-            log.debug("OpenAI stream request: POST {}/chat/completions, model={}",
-                    apiBase, config.getModel());
+            log.debug("OpenAI stream request: POST {}, model={}", apiUri, config.getModel());
 
-            WebClient client = webClientBuilder.baseUrl(apiBase).build();
+            java.net.http.HttpClient httpClient = java.net.http.HttpClient.newBuilder()
+                    .connectTimeout(java.time.Duration.ofSeconds(30))
+                    .build();
 
-            Flux<String> eventStream = client.post()
-                    .uri("/chat/completions")
+            java.net.http.HttpRequest httpRequest = java.net.http.HttpRequest.newBuilder()
+                    .uri(java.net.URI.create(apiUri))
                     .header("Authorization", "Bearer " + config.getApiKey())
                     .header("Content-Type", "application/json")
                     .header("Accept", "text/event-stream")
-                    .bodyValue(requestBody)
-                    .retrieve()
-                    .onStatus(status -> status.isError(), response ->
-                            response.bodyToMono(String.class).flatMap(errorBody -> {
-                                log.error("OpenAI stream error ({}): {}", response.statusCode(), errorBody);
-                                return reactor.core.publisher.Mono.error(
-                                        new LlmException("OpenAI stream error: " + errorBody,
-                                                LlmException.ErrorCategory.API_ERROR,
-                                                LLMProvider.OPENAI, response.statusCode().value()));
-                            })
-                    )
-                    .bodyToFlux(String.class);
+                    .header("Cache-Control", "no-cache")
+                    .timeout(java.time.Duration.ofSeconds(600))
+                    .POST(java.net.http.HttpRequest.BodyPublishers.ofString(requestBody))
+                    .build();
+
+            java.net.http.HttpResponse<java.io.InputStream> httpResponse = httpClient.send(
+                    httpRequest, java.net.http.HttpResponse.BodyHandlers.ofInputStream());
+
+            int statusCode = httpResponse.statusCode();
+            if (statusCode != 200) {
+                String errorBody = new String(httpResponse.body().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+                log.error("OpenAI stream error ({}): {}", statusCode, errorBody);
+                chunkConsumer.accept(LLMResponse.error("OpenAI stream error: " + errorBody,
+                        LLMProvider.OPENAI, config.getModel()));
+                return;
+            }
 
             StringBuffer contentBuffer = new StringBuffer();
             TokenUsage finalTokenUsage = null;
+            boolean thinkingHintSent = false;
 
-            // bodyToFlux(String.class) 按 TCP 数据帧分割，可能一次返回多行。
-            // 需要在循环内按 \n 拆分成行后逐行处理。
-            for (String chunk : eventStream.toIterable()) {
-                String[] lines = chunk.split("\n", -1);
-                for (String line : lines) {
+            try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(httpResponse.body(), java.nio.charset.StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
                     String trimmed = line.trim();
                     if (trimmed.isEmpty()) continue;
 
                     if (trimmed.startsWith("data: ")) {
                         String data = trimmed.substring(6).trim();
 
-                        // SSE 结束标记
                         if ("[DONE]".equals(data)) {
                             break;
                         }
@@ -239,23 +244,25 @@ public class OpenAIProvider implements LLMProviderAdapter {
                             if (choices != null && choices.size() > 0) {
                                 JsonNode delta = choices.get(0).get("delta");
                                 if (delta != null) {
-                                    String content = delta.has("content") ? delta.get("content").asText() : "";
-                                    // DeepSeek 推理模型在 content 为空或很短时使用 reasoning_content
-                                    if ((content.isBlank() || content.length() < 10) && delta.has("reasoning_content")) {
-                                        content = delta.get("reasoning_content").asText();
+                                    String content_ = delta.has("content") ? delta.get("content").asText() : "";
+                                    if ((content_.isBlank() || "null".equals(content_)) && delta.has("reasoning_content")) {
+                                        if (!thinkingHintSent) {
+                                            thinkingHintSent = true;
+                                            chunkConsumer.accept(
+                                                    LLMResponse.streamChunk("🤔 ", LLMProvider.OPENAI, config.getModel()));
+                                        }
+                                        content_ = "";
                                     }
-                                    if (!content.isEmpty()) {
-                                        contentBuffer.append(content);
+                                    if (!content_.isEmpty() && !"null".equals(content_)) {
+                                        thinkingHintSent = true;
+                                        contentBuffer.append(content_);
                                         chunkConsumer.accept(
-                                                LLMResponse.streamChunk(content, LLMProvider.OPENAI, config.getModel()));
+                                                LLMResponse.streamChunk(content_, LLMProvider.OPENAI, config.getModel()));
                                     }
                                 }
-
-                                // 检查 finish_reason
                                 JsonNode finishReason = choices.get(0).get("finish_reason");
                                 if (finishReason != null && !finishReason.isNull()
                                         && !"null".equals(finishReason.asText())) {
-                                    // 尝试解析 Token 用量（OpenAI 最后一个 chunk 通常包含 usage）
                                     JsonNode usage = jsonNode.get("usage");
                                     if (usage != null) {
                                         finalTokenUsage = parseTokenUsage(usage);
@@ -270,13 +277,9 @@ public class OpenAIProvider implements LLMProviderAdapter {
                         }
                     }
                 }
+            } catch (java.io.IOException e) {
+                log.warn("SSE read error (expected on stream end): {}", e.getMessage());
             }
-
-            // 如果流结束但没有收到 finish_reason，发送结束信号
-            // Note: streamEnd already sent inside loop when finish_reason present
-
-        } catch (LlmException e) {
-            chunkConsumer.accept(LLMResponse.error(e.getMessage(), LLMProvider.OPENAI, config.getModel()));
         } catch (Exception e) {
             log.error("OpenAI stream call failed: {}", e.getMessage(), e);
             chunkConsumer.accept(LLMResponse.error("OpenAI stream failed: " + e.getMessage(),
@@ -284,7 +287,7 @@ public class OpenAIProvider implements LLMProviderAdapter {
         }
     }
 
-    /**
+        /**
      * 构建 Chat Completion 请求体 JSON。
      */
     private String buildChatRequest(List<ChatMessage> messages, ProviderConfig config,

@@ -104,4 +104,10 @@ public interface AnswerRecordRepository extends JpaRepository<AnswerRecord, UUID
     Page<AnswerRecord> findByStudentIdOrderByAttemptedAtDesc(UUID studentId, Pageable pageable);
 
     long countByStudentIdAndCourseId(UUID studentId, UUID courseId);
+
+    /**
+     * 按学生和题目查询答题记录（用于出题考核的结果统计）。
+     */
+    List<AnswerRecord> findByStudentIdAndQuestionIdOrderByAttemptedAtDesc(
+            UUID studentId, UUID questionId);
 }

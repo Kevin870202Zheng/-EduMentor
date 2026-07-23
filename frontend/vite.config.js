@@ -9,6 +9,11 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+      },
+      // SSE 端点特殊处理：禁用 Vite 代理缓存
+      '/qa/ask/stream': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
       }
     }
   },

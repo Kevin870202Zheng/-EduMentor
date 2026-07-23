@@ -7,6 +7,7 @@ import com.edumentor.diagnosis.repository.StudentProfileRepository;
 import com.edumentor.diagnosis.repository.StudySessionRepository;
 import com.edumentor.course.entity.KnowledgePoint;
 import com.edumentor.record.entity.AnswerRecord;
+import com.edumentor.entity.enums.UserRole;
 import com.edumentor.user.entity.User;
 import com.edumentor.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -80,8 +81,8 @@ class DiagnosisServiceTest {
         mockStudent.setId(studentId);
         mockStudent.setUsername("student01");
         mockStudent.setDisplayName("张三");
-        mockStudent.setRole("STUDENT");
-        mockStudent.setActive(true);
+        mockStudent.setRole(UserRole.STUDENT);
+        mockStudent.setIsActive(true);
 
         mockKp1 = new KnowledgePoint();
         mockKp1.setId(kp1Id);
@@ -122,47 +123,45 @@ class DiagnosisServiceTest {
             when(userRepository.findById(studentId)).thenReturn(Optional.of(mockStudent));
 
             List<AnswerRecord> records = createMockRecords();
-            when(answerRecordRepository.findByStudentIdAndTimeRange(
-                    eq(studentId), any(LocalDateTime.class), any(LocalDateTime.class)))
+            when(answerRecordRepository.findByStudentIdAndCourseIdAndAttemptedAtBetween(
+                    eq(studentId), eq(courseId), any(LocalDateTime.class), any(LocalDateTime.class)))
                     .thenReturn(records);
 
             List<Object[]> kpAggregations = createMockKpAggregations();
-            when(answerRecordRepository.aggregateByKnowledgePointAndTimeRange(
-                    eq(studentId), any(LocalDateTime.class), any(LocalDateTime.class)))
+            when(answerRecordRepository.aggregateByKnowledgePointAndCourse(
+                    eq(studentId), eq(courseId), any(LocalDateTime.class), any(LocalDateTime.class)))
                     .thenReturn(kpAggregations);
 
-            when(knowledgePointRepository.findByIds(anyList()))
-                    .thenReturn(List.of(mockKp1, mockKp2));
             when(knowledgePointRepository.countByCourseId(courseId)).thenReturn(5L);
 
-            DiagnosisResponse result = diagnosisService.diagnose(studentId, 30);
+            DiagnosisResponse result = diagnosisService.diagnose(studentId, courseId, 30);
 
             assertThat(result).isNotNull();
-            assertThat(result.studentId()).isEqualTo(studentId);
-            assertThat(result.studentName()).isEqualTo("张三");
-            assertThat(result.totalQuestions()).isEqualTo(4);
-            assertThat(result.correctCount()).isEqualTo(3);
-            assertThat(result.weakKpCount()).isGreaterThanOrEqualTo(0);
-            assertThat(result.diagnosisSummary()).isNotBlank();
-            assertThat(result.recommendations()).isNotEmpty();
-            assertThat(result.recentTrend()).hasSizeLessThanOrEqualTo(7);
+            assertThat(result.getStudentId()).isEqualTo(studentId);
+            assertThat(result.getStudentName()).isEqualTo("张三");
+            assertThat(result.getTotalQuestions()).isEqualTo(4);
+            assertThat(result.getCorrectCount()).isEqualTo(3);
+            assertThat(result.getWeakKpCount()).isGreaterThanOrEqualTo(0);
+            assertThat(result.getDiagnosisSummary()).isNotBlank();
+            assertThat(result.getRecommendations()).isNotEmpty();
+            assertThat(result.getRecentTrend()).hasSizeLessThanOrEqualTo(7);
         }
 
         @Test
         @DisplayName("无作答记录时 — 应返回空诊断结果")
         void diagnoseWithNoRecords() {
             when(userRepository.findById(studentId)).thenReturn(Optional.of(mockStudent));
-            when(answerRecordRepository.findByStudentIdAndTimeRange(
-                    eq(studentId), any(LocalDateTime.class), any(LocalDateTime.class)))
+            when(answerRecordRepository.findByStudentIdAndCourseIdAndAttemptedAtBetween(
+                    eq(studentId), eq(courseId), any(LocalDateTime.class), any(LocalDateTime.class)))
                     .thenReturn(List.of());
 
-            DiagnosisResponse result = diagnosisService.diagnose(studentId, 30);
+            DiagnosisResponse result = diagnosisService.diagnose(studentId, courseId, 30);
 
             assertThat(result).isNotNull();
-            assertThat(result.totalQuestions()).isZero();
-            assertThat(result.correctCount()).isZero();
-            assertThat(result.topWeakKps()).isEmpty();
-            assertThat(result.recommendations()).contains("开始作答题目以获得学情诊断分析");
+            assertThat(result.getTotalQuestions()).isZero();
+            assertThat(result.getCorrectCount()).isZero();
+            assertThat(result.getTopWeakKps()).isEmpty();
+            assertThat(result.getRecommendations()).contains("开始作答题目以获得学情诊断分析");
         }
 
         @Test
@@ -170,7 +169,7 @@ class DiagnosisServiceTest {
         void diagnoseWithNonExistentStudent() {
             when(userRepository.findById(studentId)).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> diagnosisService.diagnose(studentId, 30))
+            assertThatThrownBy(() -> diagnosisService.diagnose(studentId, courseId, 30))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("学生不存在");
         }
@@ -185,26 +184,24 @@ class DiagnosisServiceTest {
                     createAnswerRecord(kp1Id, true, 25),
                     createAnswerRecord(kp2Id, true, 40)
             );
-            when(answerRecordRepository.findByStudentIdAndTimeRange(
-                    eq(studentId), any(LocalDateTime.class), any(LocalDateTime.class)))
+            when(answerRecordRepository.findByStudentIdAndCourseIdAndAttemptedAtBetween(
+                    eq(studentId), eq(courseId), any(LocalDateTime.class), any(LocalDateTime.class)))
                     .thenReturn(records);
 
             List<Object[]> kpAggs = List.of(
                     new Object[]{kp1Id, 2L, 2L, 55L},
                     new Object[]{kp2Id, 1L, 1L, 40L}
             );
-            when(answerRecordRepository.aggregateByKnowledgePointAndTimeRange(
-                    eq(studentId), any(LocalDateTime.class), any(LocalDateTime.class)))
+            when(answerRecordRepository.aggregateByKnowledgePointAndCourse(
+                    eq(studentId), eq(courseId), any(LocalDateTime.class), any(LocalDateTime.class)))
                     .thenReturn(kpAggs);
-            when(knowledgePointRepository.findByIds(anyList()))
-                    .thenReturn(List.of(mockKp1, mockKp2));
             when(knowledgePointRepository.countByCourseId(courseId)).thenReturn(10L);
 
-            DiagnosisResponse result = diagnosisService.diagnose(studentId, 30);
+            DiagnosisResponse result = diagnosisService.diagnose(studentId, courseId, 30);
 
-            assertThat(result.accuracyRate()).isEqualByComparingTo(BigDecimal.ONE);
-            assertThat(result.weakKpCount()).isZero();
-            assertThat(result.strongKpCount()).isPositive();
+            assertThat(result.getAccuracyRate()).isEqualByComparingTo(BigDecimal.ONE);
+            assertThat(result.getWeakKpCount()).isZero();
+            assertThat(result.getStrongKpCount()).isPositive();
         }
 
         @Test
@@ -218,8 +215,8 @@ class DiagnosisServiceTest {
                     createAnswerRecord(kp2Id, false, 40),
                     createAnswerRecord(kp3Id, true, 50)
             );
-            when(answerRecordRepository.findByStudentIdAndTimeRange(
-                    eq(studentId), any(LocalDateTime.class), any(LocalDateTime.class)))
+            when(answerRecordRepository.findByStudentIdAndCourseIdAndAttemptedAtBetween(
+                    eq(studentId), eq(courseId), any(LocalDateTime.class), any(LocalDateTime.class)))
                     .thenReturn(records);
 
             List<Object[]> kpAggs = List.of(
@@ -227,17 +224,15 @@ class DiagnosisServiceTest {
                     new Object[]{kp2Id, 1L, 0L, 40L},
                     new Object[]{kp3Id, 1L, 1L, 50L}
             );
-            when(answerRecordRepository.aggregateByKnowledgePointAndTimeRange(
-                    eq(studentId), any(LocalDateTime.class), any(LocalDateTime.class)))
+            when(answerRecordRepository.aggregateByKnowledgePointAndCourse(
+                    eq(studentId), eq(courseId), any(LocalDateTime.class), any(LocalDateTime.class)))
                     .thenReturn(kpAggs);
-            when(knowledgePointRepository.findByIds(anyList()))
-                    .thenReturn(List.of(mockKp1, mockKp2, mockKp3));
             when(knowledgePointRepository.countByCourseId(courseId)).thenReturn(10L);
 
-            DiagnosisResponse result = diagnosisService.diagnose(studentId, 30);
+            DiagnosisResponse result = diagnosisService.diagnose(studentId, courseId, 30);
 
-            assertThat(result.weakKpCount()).isEqualTo(2);
-            assertThat(result.topWeakKps()).hasSize(2);
+            assertThat(result.getWeakKpCount()).isEqualTo(2);
+            assertThat(result.getTopWeakKps()).hasSize(2);
         }
     }
 
@@ -259,34 +254,33 @@ class DiagnosisServiceTest {
                     new Object[]{kp2Id, 5L, 2L, 200L},
                     new Object[]{kp3Id, 8L, 7L, 400L}
             );
-            when(answerRecordRepository.aggregateByKnowledgePoint(studentId))
+            when(answerRecordRepository.aggregateByKnowledgePointAll(studentId))
                     .thenReturn(kpAggs);
-            when(knowledgePointRepository.findByIds(anyList()))
-                    .thenReturn(List.of(mockKp1, mockKp2, mockKp3));
+            when(knowledgePointRepository.countByCourseId(courseId)).thenReturn(3L);
 
-            CognitiveProfile result = diagnosisService.buildCognitiveProfile(studentId);
+            CognitiveProfile result = diagnosisService.buildCognitiveProfile(studentId, courseId);
 
             assertThat(result).isNotNull();
-            assertThat(result.totalKpCount()).isEqualTo(3);
-            assertThat(result.overallMasteryLevel()).isNotNull();
-            assertThat(result.radarChartData()).hasSize(6);
-            assertThat(result.summary()).contains("张三");
+            assertThat(result.getTotalKpCount()).isEqualTo(3);
+            assertThat(result.getOverallMasteryLevel()).isNotNull();
+            assertThat(result.getRadarChartData()).hasSize(6);
+            assertThat(result.getSummary()).contains("张三");
         }
 
         @Test
         @DisplayName("无作答记录 — 应返回零值画像")
         void buildProfileWithNoData() {
             when(userRepository.findById(studentId)).thenReturn(Optional.of(mockStudent));
-            when(answerRecordRepository.aggregateByKnowledgePoint(studentId))
+            when(answerRecordRepository.aggregateByKnowledgePointAll(studentId))
                     .thenReturn(List.of());
 
-            CognitiveProfile result = diagnosisService.buildCognitiveProfile(studentId);
+            CognitiveProfile result = diagnosisService.buildCognitiveProfile(studentId, courseId);
 
-            assertThat(result.totalKpCount()).isZero();
-            assertThat(result.masteredKpCount()).isZero();
-            assertThat(result.weakKpCount()).isZero();
-            assertThat(result.overallMasteryLevel()).isEqualByComparingTo(BigDecimal.ZERO);
-            assertThat(result.radarChartData()).hasSize(6);
+            assertThat(result.getTotalKpCount()).isZero();
+            assertThat(result.getMasteredKpCount()).isZero();
+            assertThat(result.getWeakKpCount()).isZero();
+            assertThat(result.getOverallMasteryLevel()).isEqualByComparingTo(BigDecimal.ZERO);
+            assertThat(result.getRadarChartData()).hasSize(6);
         }
 
         @Test
@@ -294,7 +288,7 @@ class DiagnosisServiceTest {
         void buildProfileWithNonExistentStudent() {
             when(userRepository.findById(studentId)).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> diagnosisService.buildCognitiveProfile(studentId))
+            assertThatThrownBy(() -> diagnosisService.buildCognitiveProfile(studentId, courseId))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("学生不存在");
         }
@@ -317,32 +311,31 @@ class DiagnosisServiceTest {
                     new Object[]{kp1Id, 10L, 8L, 300L},
                     new Object[]{kp2Id, 5L, 3L, 200L}
             );
-            when(answerRecordRepository.aggregateByKnowledgePoint(studentId))
+            when(answerRecordRepository.aggregateByKnowledgePointAll(studentId))
                     .thenReturn(kpAggs);
-            when(knowledgePointRepository.findByIds(anyList()))
-                    .thenReturn(List.of(mockKp1, mockKp2));
+            when(knowledgePointRepository.countByCourseId(courseId)).thenReturn(2L);
 
-            RadarChartData result = diagnosisService.generateRadarChart(studentId);
+            RadarChartData result = diagnosisService.generateRadarChart(studentId, courseId);
 
             assertThat(result).isNotNull();
-            assertThat(result.studentName()).isEqualTo("张三");
-            assertThat(result.dimensions()).hasSize(6);
-            assertThat(result.overallScore()).isNotNull();
+            assertThat(result.getStudentName()).isEqualTo("张三");
+            assertThat(result.getDimensions()).hasSize(6);
+            assertThat(result.getOverallScore()).isNotNull();
         }
 
         @Test
         @DisplayName("无知识点数据 — 应返回零值雷达图")
         void generateRadarWithNoData() {
             when(userRepository.findById(studentId)).thenReturn(Optional.of(mockStudent));
-            when(answerRecordRepository.aggregateByKnowledgePoint(studentId))
+            when(answerRecordRepository.aggregateByKnowledgePointAll(studentId))
                     .thenReturn(List.of());
 
-            RadarChartData result = diagnosisService.generateRadarChart(studentId);
+            RadarChartData result = diagnosisService.generateRadarChart(studentId, courseId);
 
-            assertThat(result.dimensions()).hasSize(6);
-            assertThat(result.overallScore()).isEqualByComparingTo(BigDecimal.ZERO);
-            result.dimensions().forEach(dim ->
-                    assertThat(dim.value()).isEqualByComparingTo(BigDecimal.ZERO));
+            assertThat(result.getDimensions()).hasSize(6);
+            assertThat(result.getOverallScore()).isEqualByComparingTo(BigDecimal.ZERO);
+            result.getDimensions().forEach(dim ->
+                    assertThat(dim.getValue()).isEqualByComparingTo(BigDecimal.ZERO));
         }
     }
 
@@ -360,63 +353,63 @@ class DiagnosisServiceTest {
             LocalDate today = LocalDate.now();
             Date todaySql = Date.valueOf(today);
 
-            List<Object[]> dailyRecords = List.of(
+            List<Object[]> dailyRecords = Collections.singletonList(
                     new Object[]{todaySql, 10L, 7L, 600L}
             );
-            when(answerRecordRepository.dailyStats(
+            when(answerRecordRepository.dailyAggregate(
                     eq(studentId), any(LocalDateTime.class), any(LocalDateTime.class)))
                     .thenReturn(dailyRecords);
 
-            List<Object[]> dailySessions = List.of(
+            List<Object[]> dailySessions = Collections.singletonList(
                     new Object[]{todaySql, 45L, 1L, 0L, 10L}
             );
-            when(studySessionRepository.dailySessionStats(
+            when(studySessionRepository.dailySessionAggregate(
                     eq(studentId), any(LocalDateTime.class), any(LocalDateTime.class)))
                     .thenReturn(dailySessions);
 
-            HeatMapData result = diagnosisService.generateHeatMap(studentId, 7);
+            HeatMapData result = diagnosisService.generateHeatMap(studentId, courseId, 7);
 
             assertThat(result).isNotNull();
-            assertThat(result.studentId()).isEqualTo(studentId);
-            assertThat(result.totalDays()).isEqualTo(8); // day 0~7 = 8 days
-            assertThat(result.activeDays()).isPositive();
-            assertThat(result.heatData()).hasSize(8);
+            assertThat(result.getStudentId()).isEqualTo(studentId);
+            assertThat(result.getTotalDays()).isEqualTo(8); // day 0~7 = 8 days
+            assertThat(result.getActiveDays()).isPositive();
+            assertThat(result.getHeatData()).hasSize(8);
         }
 
         @Test
         @DisplayName("无学习数据 — 应返回全零热力图")
         void generateHeatMapWithNoData() {
-            when(answerRecordRepository.dailyStats(
+            when(answerRecordRepository.dailyAggregate(
                     eq(studentId), any(LocalDateTime.class), any(LocalDateTime.class)))
                     .thenReturn(List.of());
-            when(studySessionRepository.dailySessionStats(
+            when(studySessionRepository.dailySessionAggregate(
                     eq(studentId), any(LocalDateTime.class), any(LocalDateTime.class)))
                     .thenReturn(List.of());
 
-            HeatMapData result = diagnosisService.generateHeatMap(studentId, 7);
+            HeatMapData result = diagnosisService.generateHeatMap(studentId, courseId, 7);
 
-            assertThat(result.activeDays()).isZero();
-            result.heatData().forEach(day -> {
-                assertThat(day.questionCount()).isZero();
-                assertThat(day.accuracyRate()).isEqualByComparingTo(BigDecimal.ZERO);
+            assertThat(result.getActiveDays()).isZero();
+            result.getHeatData().forEach(day -> {
+                assertThat(day.getQuestionCount()).isZero();
+                assertThat(day.getAccuracyRate()).isEqualByComparingTo(BigDecimal.ZERO);
             });
         }
 
         @Test
         @DisplayName("daysBack 为 0 或负数 — 应使用默认值")
         void generateHeatMapWithInvalidDaysBack() {
-            HeatMapData result = diagnosisService.generateHeatMap(studentId, 0);
+            HeatMapData result = diagnosisService.generateHeatMap(studentId, courseId, 0);
 
-            assertThat(result.totalDays()).isEqualTo(30); // HEATMAP_DEFAULT_DAYS + 1
+            assertThat(result.getTotalDays()).isEqualTo(30); // HEATMAP_DEFAULT_DAYS + 1
         }
 
         @Test
         @DisplayName("daysBack 超过最大值 — 应限制为最大值")
         void generateHeatMapWithExcessiveDaysBack() {
-            HeatMapData result = diagnosisService.generateHeatMap(studentId, 365);
+            HeatMapData result = diagnosisService.generateHeatMap(studentId, courseId, 365);
 
             // MAX_DAYS_BACK is 90, so total days = 91
-            assertThat(result.totalDays()).isLessThanOrEqualTo(92);
+            assertThat(result.getTotalDays()).isLessThanOrEqualTo(92);
         }
     }
 
@@ -438,7 +431,7 @@ class DiagnosisServiceTest {
         record.setId(UUID.randomUUID());
         record.setStudentId(studentId);
         record.setKnowledgePointId(kpId);
-        record.setCorrect(correct);
+        record.setIsCorrect(correct);
         record.setTimeSpentSeconds(timeSpent);
         record.setAttemptedAt(LocalDateTime.now().minusHours(1));
         return record;

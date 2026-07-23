@@ -55,7 +55,7 @@ public class LLMConfig {
     public ProviderConfig getProviderConfig(LLMProvider provider) {
         return switch (provider) {
             case OPENAI -> new OpenAiProviderConfig(rawConfig.getOpenai());
-            case DEEPSEEK -> new DeepSeekProviderConfig(rawConfig.getDeepseek());
+            case DEEPSEEK -> new DeepSeekProviderConfig(rawConfig.getDeepseek(), rawConfig.getModel());
             case OLLAMA -> new OllamaProviderConfig(rawConfig.getOllama());
             case ZHIPU -> new ZhipuProviderConfig(rawConfig.getZhipu());
             case WENXIN -> new WenxinProviderConfig(rawConfig.getWenxin());
@@ -147,8 +147,12 @@ public class LLMConfig {
 
     private static class DeepSeekProviderConfig implements ProviderConfig {
         private final LlmConfig.DeepSeekConfig cfg;
+        private final String configuredModel;
 
-        DeepSeekProviderConfig(LlmConfig.DeepSeekConfig cfg) { this.cfg = cfg; }
+        DeepSeekProviderConfig(LlmConfig.DeepSeekConfig cfg, String configuredModel) {
+            this.cfg = cfg;
+            this.configuredModel = configuredModel;
+        }
 
         @Override
         public String getApiBase() { return cfg.getApiBase(); }
@@ -157,7 +161,10 @@ public class LLMConfig {
         public String getApiKey() { return cfg.getApiKey(); }
 
         @Override
-        public String getModel() { return LLMProvider.DEEPSEEK.getDefaultModel(); }
+        public String getModel() {
+            return (configuredModel != null && !configuredModel.isBlank())
+                    ? configuredModel : LLMProvider.DEEPSEEK.getDefaultModel();
+        }
 
         @Override
         public Map<String, String> getExtraParams() {

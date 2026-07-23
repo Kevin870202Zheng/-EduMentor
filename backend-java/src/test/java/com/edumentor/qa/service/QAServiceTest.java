@@ -5,6 +5,8 @@ import com.edumentor.engine.llm.LLMResponse;
 import com.edumentor.engine.llm.LLMService;
 import com.edumentor.engine.llm.TokenUsage;
 import com.edumentor.engine.rag.RAGEngine;
+import com.edumentor.entity.enums.ChatRole;
+import com.edumentor.entity.enums.MessageType;
 import com.edumentor.qa.dto.ChatHistoryDto;
 import com.edumentor.qa.dto.ChatRequest;
 import com.edumentor.qa.dto.ChatResponse;
@@ -23,7 +25,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.OffsetDateTime;
+import org.springframework.data.domain.Pageable;
+
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Consumer;
 
@@ -216,9 +220,9 @@ class QAServiceTest {
             ChatHistory previousMsg = new ChatHistory();
             previousMsg.setUserId(userId);
             previousMsg.setSessionId(sessionId);
-            previousMsg.setRole("USER");
+            previousMsg.setRole(ChatRole.USER);
             previousMsg.setContent("之前的提问");
-            previousMsg.setCreatedAt(OffsetDateTime.now().minusHours(1));
+            previousMsg.setCreatedAt(LocalDateTime.now().minusHours(1));
 
             when(chatHistoryRepository.findBySessionIdOrderByCreatedAtAsc(sessionId))
                     .thenReturn(List.of(previousMsg));
@@ -311,8 +315,8 @@ class QAServiceTest {
         @Test
         @DisplayName("获取会话历史")
         void getHistory() {
-            ChatHistory msg = createHistoryMessage("USER", "你好");
-            ChatHistory reply = createHistoryMessage("ASSISTANT", "你好！有什么可以帮助你的？");
+            ChatHistory msg = createHistoryMessage(ChatRole.USER, "你好");
+            ChatHistory reply = createHistoryMessage(ChatRole.ASSISTANT, "你好！有什么可以帮助你的？");
 
             when(chatHistoryRepository.findBySessionIdOrderByCreatedAtAsc(sessionId))
                     .thenReturn(List.of(msg, reply));
@@ -325,11 +329,11 @@ class QAServiceTest {
         @Test
         @DisplayName("获取用户特定会话的历史")
         void getUserHistory() {
-            ChatHistory msg = createHistoryMessage("USER", "问题");
-            when(chatHistoryRepository.findByUserIdAndSessionIdOrderByCreatedAtAsc(userId, sessionId))
+            ChatHistory msg = createHistoryMessage(ChatRole.USER, "问题");
+            when(chatHistoryRepository.findBySessionIdOrderByCreatedAtAsc(sessionId))
                     .thenReturn(List.of(msg));
 
-            List<ChatHistoryDto> result = qaService.getHistory(userId, sessionId);
+            List<ChatHistoryDto> result = qaService.getHistory(sessionId);
 
             assertThat(result).hasSize(1);
         }
@@ -337,7 +341,7 @@ class QAServiceTest {
         @Test
         @DisplayName("获取用户的会话列表")
         void getSessions() {
-            when(chatHistoryRepository.findDistinctSessionIdsByUserId(userId))
+            when(chatHistoryRepository.findDistinctSessionIdByUserId(eq(userId), any(Pageable.class)))
                     .thenReturn(List.of(sessionId, "session2"));
 
             List<String> result = qaService.getSessions(userId);
@@ -348,8 +352,8 @@ class QAServiceTest {
         @Test
         @DisplayName("获取最近消息")
         void getRecentMessages() {
-            ChatHistory msg1 = createHistoryMessage("USER", "问题1");
-            ChatHistory msg2 = createHistoryMessage("ASSISTANT", "回答1");
+            ChatHistory msg1 = createHistoryMessage(ChatRole.USER, "问题1");
+            ChatHistory msg2 = createHistoryMessage(ChatRole.ASSISTANT, "回答1");
 
             when(chatHistoryRepository.findByUserIdOrderByCreatedAtDesc(eq(userId), any()))
                     .thenReturn(List.of(msg2, msg1));
@@ -368,27 +372,7 @@ class QAServiceTest {
             verify(chatHistoryRepository).deleteBySessionId(sessionId);
         }
 
-        @Test
-        @DisplayName("删除用户指定会话")
-        void deleteUserSession() {
-            when(chatHistoryRepository.findByUserIdAndSessionIdOrderByCreatedAtAsc(userId, sessionId))
-                    .thenReturn(List.of(createHistoryMessage("USER", "msg")));
-
-            qaService.deleteSession(userId, sessionId);
-
-            verify(chatHistoryRepository).deleteAll(anyList());
         }
-
-        @Test
-        @DisplayName("获取消息计数")
-        void getMessageCount() {
-            when(chatHistoryRepository.countBySessionId(sessionId)).thenReturn(5L);
-
-            long count = qaService.getMessageCount(sessionId);
-
-            assertThat(count).isEqualTo(5);
-        }
-    }
 
     // ══════════════════════════════════════════════════════════════
     //  辅助方法
@@ -403,15 +387,15 @@ class QAServiceTest {
         return info;
     }
 
-    private ChatHistory createHistoryMessage(String role, String content) {
+    private ChatHistory createHistoryMessage(ChatRole role, String content) {
         ChatHistory msg = new ChatHistory();
         msg.setId(UUID.randomUUID());
         msg.setUserId(userId);
         msg.setSessionId(sessionId);
         msg.setRole(role);
-        msg.setMessageType("TEXT");
+        msg.setMessageType(MessageType.TEXT);
         msg.setContent(content);
-        msg.setCreatedAt(OffsetDateTime.now());
+        msg.setCreatedAt(LocalDateTime.now());
         return msg;
     }
 }

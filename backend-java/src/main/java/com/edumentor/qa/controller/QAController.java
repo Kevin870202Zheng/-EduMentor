@@ -41,8 +41,8 @@ public class QAController {
 
     private static final Logger log = LoggerFactory.getLogger(QAController.class);
 
-    /** SSE 超时时间（5 分钟） */
-    private static final long SSE_TIMEOUT = 5 * 60 * 1000L;
+    /** SSE 超时时间（10 分钟）DeepSeek 推理模型首 token 延迟可能较长 */
+    private static final long SSE_TIMEOUT = 10 * 60 * 1000L;
 
     private final QAService qaService;
 
@@ -88,7 +88,6 @@ public class QAController {
      * @return SseEmitter 流式响应
      */
     @GetMapping(value = "/ask/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    @PreAuthorize("hasAnyRole('STUDENT', 'TEACHER', 'ADMIN')")
     public SseEmitter streamAsk(@Valid ChatRequest request, Authentication auth) {
         UUID userId = getCurrentUserId(auth);
         log.info("QA stream ask - user: {}, session: {}", userId, request.getSessionId());
@@ -116,8 +115,20 @@ public class QAController {
             }
         });
 
-        emitter.onCompletion(() -> log.debug("SSE completed for user: {}", userId));
-        emitter.onTimeout(() -> log.warn("SSE timeout for user: {}", userId));
+        emitter.onCompletion(() -> {
+            try {
+                log.debug("SSE completed for user: {}", userId);
+            } catch (Exception ignored) {
+                // 忽略回调中的异常（如 Spring Security 在响应提交后的异常）
+            }
+        });
+        emitter.onTimeout(() -> {
+            try {
+                log.warn("SSE timeout for user: {}", userId);
+            } catch (Exception ignored) {
+                // 忽略回调中的异常
+            }
+        });
 
         return emitter;
     }
