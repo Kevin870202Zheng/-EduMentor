@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduMentor 沉浸课堂体验优化 - 产品需求文档 (PRD)</title>
+<style>
+  :root {
+    --primary: #1677ff;
+    --success: #52c41a;
+    --warning: #faad14;
+    --danger: #ff4d4f;
+    --bg: #f5f7fa;
+    --card-bg: #ffffff;
+    --text: #1a1a2e;
+    --text-secondary: #595959;
+    --border: #e8e8e8;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; padding: 0; }
+  .container { max-width: 960px; margin: 0 auto; padding: 40px 24px; }
+  h1 { font-size: 2em; margin-bottom: 8px; font-weight: 800; letter-spacing: -0.02em; }
+  h2 { font-size: 1.4em; margin: 32px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--primary); font-weight: 700; }
+  h3 { font-size: 1.1em; margin: 24px 0 12px; font-weight: 600; }
+  p, li { color: var(--text-secondary); margin-bottom: 8px; }
+  .meta { color: #999; font-size: 0.85em; margin-bottom: 32px; display: flex; gap: 24px; flex-wrap: wrap; }
+  .meta span { background: var(--card-bg); padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border); }
+  .card { background: var(--card-bg); border-radius: 12px; padding: 24px; margin-bottom: 16px; border: 1px solid var(--border); box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+  .tag { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 0.8em; font-weight: 600; margin-right: 6px; }
+  .tag-p0 { background: #fff2f0; color: #cf1322; border: 1px solid #ffa39e; }
+  .tag-p1 { background: #fff7e6; color: #d48806; border: 1px solid #ffd591; }
+  .tag-p2 { background: #e6f7ff; color: #096dd9; border: 1px solid #91d5ff; }
+  .table-wrap { overflow-x: auto; margin: 16px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+  th { background: #f0f5ff; text-align: left; padding: 10px 12px; font-weight: 600; border-bottom: 2px solid var(--primary); }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:hover td { background: #fafafa; }
+  .status-plan { color: var(--primary); } .status-doing { color: var(--warning); } .status-done { color: var(--success); }
+  ul, ol { padding-left: 20px; }
+  li { margin-bottom: 4px; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+  .highlight-box { background: #fff7e6; border-left: 4px solid var(--warning); padding: 16px; border-radius: 8px; margin: 16px 0; }
+  .figure { background: #fafafa; border: 1px solid var(--border); border-radius: 8px; padding: 24px; text-align: center; margin: 16px 0; color: #999; font-size: 0.85em; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>🎓 EduMentor 沉浸课堂体验优化</h1>
+<p style="font-size: 1.1em; color: var(--text-secondary); margin-bottom: 8px;">Product Requirements Document — 沉浸式课堂播放器 2.0</p>
+<div class="meta">
+  <span>版本: v2.0-draft</span>
+  <span>状态: 规划中</span>
+  <span>优先级: P0-P2</span>
+  <span>对标: OpenMAIC v1.x</span>
+</div>
+
+<!-- ================================================================ -->
+<h2>1. 背景与问题陈述</h2>
+
+<div class="card">
+  <h3>1.1 现状</h3>
+  <p>EduMentor 的"沉浸课堂"播放器已具备基本功能骨架：场景切换、Action 分发、Quiz 交互、讨论提示。然而与对标产品 <strong>OpenMAIC</strong> 的课堂体验相比，在以下四个维度存在显著差距：</p>
+  <ol>
+    <li><strong>视觉体验</strong> — 完全无动画，所有组件静态渲染，场景切换无过渡</li>
+    <li><strong>交互深度</strong> — 无语音讲解（TTS），无 AI 讲师形象，无生成过程预览</li>
+    <li><strong>内容渲染</strong> — 白板仅为纯文本展示，无画布式 Slide 渲染器</li>
+    <li><strong>反馈机制</strong> — 用户执行操作后无振动反馈、过度动画、流畅的状态转换</li>
+  </ol>
+</div>
+
+<div class="card">
+  <h3>1.2 用户痛点</h3>
+  <table>
+    <tr><th>#</th><th>痛点</th><th>严重程度</th><th>用户画像</th></tr>
+    <tr><td>P0</td><td>课堂内容"干巴巴"，只有文字没有视觉元素，缺乏沉浸感</td><td><span class="tag tag-p0">P0</span></td><td>所有学生</td></tr>
+    <tr><td>P0</td><td>AI 教师只有头像表情符号，没有形象设计和语音，缺乏"临场感"</td><td><span class="tag tag-p0">P0</span></td><td>所有学生</td></tr>
+    <tr><td>P1</td><td>场景/动作切换生硬，用户感知不到"我在前进"</td><td><span class="tag tag-p1">P1</span></td><td>所有学生</td></tr>
+    <tr><td>P1</td><td>生成课程时无过程反馈，用户不知道后台在做什么</td><td><span class="tag tag-p1">P1</span></td><td>课程生成场景</td></tr>
+    <tr><td>P2</td><td>侧边栏只有文字按钮，无法快速预览场景内容</td><td><span class="tag tag-p2">P2</span></td><td>高级用户/教师</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h3>1.3 对标差距总览</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>能力维度</th><th>OpenMAIC</th><th>EduMentor (当前)</th><th>差距</th></tr>
+      <tr><td>动画框架</td><td>Framer Motion (motion/react)，全组件 Spring 弹性动画</td><td>无动画库，全 inline style 静态渲染</td><td><span class="tag tag-p0">P0-完全缺失</span></td></tr>
+      <tr><td>课件渲染器</td><td>画布式 Slide 渲染器，10+ 元素类型（文本/图片/形状/表格/代码/LaTeX/图表/视频）</td><td>55 行 Card 组件纯文本展示</td><td><span class="tag tag-p0">P0-完全缺失</span></td></tr>
+      <tr><td>TTS 语音</td><td>多 Provider TTS，Voice 配置 + 预先生成 + 播放控制</td><td>无</td><td><span class="tag tag-p0">P0-完全缺失</span></td></tr>
+      <tr><td>AI 讲师</td><td>12 种头像 + 角色卡翻牌动画 + 多智能体编排</td><td>"AI同学 小E"纯文字标签</td><td><span class="tag tag-p1">P1-严重不足</span></td></tr>
+      <tr><td>生成预览</td><td>1581 行 6 步可视化流程（PDF扫描→搜索→大纲流式→智能体→内容→动作）</td><td>"生成中"标签</td><td><span class="tag tag-p0">P0-完全缺失</span></td></tr>
+      <tr><td>场景导航</td><td>可拖拽宽度、带实时缩略图的侧边栏，场景类型图标</td><td>纯文字 Button 水平滚动</td><td><span class="tag tag-p1">P1-不足</span></td></tr>
+      <tr><td>播放引擎</td><td>独立 PlaybackEngine 类（状态机）+ Zustand store</td><td>useRef + setTimeout hook</td><td><span class="tag tag-p2">P2-简单</span></td></tr>
+      <tr><td>场景类型</td><td>4 种：slide/quiz/interactive/pbl</td><td>7 种 Action，无场景类型层级</td><td><span class="tag tag-p2">P2-架构差异</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<h2>2. 目标与范围</h2>
+
+<div class="card">
+  <h3>2.1 优化目标</h3>
+  <ol>
+    <li><strong>用户体验目标：</strong> 将课堂体验从"在阅读文档"提升到"在参加一堂真实的 AI 课程"</li>
+    <li><strong>视觉目标：</strong> 每个交互操作都有流畅的过渡动画，消除"生硬"和"突兀"</li>
+    <li><strong>听觉目标：</strong> AI 教师拥有语音，实现"视听同步"的授课体验</li>
+    <li><strong>内容目标：</strong> 课件从纯文本升级为富视觉内容（公式、代码高亮、图表、图片）</li>
+    <li><strong>反馈目标：</strong> 生成过程的每个步骤可视化，用户始终知道"进度"</li>
+  </ol>
+</div>
+
+<div class="card">
+  <h3>2.2 功能范围</h3>
+  <table>
+    <tr><th>模块</th><th>范围</th><th>优先级</th></tr>
+    <tr><td>动画框架基础</td><td>引入 Framer Motion（motion 库），建立统一动画配置体系</td><td><span class="tag tag-p0">P0</span></td></tr>
+    <tr><td>组件动画化</td><td>所有渲染器组件添加入场/出场/状态切换动画</td><td><span class="tag tag-p0">P0</span></td></tr>
+    <tr><td>TTS 语音系统</td><td>TTS Provider 接口、语音合成、播放控制、音频状态管理</td><td><span class="tag tag-p0">P0</span></td></tr>
+    <tr><td>AI 讲师形象</td><td>AI 讲师 Avatar 组件、切换动画、入场特效</td><td><span class="tag tag-p1">P1</span></td></tr>
+    <tr><td>场景侧边栏 2.0</td><td>带缩略图、类型图标、可折叠、可拖拽的场景导航栏</td><td><span class="tag tag-p1">P1</span></td></tr>
+    <tr><td>场景切换动画</td><td>场景间过渡动画（滑动/淡入/缩放），SceneTransitionRenderer 增强</td><td><span class="tag tag-p1">P1</span></td></tr>
+    <tr><td>课件富化</td><td>WhiteboardRenderer 升级为支持 Markdown、代码块、公式、图片的渲染器</td><td><span class="tag tag-p2">P2</span></td></tr>
+    <tr><td>生成过程预览</td><td>生成课程时的多步骤可视化进度（与课堂播放无关）</td><td><span class="tag tag-p2">P2</span></td></tr>
+  </table>
+</div>
+
+<div class="highlight-box">
+  <strong>非范围：</strong>本计划不涵盖 OpenMAIC 的 Slide 编辑模式（Pro Mode/EditChrome）、PBL/Interactive 场景类型、多智能体编排系统。这些属于更长远的版本规划。
+</div>
+
+<!-- ================================================================ -->
+<h2>3. 功能需求详述</h2>
+
+<!-- 3.1 -->
+<h3>3.1 动画框架基础</h3>
+<div class="card">
+  <h4>需求描述</h4>
+  <p>引入 <code>framer-motion</code>（即 <code>motion</code>）库作为统一动画引擎。所有组件的入场、出场、状态变更都通过 motion 组件实现，建立可复用的动画配置常量。</p>
+
+  <h4>验收标准</h4>
+  <ul>
+    <li><code>package.json</code> 添加 <code>motion</code> 依赖</li>
+    <li>创建 <code>src/pages/classroom/animations.ts</code> 统一动画配置（fadeIn, slideUp, scaleIn, springPresets 等）</li>
+    <li>至少 3 个核心渲染器组件使用 <code>&lt;motion.div&gt;</code> 包装并应用入场动画</li>
+    <li>动画性能无视觉卡顿（60fps），使用 <code>will-change</code> 和 <code>transform</code> 优先</li>
+  </ul>
+
+  <h4>技术要点</h4>
+  <ul>
+    <li>使用 <code>AnimatePresence</code> 实现组件卸载时的退出动画</li>
+    <li>统一 Spring 配置：<code>{ type: 'spring', stiffness: 300, damping: 28 }</code></li>
+    <li>对 Ant Design 组件外层包裹 <code>&lt;motion.div&gt;</code> 而非直接替换 AntD 组件</li>
+  </ul>
+</div>
+
+<!-- 3.2 -->
+<h3>3.2 渲染器组件动画化</h3>
+<div class="card">
+  <h4>需求描述</h4>
+  <p>对以下组件逐一添加动画效果：</p>
+  <table>
+    <tr><th>组件</th><th>当前状态</th><th>动画目标</th></tr>
+    <tr><td>SpeechRenderer</td><td>纯文本卡片</td><td>文字逐行 fadeIn + 卡片 scaleIn + 高亮时的辉光脉冲</td></tr>
+    <tr><td>WhiteboardRenderer</td><td>虚线框 Card</td><td>内容从左到右"书写"动画 + 元素渐次出现</td></tr>
+    <tr><td>QuizRenderer</td><td>静态 Radio 组</td><td>选项逐个滑入 + 选择后高亮 spring 动画 + 反馈 Alert 弹出</td></tr>
+    <tr><td>DiscussionRenderer</td><td>紫色卡片</td><td>头像部分弹跳进入 + 文字渐显 + 思考提示脉冲</td></tr>
+    <tr><td>SceneTransitionRenderer</td><td>居中文本</td><td>图标旋转/缩放 + 文字类型打字机效果 + 背景渐变色过渡</td></tr>
+    <tr><td>PauseForThoughtRenderer</td><td>加载图标 + 文本</td><td>三点跳动加载 + 淡入淡出循环</td></tr>
+  </table>
+
+  <h4>验收标准</h4>
+  <ul>
+    <li>每个渲染器组件在上一个 Action 结束时播放"进入"动画</li>
+    <li>动画时长控制在 300-500ms 内，不阻碍学习节奏</li>
+    <li>Quiz 提交后有"正确/错误"的弹簧反馈动画</li>
+    <li>场景过渡时播放完整的过渡动画（1-2 秒）</li>
+  </ul>
+</div>
+
+<!-- 3.3 -->
+<h3>3.3 TTS 语音系统 <span class="tag tag-p0">P0</span></h3>
+<div class="card">
+  <h4>需求描述</h4>
+  <p>为 SpeechRenderer 添加 TTS 能力：当 AI 教师"讲话"时，自动读出讲解文本，实现视听同步授课。</p>
+
+  <h4>功能需求</h4>
+  <ul>
+    <li><strong>后端 API：</strong> TTS 合成接口（支持 Edge TTS / 其他 Provider），接收文本返回音频 URL</li>
+    <li><strong>前端音频管理模块：</strong> <code>useTTSPlayer</code> hook — 播放控制（play/pause/stop/seek）、音量控制、速率控制</li>
+    <li><strong>音频状态管理：</strong> 当前正在播放的 Action ID、播放进度、错误处理</li>
+    <li><strong>UI 反馈：</strong> SpeechRenderer 中添加音频波形动画或音量条视觉反馈</li>
+    <li><strong>自动播放链：</strong> TTS 播放结束后自动进入下一个 Action（取代原有的 setTimeout 自动播放）</li>
+    <li><strong>预缓存：</strong> 进入场景后预先合成当前场景所有 speech 音频</li>
+  </ul>
+
+  <h4>验收标准</h4>
+  <ul>
+    <li>播放 speech 时自动同步播放语音，口型/波形有视觉反馈</li>
+    <li>语音结束后自动跳转下一 Action</li>
+    <li>暂停课堂时语音暂停，恢复时继续播放</li>
+    <li>音频加载失败时有优雅降级（静默跳过 + Toast 提示）</li>
+  </ul>
+
+  <h4>非范围</h4>
+  <ul>
+    <li>多种 TTS Provider 切换（v1 只支持浏览器 Native TTS + 一个后端 Provider）</li>
+    <li>音色定制 / Voice 选择（未来版本考虑）</li>
+    <li>多语言发音优化</li>
+  </ul>
+</div>
+
+<!-- 3.4 -->
+<h3>3.4 AI 讲师形象 <span class="tag tag-p1">P1</span></h3>
+<div class="card">
+  <h4>需求描述</h4>
+  <p>在课堂播放器右上角或侧边展示 AI 讲师形象，增强"被授课"的临场感。</p>
+
+  <h4>功能需求</h4>
+  <ul>
+    <li><strong>Avatar 组件：</strong> 3-5 种预设 AI 讲师头像（教师/助教风格），支持 SVG/PNG 格式</li>
+    <li><strong>入场动画：</strong> 场景开始时讲师头像从右侧滑入 + 弹跳效果</li>
+    <li><strong>讲话状态：</strong> 头像在 speech 播放时显示"说话"动画（呼吸/微动/边框辉光）</li>
+    <li><strong>角色切换：</strong> 不同场景可切换不同讲师（如主讲教师 → 讨论引导员）</li>
+    <li><strong>角色卡提示：</strong> 首次出现时展示简短的角色介绍卡片（翻牌动画）</li>
+  </ul>
+
+  <h4>验收标准</h4>
+  <ul>
+    <li>播放器右上角固定显示讲师头像，不随场景内容滚动</li>
+    <li>讲话时头像有脉冲/呼吸动画，停留时静态</li>
+    <li>不同场景可配置不同讲师角色</li>
+  </ul>
+</div>
+
+<!-- 3.5 -->
+<h3>3.5 场景侧边栏 2.0 <span class="tag tag-p1">P1</span></h3>
+<div class="card">
+  <h4>需求描述</h4>
+  <p>将当前的水平文字 Button 导航改造为左侧垂直侧边栏，支持场景类型图标、缩略图预览（简易版）、拖拽调整宽度。</p>
+
+  <h4>功能需求</h4>
+  <ul>
+    <li><strong>侧边栏容器：</strong> 左侧固定区域，默认宽度 220px，可折叠/展开</li>
+    <li><strong>场景列表：</strong> 每个场景显示序号 + 标题 + 类型图标（讲解/练习/讨论等）</li>
+    <li><strong>缩略图预览：</strong> 当前激活的场景显示简化的内容预览（文字摘要或图表骨架）</li>
+    <li><strong>拖拽调整：</strong> 侧边栏右边缘可拖拽调整宽度（170px - 400px）</li>
+    <li><strong>折叠按钮：</strong> 左上角汉堡按钮折叠侧边栏，为主内容区腾出空间</li>
+    <li><strong>生成中骨架：</strong> 正在生成的场景显示骨架屏动画</li>
+  </ul>
+
+  <h4>验收标准</h4>
+  <ul>
+    <li>侧边栏在 1280px 宽度以上的屏幕默认展开</li>
+    <li>拖拽调整宽度流畅无卡顿</li>
+    <li>折叠后只有图标按钮，展开有平滑动画</li>
+    <li>当前场景高亮显示，已完成场景有勾选标记</li>
+  </ul>
+</div>
+
+<!-- 3.6 -->
+<h3>3.6 场景切换动画 <span class="tag tag-p1">P1</span></h3>
+<div class="card">
+  <h4>需求描述</h4>
+  <p>当用户从一个场景导航到下一个场景时，使用流畅的页面级过渡动画代替生硬的"闪现"。</p>
+
+  <h4>功能需求</h4>
+  <ul>
+    <li><strong>过渡方向：</strong> 前进时内容向左滑出/新内容从右侧滑入；后退时反之</li>
+    <li><strong>SceneTransitionRenderer 增强：</strong> 显示场景标题的大号渐变文字、知识点标签、进度指示</li>
+    <li><strong>过渡时长：</strong> 主过渡动画 400ms，过渡卡片展示 1.5s - 2s 后自动进入首 Action</li>
+    <li><strong>跳过：</strong> 用户可点击跳过过渡动画直接进入内容</li>
+  </ul>
+
+  <h4>验收标准</h4>
+  <ul>
+    <li>场景切换时有方向性滑动过渡</li>
+    <li>过渡期间显示场景标题和知识点标签</li>
+    <li>用户可点击跳过过渡</li>
+  </ul>
+</div>
+
+<!-- 3.7 -->
+<h3>3.7 课件富化 (Whiteboard 升级) <span class="tag tag-p2">P2</span></h3>
+<div class="card">
+  <h4>需求描述</h4>
+  <p>将当前的纯文本白板渲染器升级为富视觉内容渲染器，支持公式、代码高亮、Markdown 渲染。</p>
+
+  <h4>功能需求</h4>
+  <ul>
+    <li><strong>Markdown 渲染：</strong> 使用 <code>react-markdown</code> 或 <code>marked</code>（已有依赖）渲染白板内容</li>
+    <li><strong>代码高亮：</strong> 添加 <code>react-syntax-highlighter</code> 或 <code>shiki</code> 支持代码块</li>
+    <li><strong>LaTeX 公式：</strong> 使用 <code>katex</code> 渲染数学公式</li>
+    <li><strong>图片支持：</strong> 白板内容中引用的图片 URL 可正常加载显示</li>
+    <li><strong>自适应布局：</strong> 内容在卡片中自适应居中/居左，长内容可滚动</li>
+  </ul>
+
+  <h4>验收标准</h4>
+  <ul>
+    <li>包含 <code>```python print("hello")```</code> 的内容能正常高亮</li>
+    <li>包含 <code>$$E=mc^2$$</code> 的内容能正常渲染为公式</li>
+    <li>图片能正常加载，有 loading 状态</li>
+  </ul>
+</div>
+
+<!-- ================================================================ -->
+<h2>4. 用户体验流程</h2>
+
+<div class="card">
+  <h3>4.1 理想用户体验旅程</h3>
+  <ol>
+    <li><strong>进入课堂：</strong> 播放器整体淡入，左侧侧边栏展开显示场景列表，AI 讲师从右侧滑入</li>
+    <li><strong>场景过渡：</strong> 场景切换时，过渡卡片从中心放大出现（1.5s），显示"场景 2/5：什么是变量"</li>
+    <li><strong>AI 讲解：</strong> SpeechRenderer 从底部滑入，文字逐行显示，AI 讲师头像开始"说话"动画，同步播放 TTS 语音</li>
+    <li><strong>白板展示：</strong> WhiteboardRenderer 从左到右"书写"内容，代码行逐个高亮</li>
+    <li><strong>随堂练习：</strong> Quiz 选项逐个从下方弹入，选择后正确选项 spring 放大，错误选项抖动反馈</li>
+    <li><strong>讨论提示：</strong> 思考气泡脉冲放大，展示思考问题</li>
+    <li><strong>课堂完成：</strong> 庆祝动画（🎉 彩花效果），显示完成统计</li>
+  </ol>
+</div>
+
+<!-- ================================================================ -->
+<h2>5. 非功能需求</h2>
+
+<div class="card">
+  <table>
+    <tr><th>维度</th><th>要求</th></tr>
+    <tr><td>性能</td><td>动画帧率 ≥ 55fps（使用 <code>transform</code> 和 <code>opacity</code> 优先，避免 Layout 触发重排）</td></tr>
+    <tr><td>可访问性</td><td>用户可通过设置关闭动画（<code>prefers-reduced-motion</code>）；文字内容始终可读</td></tr>
+    <tr><td>兼容性</td><td>支持 Chrome 90+ / Edge 90+ / Safari 15+</td></tr>
+    <tr><td>包体积</td><td><code>motion</code> 库按需引入，Tree-shaking 后增量 ≤ 15KB gzipped</td></tr>
+    <tr><td>可维护性</td><td>动画配置集中管理（<code>animations.ts</code>），不散落在组件中</td></tr>
+  </table>
+</div>
+
+<!-- ================================================================ -->
+<h2>6. 版本规划</h2>
+
+<div class="card">
+  <table>
+    <tr><th>版本</th><th>时间线参考</th><th>包含功能</th><th>工作量 (人日)</th></tr>
+    <tr><td><strong>v2.0-alpha</strong></td><td>第 1-2 周</td><td>动画框架 + 渲染器动画化 + TTS 基础 + AI 讲师头像</td><td>12-15 人日</td></tr>
+    <tr><td><strong>v2.0-beta</strong></td><td>第 3-4 周</td><td>场景侧边栏 2.0 + 场景切换动画 + 过渡强化</td><td>8-10 人日</td></tr>
+    <tr><td><strong>v2.0-rc</strong></td><td>第 5-6 周</td><td>课件富化 + 性能优化 + Bug 修复 + 集成测试</td><td>6-8 人日</td></tr>
+    <tr><td><strong>v2.0</strong></td><td>第 7 周</td><td>正式发布</td><td>—</td></tr>
+  </table>
+</div>
+
+<hr>
+<p style="text-align:center; color:#999; font-size:0.85em;">— PRD End —</p>
+
+</div>
+</body>
+</html>
+

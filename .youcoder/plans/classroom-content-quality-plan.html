@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>沉浸课堂内容质量优化方案 — 产品需求与架构设计</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 900px; margin: 0 auto; padding: 24px; line-height: 1.7; color: #222; background: #fafafa; }
+  h1 { border-bottom: 3px solid #1677ff; padding-bottom: 8px; }
+  h2 { margin-top: 36px; border-left: 4px solid #1677ff; padding-left: 12px; }
+  h3 { margin-top: 28px; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 14px; }
+  th, td { border: 1px solid #d9d9d9; padding: 8px 12px; text-align: left; }
+  th { background: #e6f4ff; font-weight: 600; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+  pre { background: #1e1e1e; color: #d4d4d4; padding: 16px; border-radius: 8px; overflow-x: auto; font-size: 13px; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; margin-right: 4px; }
+  .tag-p0 { background: #ff4d4f; color: #fff; }
+  .tag-p1 { background: #faad14; color: #fff; }
+  .tag-p2 { background: #1677ff; color: #fff; }
+  .box { background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 16px; margin: 16px 0; }
+  .box-good { border-left: 4px solid #52c41a; }
+  .box-bad { border-left: 4px solid #ff4d4f; }
+  .flow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+  .flow-step { background: #e6f4ff; border: 1px solid #91caff; border-radius: 6px; padding: 6px 12px; font-size: 13px; }
+  .flow-arrow { color: #999; font-size: 18px; }
+</style>
+</head>
+<body>
+
+<h1>沉浸课堂内容质量优化方案</h1>
+<p><strong>版本</strong>: v1.0 &nbsp;|&nbsp; <strong>日期</strong>: 2026-07-29 &nbsp;|&nbsp; <strong>状态</strong>: 规划中</p>
+
+<!-- ============================================================ -->
+<h2>1. 现状问题与根因分析</h2>
+
+<h3>1.1 问题一：课堂内容质量差</h3>
+
+<div class="box box-bad">
+<strong>症状</strong>：生成的课堂内容泛泛而谈，缺乏针对具体教材的深度讲解，习题不清晰。
+</div>
+
+<table>
+  <tr><th>根因</th><th>影响</th><th>严重程度</th></tr>
+  <tr>
+    <td><strong>Prompt 缺乏知识点具体内容</strong><br>outline 阶段只传了 name + description + content；content 阶段连 content 都没传</td>
+    <td>LLM 只能靠自身训练数据"猜"教学内容</td>
+    <td><span class="tag tag-p0">P0</span></td>
+  </tr>
+  <tr>
+    <td><strong>无教材原文传入</strong><br><code>course_materials.raw_text</code> 完全没有参与 prompt 构建</td>
+    <td>LLM 无法针对教材版本定向生成</td>
+    <td><span class="tag tag-p0">P0</span></td>
+  </tr>
+  <tr>
+    <td><strong>无习题库参考</strong><br><code>questions</code> 表的习题未传入 prompt</td>
+    <td>LLM 生成的题目与课程脱节，无针对性</td>
+    <td><span class="tag tag-p1">P1</span></td>
+  </tr>
+  <tr>
+    <td><strong>courseName 传的是 UUID</strong><br><code>kp.getCourseId().toString()</code> 是 UUID 而非课程名</td>
+    <td>LLM 不知道是哪门课，无法定位课程语境</td>
+    <td><span class="tag tag-p1">P1</span></td>
+  </tr>
+  <tr>
+    <td><strong>无层级聚合</strong><br>点击 CHAPTER 节点只传该节点自身数据，不聚合子节点</td>
+    <td>章级课堂缺少年级下具体知识点内容</td>
+    <td><span class="tag tag-p0">P0</span></td>
+  </tr>
+  <tr>
+    <td><strong>content-system.md 内容重复</strong><br>328 行实际包含两遍完全相同的 prompt</td>
+    <td>LLM 收到重复指令，可能降低生成稳定性</td>
+    <td><span class="tag tag-p2">P2</span></td>
+  </tr>
+</table>
+
+<h3>1.2 问题二：习题不能有效巩固</h3>
+
+<div class="box box-bad">
+<strong>症状</strong>：习题展示不清晰，学生不能通过提交习题获得知识点巩固反馈。
+</div>
+
+<table>
+  <tr><th>根因</th><th>说明</th><th>严重程度</th></tr>
+  <tr>
+    <td><strong>LLM 生成的 quiz 数据质量差</strong><br>缺少知识点内容上下文 → 题目泛泛、correctIndex 可能错误、选项无迷惑性</td>
+    <td>即使提交链路完整，题目本身也没有巩固价值</td>
+    <td><span class="tag tag-p0">P0</span></td>
+  </tr>
+  <tr>
+    <td><strong>生成 quiz 动作缺失</strong><br>LLM 可能只生成了 speech 类型的 action，没有生成 quiz 类型</td>
+    <td>课堂里根本没有可交互的习题</td>
+    <td><span class="tag tag-p1">P1</span></td>
+  </tr>
+  <tr>
+    <td><strong>提交后的反馈缺少知识关联</strong><br>不告诉学生"这道题对应哪个知识点"</td>
+    <td>学生不知道薄弱环节在哪里</td>
+    <td><span class="tag tag-p2">P2</span></td>
+  </tr>
+</table>
+
+<!-- ============================================================ -->
+<h2>2. 优化目标</h2>
+
+<div class="box box-good">
+<strong>一句话目标</strong>：当学生在<strong>章层级</strong>点击"沉浸课堂"时，系统聚合该章下所有知识点内容 + 教材原文 + 习题参考，生成基于真实教材的、含可交互习题的高质量课堂。
+</div>
+
+<h3>2.1 核心原则</h3>
+<ul>
+  <li><strong>入口集中</strong>：沉浸课堂的主入口定在<strong>章（CHAPTER）层级</strong></li>
+  <li><strong>内容扎实</strong>：LLM 必须收到该章的全部教学内容才能生成</li>
+  <li><strong>习题可交互</strong>：生成的 quiz 必须完整（4 选项 + 正确索引 + 解析），确保学生能够提交并看到知识点关联反馈</li>
+  <li><strong>可追溯</strong>：学生能看到每道题对应的知识点，提交答题后可更新掌握度</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2>3. 功能方案设计</h2>
+
+<h3>3.1 功能一：层级聚合逻辑（核心）</h3>
+
+<h4>数据聚合流程</h4>
+
+<div class="flow">
+  <span class="flow-step">用户点击 CHAPTER 节点</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">API 传入 CHAPTER.id</span>
+  <span class="flow-step" style="background:#d4edda;border-color:#52c41a;">递归聚合子节点 content</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">聚合教材原文</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">聚合相关习题</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">构建增强 Prompt</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">LLM 生成</span>
+</div>
+
+<h4>聚合的内容结构</h4>
+
+<pre>{
+  chapterName: "法的概念",
+  chapterDescription: "了解法的基本概念...",
+
+  // 聚合的子知识点（递归）
+  aggregatedContent: [
+    {
+      sectionName: "法的概念与特征",
+      knowledgePoints: [
+        { name: "法的定义", content: "...", questions: [...] },
+        { name: "法的三个基本特征", content: "...", questions: [...] }
+      ]
+    },
+    {
+      sectionName: "法的分类",
+      knowledgePoints: [
+        { name: "法的历史类型", content: "...", questions: [...] }
+      ]
+    }
+  ],
+
+  // 教材原文（限长 8000 字）
+  textbookExcerpt: "法是由国家制定或认可...",
+
+  // 本章相关练习题（用于参考题目难度和题型）
+  referenceQuestions: [
+    { question: "...", options: [...], correctIndex: 0 }
+  ],
+
+  courseName: "法学概论",
+  difficulty: 3
+}</pre>
+
+<h4>聚合逻辑实现</h4>
+
+<p>在 <code>ClassroomGenerator</code> 中新增一个聚合服务 <code>KnowledgeAggregator</code>：</p>
+
+<pre>class KnowledgeAggregator {
+  /**
+   * 递归聚合某个节点的所有子知识点内容
+   * 如果节点类型是 CHAPTER/SECTION，递归查找所有 LEAF 子节点
+   */
+  Aggregate(chapterNode): AggregatedContent {
+    // 1. 查询所有子孙节点（parent_kp_id 链路）
+    // 2. 递归收集所有 LEAF 节点的 name + description + content
+    // 3. 按 SECTION 分组整理
+    // 4. 返回结构化内容
+  }
+
+  /**
+   * 从 course_materials 检索与该章相关的教材原文
+   */
+  GetTextbookExcerpt(chapterId): string {
+    // 按 chapter 关键词匹配或按章节关联检索
+  }
+
+  /**
+   * 从 questions 表检索该章下的所有练习题
+   */
+  GetReferenceQuestions(chapterId): Question[] {
+    // 通过 knowledgePointId 链路找到属于该章的所有题目
+  }
+}</pre>
+
+<h3>3.2 功能二：Prompt 增强</h3>
+
+<h4>outline-user.md — 新增变量</h4>
+
+<table>
+  <tr><th>新增变量</th><th>来源</th><th>示例值</th></tr>
+  <tr><td><code>{{aggregatedContent}}</code></td><td>KnowledgeAggregator.Aggregate()</td><td>"本章包含以下知识点：\n1. 法的概念与特征\n  - 法的定义：法是由国家制定...\n  - 法的三个基本特征..."</td></tr>
+  <tr><td><code>{{textbookExcerpt}}</code></td><td>course_materials.raw_text</td><td>"第一章 法的概念\n第一节 法的定义\n法是由国家制定或认可..."</td></tr>
+  <tr><td><code>{{referenceQuestions}}</code></td><td>questions 表</td><td>"1. 关于法的特征，下列说法正确的是？\nA. 法具有国家意志性\nB. ..."</td></tr>
+  <tr><td><code>{{courseName}}</code></td><td>courses.name（修复！）</td><td>"法学概论"（不再传 UUID）</td></tr>
+  <tr><td><code>{{chapterStructure}}</code></td><td>知识树结构</td><td>"本章包含 2 节，共 5 个知识点"</td></tr>
+</table>
+
+<h4>content-user.md — 新增变量</h4>
+
+<table>
+  <tr><th>新增变量</th><th>说明</th></tr>
+  <tr><td><code>{{knowledgePointContent}}</code></td><td>当前场景对应的知识点详细内容（当前完全缺失！）</td></tr>
+  <tr><td><code>{{courseName}}</code></td><td>课程名称（修复 UUID 问题）</td></tr>
+</table>
+
+<h4>Prompt 模板结构优化</h4>
+
+<p>增强后的 outline 阶段 User Prompt 结构：</p>
+
+<pre>## 课程信息
+- **课程名称**：法学概论
+- **章名称**：法的概念
+- **章描述**：了解法的基本概念、特征和分类
+
+## 本章知识结构
+本章包含 2 节，共 5 个知识点。
+
+## 知识点详细内容
+【第一节：法的概念与特征】
+1. 法的定义
+   内容：法是由国家制定或认可，以权利义务为内容...
+2. 法的三个基本特征
+   内容：法具有国家意志性、国家强制性、普遍约束力...
+
+【第二节：法的分类】
+3. 法的历史类型
+   内容：法的历史类型是指按照法的阶级本质...
+
+## 教材原文参考
+第一章 法的概念
+法是由国家制定或认可并由国家强制力保证实施的...
+（以下为教材原文节选，约 5000 字）
+
+## 本章参考习题
+以下习题来自本章的题库，供你参考题目难度和风格：
+1. 法的本质特征是？
+   A. 社会性 B. 阶级性 C. 规范性 D. 强制性
+   [正确答案: B]
+
+## 课堂设计要求
+- 难度等级：3（中等）
+- 面向中小学生
+- 请结合实际案例讲解
+</pre>
+
+<h3>3.3 功能三：入口集中 + UI 优化</h3>
+
+<table>
+  <tr><th>改动</th><th>说明</th></tr>
+  <tr>
+    <td><strong>沉浸课堂按钮仅限 CHAPTER 层级</strong></td>
+    <td>在 StudentLearning.jsx 中，根据 <code>kp.type !== 'CHAPTER'</code> 隐藏按钮，或置灰并提示"请在章层级创建沉浸课堂"</td>
+  </tr>
+  <tr>
+    <td><strong>沉浸课堂按钮增强</strong></td>
+    <td>按钮文案改为"生成章级智慧课堂"，旁边显示该章下的知识点数量</td>
+  </tr>
+  <tr>
+    <td><strong>知识点级入口处理</strong></td>
+    <td>知识点层级不显示沉浸课堂按钮（或引导用户到父级 CHAPTER 生成）</td>
+  </tr>
+</table>
+
+<h3>3.4 功能四：习题提交体验优化</h3>
+
+<table>
+  <tr><th>改动</th><th>说明</th></tr>
+  <tr>
+    <td><strong>Quiz action 字段约束增强</strong></td>
+    <td>在 content-system.md 中明确要求 LLM 在每个 quiz action 中必须包含 <code>question</code>、<code>options[]</code>（4 项）、<code>correctIndex</code>、<code>explanation</code>，否则 fallback 生成默认题目</td>
+  </tr>
+  <tr>
+    <td><strong>提交反馈增加知识点标识</strong></td>
+    <td>提交结果中显示"这道题考察的是【法的定义】，你当前掌握度 60%"，让学生知道薄弱环节</td>
+  </tr>
+  <tr>
+    <td><strong>默认 fallback 题目优化</strong></td>
+    <td>当 LLM 未生成 quiz action 时，不再使用"选项A/选项B/选项C/选项D"这种无意义默认题，而是基于知识点 content 自动生成</td>
+  </tr>
+</table>
+
+<!-- ============================================================ -->
+<h2>4. 实现计划</h2>
+
+<h3>Phase 1（P0）：层级聚合 + Prompt 增强（3-4 天）</h3>
+
+<table>
+  <tr><th>#</th><th>任务</th><th>涉及文件</th><th>验收标准</th></tr>
+  <tr><td>1</td><td>新增 <code>KnowledgeAggregator</code> 服务 — 递归聚合子节点 content</td><td><code>classroom/service/KnowledgeAggregator.java</code></td><td>传入 CHAPTER.id → 返回结构化的聚合内容</td></tr>
+  <tr><td>2</td><td>新增 <code>TextBookProvider</code> 服务 — 从 course_materials 检索教材原文</td><td><code>classroom/service/TextbookProvider.java</code></td><td>返回教材原文节选（≤8000 字）</td></tr>
+  <tr><td>3</td><td>新增 <code>QuestionProvider</code> 服务 — 从 questions 表检索相关习题</td><td><code>classroom/service/QuestionProvider.java</code></td><td>返回该章下的习题列表（≤10 道）</td></tr>
+  <tr><td>4</td><td>修改 <code>ClassroomGenerator</code> — 集成聚合逻辑，修复 courseName</td><td><code>ClassroomGenerator.java</code></td><td>生成时自动聚合，courseName 为课程名</td></tr>
+  <tr><td>5</td><td>修改 <code>SceneOutlineGenerator</code> — 增强 outline prompt 变量</td><td><code>SceneOutlineGenerator.java</code></td><td>prompt 包含 aggregatedContent + textbookExcerpt + referenceQuestions</td></tr>
+  <tr><td>6</td><td>修改 <code>SceneContentGenerator</code> — content 阶段传入知识点内容</td><td><code>SceneContentGenerator.java</code></td><td>content prompt 包含 knowledgePointContent</td></tr>
+  <tr><td>7</td><td>更新 <code>outline-user.md</code> + <code>content-user.md</code> 模板</td><td><code>prompts/classroom/*.md</code></td><td>新增变量占位符，优化指令</td></tr>
+  <tr><td>8</td><td>清理 content-system.md 的重复内容</td><td><code>prompts/classroom/content-system.md</code></td><td>文件从 328 行减为 164 行</td></tr>
+  <tr><td>9</td><td>优化 content-system.md 中 quiz 生成指令</td><td><code>prompts/classroom/content-system.md</code></td><td>明确要求 4 选项 + correctIndex + explanation</td></tr>
+</table>
+
+<h3>Phase 2（P1）：前端入口 + 习题体验（1-2 天）</h3>
+
+<table>
+  <tr><th>#</th><th>任务</th><th>涉及文件</th><th>验收标准</th></tr>
+  <tr><td>10</td><td>沉浸课堂按钮仅显示在 CHAPTER 节点</td><td><code>StudentLearning.jsx</code></td><td>非 CHAPTER 节点隐藏或置灰"沉浸课堂"按钮</td></tr>
+  <tr><td>11</td><td>按钮文案优化 + 知识点数量提示</td><td><code>StudentLearning.jsx</code></td><td>按钮显示"生成章级智慧课堂（含 N 个知识点）"</td></tr>
+  <tr><td>12</td><td>Quiz 提交反馈增加知识点关联</td><td><code>QuizRenderer.tsx</code> + 后端 QuizSubmitResponse</td><td>提交后显示"这道题考察的是【XXX】，当前掌握度 XX%"</td></tr>
+  <tr><td>13</td><td>fallback 默认题目优化</td><td><code>SceneContentGenerator.java</code> <code>buildQuizActions()</code></td><td>基于知识点 content 生成有意义的默认题目</td></tr>
+</table>
+
+<h3>Phase 3（P2）：质量加固（1 天）</h3>
+
+<table>
+  <tr><th>#</th><th>任务</th><th>说明</th></tr>
+  <tr><td>14</td><td>LLM 输出 JSON schema 校验强化</td><td>在 parseAction 中对 quiz 类型做完整性校验，缺失字段时触发重试</td></tr>
+  <tr><td>15</td><td>prompt 模板单元测试</td><td>确保模板变量都在 Java 端有填充，没有漏掉的 {{variable}}</td></tr>
+  <tr><td>16</td><td>构建 + 部署测试</td><td>npm run build + docker compose build 无错误</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2>5. 架构设计</h2>
+
+<h3>5.1 新增服务类</h3>
+
+<pre>src/main/java/com/edumentor/classroom/
+├── service/
+│   ├── ClassroomGenerator.java          ← 修改：集成聚合逻辑
+│   ├── SceneOutlineGenerator.java       ← 修改：增强 prompt 变量
+│   ├── SceneContentGenerator.java       ← 修改：传入知识点内容
+│   ├── KnowledgeAggregator.java         ← 新增：递归聚合子节点
+│   ├── TextbookProvider.java            ← 新增：教材原文检索
+│   └── QuestionProvider.java            ← 新增：习题检索
+├── dto/
+│   └── AggregatedContent.java           ← 新增：聚合内容 DTO
+└── prompts/classroom/
+    ├── outline-system.md                ← 修改：优化输出格式约束
+    ├── outline-user.md                  ← 修改：增加聚合变量
+    ├── content-system.md                ← 修改：清理重复 + 增强 quiz 约束
+    └── content-user.md                  ← 修改：增加知识点内容变量</pre>
+
+<h3>5.2 KnowledgeAggregator 详细设计</h3>
+
+<pre>public class KnowledgeAggregator {
+
+    // 递归查询子节点
+    public AggregatedContent aggregate(UUID chapterId) {
+        // 1. 获取当前节点信息
+        KnowledgePoint chapter = repo.findById(chapterId);
+        
+        // 2. 递归查找所有直接子节点（SECTION）
+        List<KnowledgePoint> sections = repo.findByParentKpId(chapterId);
+        
+        // 3. 对每个 SECTION，查找其 LEAF 子节点
+        List<AggregatedSection> sections = sections.stream().map(section -> {
+            List<KnowledgePoint> leaves = repo.findByParentKpId(section.getId());
+            return new AggregatedSection(section, leaves);
+        }).toList();
+        
+        // 4. 格式化输出
+        return new AggregatedContent(chapter, sections);
+    }
+}
+
+// 聚合内容 DTO
+public class AggregatedContent {
+    private String chapterName;
+    private String chapterDescription;
+    private List<AggregatedSection> sections;
+    
+    // 格式化为 LLM 可读的文本
+    public String toPromptText() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("## 本章知识结构\n");
+        sb.append("本章包含 ").append(sections.size()).append(" 节");
+        int total = sections.stream().mapToInt(s -> s.getLeaves().size()).sum();
+        sb.append("，共 ").append(total).append(" 个知识点。\n\n");
+        
+        for (AggregatedSection section : sections) {
+            sb.append("【").append(section.getName()).append("】\n");
+            for (KnowledgePoint kp : section.getLeaves()) {
+                sb.append("- ").append(kp.getName()).append("\n");
+                if (kp.getContent() != null && !kp.getContent().isEmpty()) {
+                    sb.append("  内容：").append(kp.getContent()).append("\n");
+                }
+            }
+            sb.append("\n");
+        }
+        return sb.toString();
+    }
+}</pre>
+
+<h3>5.3 TextbookProvider 详细设计</h3>
+
+<pre>public class TextbookProvider {
+
+    public String getExcerpt(UUID courseId, UUID chapterId) {
+        // 1. 获取该课程的所有教材
+        // 2. 按章名称关键词匹配教材中的章节标题
+        // 3. 匹配到则返回该章节的原文（限 8000 字）
+        // 4. 若未匹配到则返回最近的上下文
+        
+        // 目前 course_materials 表存储了上传的教材原始文本
+        // 可以通过课程ID + 章节名称进行全文检索
+    }
+}</pre>
+
+<h3>5.4 QuestionProvider 详细设计</h3>
+
+<pre>public class QuestionProvider {
+
+    public List<Question> getQuestionsByChapter(UUID chapterId) {
+        // 1. 获取该章下的所有 LEAF 子节点 ID
+        // 2. 通过 knowledge_point_id 关联 questions 表
+        // 3. 返回最多 10 道题作为参考
+        // 4. 随机抽样确保多样性
+    }
+}</pre>
+
+<h3>5.5 修改后数据流完整链路</h3>
+
+<pre>用户点击【法的概念】章的"沉浸课堂"
+  │
+  ├─ POST /api/v2/classrooms/resolve?courseId=xxx&knowledgePointId=CHAPTER.id
+  │
+  ├─ ClassroomGenerator.generateClassroom()
+  │   ├─ KnowledgeAggregator.aggregate(CHAPTER.id)
+  │   │   → 聚合内容（含 2 节 5 个知识点的 content）
+  │   │
+  │   ├─ TextbookProvider.getExcerpt(courseId, chapterId)
+  │   │   → 教材原文节选（≤8000 字）
+  │   │
+  │   ├─ QuestionProvider.getQuestionsByChapter(chapterId)
+  │   │   → 本章习题列表（≤10 道）
+  │   │
+  │   └─ CourseRepository.findNameById(courseId)
+  │       → "法学概论"（修复 UUID 问题）
+  │
+  ├─ SceneOutlineGenerator
+  │   └─ outline-user.md 变量新增：
+  │       {{aggregatedContent}} ← 聚合的知识点内容
+  │       {{textbookExcerpt}}   ← 教材原文
+  │       {{referenceQuestions}} ← 习题参考
+  │       {{courseName}}        ← "法学概论"（修复）
+  │       {{chapterStructure}}  ← "本章包含 2 节，共 5 个知识点"
+  │
+  ├─ SceneContentGenerator
+  │   └─ content-user.md 变量新增：
+  │       {{knowledgePointContent}} ← 当前场景对应知识点内容
+  │
+  └─ LLM 生成 → 高质量、基于教材、含可交互 quiz 的课堂</pre>
+
+<!-- ============================================================ -->
+<h2>6. Prompt 模板修改要点摘要</h2>
+
+<h3>6.1 outline-user.md 修改</h3>
+
+<table>
+  <tr><th>修改项</th><th>内容</th></tr>
+  <tr>
+    <td>新增变量</td>
+    <td><code>{{aggregatedContent}}</code>、<code>{{textbookExcerpt}}</code>、<code>{{referenceQuestions}}</code>、<code>{{courseName}}</code>、<code>{{chapterStructure}}</code></td>
+  </tr>
+  <tr>
+    <td>instruction 增强</td>
+    <td>增加一条要求："请基于以下教材原文内容设计课堂，确保讲授内容与教材一致，例题风格与参考习题一致"</td>
+  </tr>
+</table>
+
+<h3>6.2 content-user.md 修改</h3>
+
+<table>
+  <tr><th>修改项</th><th>内容</th></tr>
+  <tr>
+    <td>新增变量</td>
+    <td><code>{{knowledgePointContent}}</code> — 当前场景的知识点详细内容</td>
+  </tr>
+  <tr>
+    <td>instruction 增强</td>
+    <td>增加要求："以上是本章的知识点详细内容，请确保生成的讲解内容与之吻合"</td>
+  </tr>
+</table>
+
+<h3>6.3 content-system.md 修改</h3>
+
+<table>
+  <tr><th>修改项</th><th>内容</th></tr>
+  <tr>
+    <td>清理重复</td>
+    <td>删除第 165-328 行的重复内容</td>
+  </tr>
+  <tr>
+    <td>quiz 约束增强</td>
+    <td>在"Quiz 类型的输出格式"示例后增加声明："每个 quiz action 必须包含 question、options（4个字符串）、correctIndex（0-3）、explanation 四个字段，缺一不可"</td>
+  </tr>
+</table>
+
+<!-- ============================================================ -->
+<h2>7. 验收标准</h2>
+
+<table>
+  <tr><th>验收项</th><th>标准</th></tr>
+  <tr>
+    <td>层级聚合</td>
+    <td>点击 CHAPTER 节点时，生成的课堂内容覆盖该章下所有子知识点</td>
+  </tr>
+  <tr>
+    <td>教材一致性</td>
+    <td>生成的讲解内容与 course_materials 中的教材原文相符，而非泛泛而谈</td>
+  </tr>
+  <tr>
+    <td>习题质量</td>
+    <td>生成的 quiz 至少有 2 道题，每题 4 个选项、正确索引、解析都正确</td>
+  </tr>
+  <tr>
+    <td>习题可交互</td>
+    <td>学生可以提交答案，看到正确/错误反馈，掌握度更新，知识点关联</td>
+  </tr>
+  <tr>
+    <td>前端入口</td>
+    <td>只有 CHAPTER 节点显示沉浸课堂按钮，其他节点隐藏</td>
+  </tr>
+  <tr>
+    <td>courseName</td>
+    <td>传给 LLM 的不再是 UUID 字符串，而是"法学概论"这样的可读名称</td>
+  </tr>
+  <tr>
+    <td>构建通过</td>
+    <td>npm run build + mvn clean package 无错误</td>
+  </tr>
+</table>
+
+<!-- ============================================================ -->
+<h2>8. 风险与注意事项</h2>
+
+<ul>
+  <li><strong>教材内容长度</strong>：教材原文可能很长（数万字），需限制在 8000 字以内，否则 token 消耗过大。建议使用 NLTK 或按章节标题截取</li>
+  <li><strong>聚合内容长度</strong>：一个章可能有 10+ 个知识点，全部 content 聚合后可能超过 LLM 上下文窗口。需要做 truncation 或 RAG 式的关键内容提取</li>
+  <li><strong>空 content 处理</strong>：如果某些知识点的 content 字段为空（seed 数据），需要优雅降级 — 至少传 name + description</li>
+  <li><strong>教材不存在</strong>：如果 course_materials 表为空，则 textbookExcerpt 传空字符串，prompt 说明"无教材原文参考"</li>
+  <li><strong>习题数量</strong>：如果 questions 表没有该章节的习题，referenceQuestions 传空，LLM 自行生成</li>
+  <li><strong>LLM token 成本</strong>：聚合后的 prompt 可能长达 5000+ token，需要评估 DeepSeek 的 API 成本</li>
+</ul>
+
+<h2>9. 实施建议</h2>
+
+<p><strong>启动顺序</strong>：从 Phase 1 的 Step 1 开始（KnowledgeAggregator），这是所有增强的基础。完成后立即用 curl 测试聚合结果是否正确。再依次推进 TextbookProvider、QuestionProvider、prompt 修改。</p>
+
+<p>建议在实施前先备份现有 classroom 数据，因为重构后新生成的课堂会 replace 旧的。</p>
+
+</body>
+</html>

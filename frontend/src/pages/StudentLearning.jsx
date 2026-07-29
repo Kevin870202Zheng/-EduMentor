@@ -3,6 +3,7 @@ import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import { Card, Typography, Button, Spin, Tag, Progress, Radio, Checkbox, Input, Space, Alert, Empty, List, Tree, message, Collapse, Select, Form, Tabs, Modal, Table } from 'antd';
 import { CheckCircleOutlined, CloseCircleOutlined, ArrowLeftOutlined, ArrowRightOutlined, RobotOutlined, BookOutlined, FolderOutlined, FileTextOutlined, FormOutlined, TeamOutlined, PlusOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import { courseAPI, learningAPI, answerAPI, questionAnalysisAPI, knowledgePointAPI, peerQuizAPI } from '../services/api';
+import { classroomApi } from '../api/classroomApi';
 import { useAuth } from '../context/AuthContext';
 
 const { Title, Text, Paragraph } = Typography;
@@ -268,6 +269,33 @@ export default function StudentLearning() {
   const [pendingQuizzes, setPendingQuizzes] = useState([]);
   const [createdQuizzes, setCreatedQuizzes] = useState([]);
   const [completedQuizzes, setCompletedQuizzes] = useState([]);
+  const [enteringClassroom, setEnteringClassroom] = useState(false);
+
+  // ─── 进入沉浸课堂 ───
+  const handleEnterClassroom = async (kp) => {
+    if (!courseInfo?.id || !kp?.id) {
+      message.warning('请先选择知识点');
+      return;
+    }
+    setEnteringClassroom(true);
+    try {
+      const result = await classroomApi.resolveClassroom(
+        courseInfo.id,
+        kp.id,
+        kp.difficulty || 3
+      );
+      if (result?.id) {
+        navigate(`/student/classroom/${result.id}`);
+      } else {
+        message.error('课堂创建失败，请稍后重试');
+      }
+    } catch (err) {
+      console.error('进入课堂失败:', err);
+      message.error(err?.message || '进入课堂失败，请稍后重试');
+    } finally {
+      setEnteringClassroom(false);
+    }
+  };
   const [activeTab, setActiveTab] = useState('exercises');
   const [selectedQuizDetail, setSelectedQuizDetail] = useState(null);
   const [selectedQuizResults, setSelectedQuizResults] = useState(null);
@@ -697,15 +725,34 @@ export default function StudentLearning() {
                       )}
                     </Space>
                   </div>
-                  <Progress type="circle" percent={currentKp ? Math.round((masteryMap[currentKp.id] || 0) * 100) : 0}
-                    size={48} strokeColor={(() => {
-                      const val = currentKp ? masteryMap[currentKp.id] : 0;
-                      if (!val) return '#d9d9d9';
-                      if (val >= 0.8) return '#52c41a';
-                      if (val >= 0.5) return '#1677ff';
-                      return '#faad14';
-                    })()}
-                    format={p => p > 0 ? `${p}%` : '?'} />
+                  <Space>
+                    {currentKp?.type === 'CHAPTER' ? (
+                      <Button type="primary" ghost icon={<span>🎓</span>}
+                        loading={enteringClassroom}
+                        onClick={() => handleEnterClassroom(currentKp)}
+                        size="small"
+                      >
+                        生成章级智慧课堂
+                        {currentKp?.childrenCount ? `（${currentKp.childrenCount}个知识点）` : ''}
+                      </Button>
+                    ) : (
+                      <Button type="default" ghost disabled icon={<span>🎓</span>}
+                        size="small"
+                        title="请在章层级创建沉浸课堂"
+                      >
+                        沉浸课堂（需在章层级使用）
+                      </Button>
+                    )}
+                    <Progress type="circle" percent={currentKp ? Math.round((masteryMap[currentKp.id] || 0) * 100) : 0}
+                      size={48} strokeColor={(() => {
+                        const val = currentKp ? masteryMap[currentKp.id] : 0;
+                        if (!val) return '#d9d9d9';
+                        if (val >= 0.8) return '#52c41a';
+                        if (val >= 0.5) return '#1677ff';
+                        return '#faad14';
+                      })()}
+                      format={p => p > 0 ? `${p}%` : '?'} />
+                  </Space>
                 </div>
               </Card>
 

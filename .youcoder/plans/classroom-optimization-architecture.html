@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduMentor 沉浸课堂优化 - 架构设计文档</title>
+<style>
+  :root {
+    --primary: #1677ff;
+    --success: #52c41a;
+    --warning: #faad14;
+    --danger: #ff4d4f;
+    --bg: #f5f7fa;
+    --card-bg: #ffffff;
+    --text: #1a1a2e;
+    --text-secondary: #595959;
+    --border: #e8e8e8;
+    --code-bg: #1e1e2e;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; padding: 0; }
+  .container { max-width: 960px; margin: 0 auto; padding: 40px 24px; }
+  h1 { font-size: 2em; margin-bottom: 8px; font-weight: 800; letter-spacing: -0.02em; }
+  h2 { font-size: 1.4em; margin: 32px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--primary); font-weight: 700; }
+  h3 { font-size: 1.1em; margin: 24px 0 12px; font-weight: 600; }
+  h4 { font-size: 1em; margin: 16px 0 8px; font-weight: 600; color: var(--text); }
+  p, li { color: var(--text-secondary); margin-bottom: 8px; }
+  .card { background: var(--card-bg); border-radius: 12px; padding: 24px; margin-bottom: 16px; border: 1px solid var(--border); box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+  pre { background: var(--code-bg); color: #cdd6f4; padding: 16px; border-radius: 8px; overflow-x: auto; margin: 12px 0; font-size: 0.85em; line-height: 1.5; }
+  pre code { background: none; padding: 0; color: inherit; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9em; margin: 12px 0; }
+  th { background: #f0f5ff; text-align: left; padding: 10px 12px; font-weight: 600; border-bottom: 2px solid var(--primary); }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .tag { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 0.8em; font-weight: 600; margin-right: 6px; }
+  .tag-p0 { background: #fff2f0; color: #cf1322; border: 1px solid #ffa39e; }
+  .tag-p1 { background: #fff7e6; color: #d48806; border: 1px solid #ffd591; }
+  .tag-p2 { background: #e6f7ff; color: #096dd9; border: 1px solid #91d5ff; }
+  .diagram { background: #fafafa; border: 1px solid var(--border); border-radius: 8px; padding: 32px; margin: 16px 0; text-align: center; }
+  .diagram pre { background: none; color: var(--text); text-align: left; font-size: 0.85em; line-height: 1.6; }
+  ul, ol { padding-left: 20px; }
+  li { margin-bottom: 4px; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+  .highlight-box { background: #f6ffed; border-left: 4px solid var(--success); padding: 16px; border-radius: 8px; margin: 16px 0; }
+  .warn-box { background: #fff7e6; border-left: 4px solid var(--warning); padding: 16px; border-radius: 8px; margin: 16px 0; }
+  .file-path { font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: #666; background: #f5f5f5; padding: 1px 6px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>🏗️ EduMentor 沉浸课堂优化 — 架构设计</h1>
+<p style="font-size: 1.1em; color: var(--text-secondary);">Architecture Design Document — v2.0</p>
+<div style="margin: 8px 0 32px; color:#999;">
+  基于 PRD v2.0-draft • 2026-06-25
+</div>
+
+<!-- ================================================================ -->
+<h2>1. 现有架构分析</h2>
+
+<div class="card">
+  <h3>1.1 当前组件树</h3>
+  <pre>
+ClassroomPlayback
+├── 顶部：标题栏 + 状态 Tag
+├── 场景导航：水平 Button 滚动条 (Ant Design Button)
+├── 进度条：Ant Design Progress
+├── 主要内容区
+│   ├── 场景标题 Tag
+│   ├── ActionDispatcher
+│   │   ├── SpeechRenderer        (36 行)
+│   │   ├── WhiteboardRenderer     (55 行)
+│   │   ├── QuizRenderer           (145 行)
+│   │   ├── DiscussionRenderer     (55 行)
+│   │   ├── SceneTransitionRenderer (42 行)
+│   │   └── PauseForThoughtRenderer (29 行)
+│   └── 控制栏：播放/暂停/上一步/下一步
+└── Live 模式：讨论状态提示</pre>
+</div>
+
+<div class="card">
+  <h3>1.2 当前状态管理</h3>
+  <p><code>usePlayback.ts</code> (278 行) 是一个单一的 React Hook，管理以下状态：</p>
+  <ul>
+    <li><code>state</code>: <code>'idle' | 'playing' | 'paused' | 'live'</code></li>
+    <li><code>currentSceneIndex / currentActionIndex</code>: 位置指针</li>
+    <li><code>actionTimerRef</code>: <code>setTimeout</code> 控制自动播放</li>
+    <li><code>progressTimerRef</code>: <code>setInterval</code> 进度上报</li>
+  </ul>
+  <p class="warn-box"><strong>问题：</strong> 单一 hook 承载所有状态和逻辑，随着 TTS 播放控制、动画状态、音频状态等新能力的加入，会迅速膨胀到不可维护。</p>
+</div>
+
+<!-- ================================================================ -->
+<h2>2. 目标架构</h2>
+
+<div class="card">
+  <h3>2.1 新增组件树</h3>
+  <pre>
+ClassroomPlayback
+├── ClassroomHeader            ← 从主文件提取
+│   ├── 课堂标题 + 状态
+│   └── AI 讲师 Avatar 区域    ← [新增]
+│       ├── TeacherAvatar
+│       └── SpeakingIndicator
+├── ClassroomLayout             ← [新增] 侧边栏 + 内容区布局
+│   ├── SceneSidebar            ← [新增/替换] 场景导航
+│   │   ├── SceneItem (×N)
+│   │   │   ├── TypeIcon
+│   │   │   └── SceneThumbnail  ← [新增]
+│   │   └── GeneratingSkeleton  ← [新增]
+│   └── ContentArea
+│       ├── AnimatedSceneContainer ← [新增] 场景过渡容器
+│       │   └── (AnimatePresence 包装)
+│       └── ActionDispatcher (增强动画版)
+│           ├── AnimatedSpeechRenderer       ← [增强]
+│           ├── AnimatedWhiteboardRenderer   ← [增强]
+│           ├── AnimatedQuizRenderer         ← [增强]
+│           ├── AnimatedDiscussionRenderer   ← [增强]
+│           ├── AnimatedSceneTransitionRenderer ← [增强]
+│           └── AnimatedPauseForThoughtRenderer ← [增强]
+├── PlaybackControls           ← 控制栏（提取+增强）
+└── ProgressBar</pre>
+</div>
+
+<div class="card">
+  <h3>2.2 新增/修改文件清单</h3>
+  <table>
+    <tr><th>文件路径</th><th>操作</th><th>说明</th></tr>
+    <tr><td><span class="file-path">frontend/src/pages/classroom/animations.ts</span></td><td><span class="tag" style="background:#e6f7ff;border-color:#91d5ff;color:#096dd9;">新增</span></td><td>统一动画配置常量 + 动画变体定义</td></tr>
+    <tr><td><span class="file-path">frontend/src/pages/classroom/components/TeacherAvatar.tsx</span></td><td><span class="tag" style="background:#e6f7ff;border-color:#91d5ff;color:#096dd9;">新增</span></td><td>AI 讲师头像组件</td></tr>
+    <tr><td><span class="file-path">frontend/src/pages/classroom/components/SceneSidebar.tsx</span></td><td><span class="tag" style="background:#e6f7ff;border-color:#91d5ff;color:#096dd9;">新增</span></td><td>场景侧边栏（替换 ClassroomPlayback 中的导航按钮）</td></tr>
+    <tr><td><span class="file-path">frontend/src/pages/classroom/components/SceneThumbnail.tsx</span></td><td><span class="tag" style="background:#e6f7ff;border-color:#91d5ff;color:#096dd9;">新增</span></td><td>场景缩略图预览</td></tr>
+    <tr><td><span class="file-path">frontend/src/hooks/useTTSPlayer.ts</span></td><td><span class="tag" style="background:#e6f7ff;border-color:#91d5ff;color:#096dd9;">新增</span></td><td>TTS 播放控制 hook</td></tr>
+    <tr><td><span class="file-path">frontend/src/services/ttsService.ts</span></td><td><span class="tag" style="background:#e6f7ff;border-color:#91d5ff;color:#096dd9;">新增</span></td><td>TTS API 调用服务</td></tr>
+    <tr><td><span class="file-path">frontend/src/pages/classroom/usePlayback.ts</span></td><td><span class="tag" style="background:#fff7e6;border-color:#ffd591;color:#d48806;">修改</span></td><td>集成 TTS 控制，优化自动播放逻辑</td></tr>
+    <tr><td><span class="file-path">frontend/src/pages/classroom/ClassroomPlayback.tsx</span></td><td><span class="tag" style="background:#fff7e6;border-color:#ffd591;color:#d48806;">重构</span></td><td>接入新组件，优化布局</td></tr>
+    <tr><td><span class="file-path">frontend/src/pages/classroom/components/SpeechRenderer.tsx</span></td><td><span class="tag" style="background:#fff7e6;border-color:#ffd591;color:#d48806;">增强</span></td><td>添加动画 + TTS 波形指示</td></tr>
+    <tr><td><span class="file-path">frontend/src/pages/classroom/components/QuizRenderer.tsx</span></td><td><span class="tag" style="background:#fff7e6;border-color:#ffd591;color:#d48806;">增强</span></td><td>添加选项动画 + 反馈动画</td></tr>
+    <tr><td><span class="file-path">frontend/src/pages/classroom/components/WhiteboardRenderer.tsx</span></td><td><span class="tag" style="background:#fff7e6;border-color:#ffd591;color:#d48806;">增强</span></td><td>Markdown/公式/代码渲染 + 动画</td></tr>
+    <tr><td><span class="file-path">frontend/src/pages/classroom/components/SceneTransitionRenderer.tsx</span></td><td><span class="tag" style="background:#fff7e6;border-color:#ffd591;color:#d48806;">增强</span></td><td>场景切换动画增强</td></tr>
+    <tr><td><span class="file-path">frontend/src/pages/classroom/components/DiscussionRenderer.tsx</span></td><td><span class="tag" style="background:#fff7e6;border-color:#ffd591;color:#d48806;">增强</span></td><td>动画增强</td></tr>
+    <tr><td><span class="file-path">frontend/src/pages/classroom/components/PauseForThoughtRenderer.tsx</span></td><td><span class="tag" style="background:#fff7e6;border-color:#ffd591;color:#d48806;">增强</span></td><td>动画增强</td></tr>
+    <tr><td><span class="file-path">frontend/package.json</span></td><td><span class="tag" style="background:#fff7e6;border-color:#ffd591;color:#d48806;">修改</span></td><td>添加 <code>motion</code>, <code>react-markdown</code>, <code>katex</code> 等依赖</td></tr>
+  </table>
+</div>
+
+<!-- ================================================================ -->
+<h2>3. 核心模块设计</h2>
+
+<!-- 3.1 动画系统 -->
+<h3>3.1 统一动画系统</h3>
+<div class="card">
+  <h4>文件：<span class="file-path">animations.ts</span></h4>
+  <pre>
+// ================================================================
+// animations.ts — 统一动画变体配置
+// ================================================================
+import { type Variants, type Transition } from 'motion/react';
+
+// ── Spring 预设 ──
+export const springGently: Transition = {
+  type: 'spring', stiffness: 300, damping: 28, mass: 0.8,
+};
+export const springBouncy: Transition = {
+  type: 'spring', stiffness: 500, damping: 20, mass: 1.2,
+};
+export const springSnap: Transition = {
+  type: 'spring', stiffness: 600, damping: 35,
+};
+
+// ── 入场变体 ──
+export const fadeIn: Variants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: springGently },
+  exit: { opacity: 0, transition: { duration: 0.15 } },
+};
+
+export const slideUp: Variants = {
+  hidden: { opacity: 0, y: 24 },
+  visible: { opacity: 1, y: 0, transition: springGently },
+  exit: { opacity: 0, y: -12, transition: { duration: 0.15 } },
+};
+
+export const scaleIn: Variants = {
+  hidden: { opacity: 0, scale: 0.92 },
+  visible: { opacity: 1, scale: 1, transition: springGently },
+  exit: { opacity: 0, scale: 0.95, transition: { duration: 0.12 } },
+};
+
+// ── 场景过渡方向 ──
+export const sceneSlide = (direction: 1 | -1): Variants => ({
+  hidden: { opacity: 0, x: direction * 60 },
+  visible: { opacity: 1, x: 0, transition: springGently },
+  exit: { opacity: 0, x: direction * -60, transition: { duration: 0.2 } },
+});
+
+// ── 逐项弹出（列表） ──
+export const staggerContainer: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.08, delayChildren: 0.1 },
+  },
+};
+export const staggerItem: Variants = {
+  hidden: { opacity: 0, y: 16 },
+  visible: { opacity: 1, y: 0, transition: springGently },
+};</pre>
+</div>
+
+<!-- 3.2 TTS 系统 -->
+<h3>3.2 TTS 语音系统</h3>
+<div class="card">
+  <h4>架构分层</h4>
+  <pre>
+┌────────────────────────────────────────────┐
+│              useTTSPlayer hook              │  ← 状态管理层
+│  - isPlaying / isPaused / currentActionId   │
+│  - volume / rate / duration / progress      │
+│  - play() / pause() / stop() / prefetch()   │
+├────────────────────────────────────────────┤
+│              ttsService.ts                   │  ← API 服务层
+│  - synthesize(text): Promise&lt;AudioUrl&gt;       │
+│  - prefetchForScene(sceneId)               │
+├────────────────────────────────────────────┤
+│          AudioContext / HTMLAudioElement     │  ← 浏览器引擎层
+│  - 音频解码 + 播放 + 事件监听               │
+└────────────────────────────────────────────┘</pre>
+
+  <h4>数据流</h4>
+  <pre>
+1. 用户进入场景 → usePlayback 检测到第一个 speech Action
+2. → ttsService.synthesize(action.text) → 后端 TTS API → 返回 audio URL
+3. → 音频加载 → HTMLAudioElement.play()
+4. → SpeechRenderer 收到 isPlaying=true → 显示波形动画
+5. → 音频播放结束 → onEnded → usePlayback.nextAction()
+6. → 预取下一个 speech 的音频（prefetchForScene）
+</pre>
+
+  <h4>接口定义</h4>
+  <pre>
+// ttsService.ts
+export interface TTSRequest {
+  text: string;
+  voiceId?: string;      // 将来扩展
+  rate?: number;         // 1.0 = normal
+  language?: string;     // 自动检测
+}
+
+export interface TTSResponse {
+  audioUrl: string;      // 临时音频 URL
+  durationMs: number;    // 音频时长
+  format: 'mp3' | 'wav' | 'ogg';
+}
+
+export async function synthesize(request: TTSRequest): Promise&lt;TTSResponse&gt;;
+export async function prefetchSceneAudios(sceneId: string): Promise&lt;void&gt;;</pre>
+
+  <h4>hook 设计</h4>
+  <pre>
+// useTTSPlayer.ts
+export function useTTSPlayer() {
+  const [state, setState] = useState&lt;TTSPlayerState&gt;('idle');
+  const audioRef = useRef&lt;HTMLAudioElement | null&gt;(null);
+  const cacheRef = useRef&lt;Map&lt;string, string&gt;&gt;(new Map());  // text→audioUrl
+
+  const play = useCallback(async (text: string, actionId: string) => {
+    // 1. 检查缓存
+    let audioUrl = cacheRef.current.get(text);
+    if (!audioUrl) {
+      const res = await synthesize({ text });
+      audioUrl = res.audioUrl;
+      cacheRef.current.set(text, audioUrl);
+    }
+    // 2. 创建/复用 Audio 元素
+    const audio = new Audio(audioUrl);
+    audioRef.current = audio;
+    // 3. 事件绑定
+    audio.onended = () => setState('completed');
+    audio.onerror = () => setState('error');
+    // 4. 播放
+    await audio.play();
+    setState('playing');
+  }, []);
+
+  const pause = useCallback(() => {
+    audioRef.current?.pause();
+    setState('paused');
+  }, []);
+
+  const stop = useCallback(() => {
+    audioRef.current?.pause();
+    audioRef.current = null;
+    setState('idle');
+  }, []);
+
+  return { state, play, pause, stop, prefetch: prefetchSceneAudios };
+}</pre>
+</div>
+
+<!-- 3.3 AI 讲师 -->
+<h3>3.3 AI 讲师 Avatar 系统</h3>
+<div class="card">
+  <h4>组件设计</h4>
+  <pre>
+// TeacherAvatar.tsx
+interface TeacherAvatarProps {
+  avatar: string;           // 头像图片 URL
+  role: 'teacher' | 'assistant' | 'tutor';
+  isSpeaking: boolean;      // 是否正在讲话
+  sceneTitle?: string;      // 当前场景标题（角色卡显示）
+}
+
+// 布局：
+// 固定在 ClassroomPlayback 右上角
+// 普通状态：64x64 圆形头像，静止
+// 讲话状态：头像外圈脉冲辉光 + 头像轻微呼吸缩放
+// 角色卡：首次进入时，从头像位置弹出角色介绍卡</pre>
+
+  <h4>动画设计</h4>
+  <pre>
+// 入场：从右上角 slideIn + 弹跳
+// 讲话脉冲：@keyframes 呼吸
+//    0% { scale: 1; box-shadow: 0 0 0 0 rgba(22,119,255,0.4) }
+//   50% { scale: 1.03; box-shadow: 0 0 12px 4px rgba(22,119,255,0.15) }
+//  100% { scale: 1; box-shadow: 0 0 0 0 rgba(22,119,255,0.4) }
+// 角色卡翻转：3D 翻转动画（Y轴旋转 0° → 180° 再回来）</pre>
+</div>
+
+<!-- 3.4 场景侧边栏 -->
+<h3>3.4 场景侧边栏</h3>
+<div class="card">
+  <h4>组件设计</h4>
+  <pre>
+// SceneSidebar.tsx
+interface SceneSidebarProps {
+  scenes: SceneDetailDto[];
+  currentSceneIndex: number;
+  completedScenes: number;
+  onSceneSelect: (index: number) => void;
+  collapsed: boolean;
+  onCollapseChange: (collapsed: boolean) => void;
+}
+
+// 布局容器：flex row，侧边栏 + 内容区
+// 侧边栏宽度：可拖拽（170px ~ 400px），默认 220px
+// 每项场景：序号圆圈 → 标题 → 类型图标 → 缩略图（简版）
+// 已完成：绿色勾选标记
+// 当前项：紫色高亮背景 + 边框
+// 生成中：骨架屏动画（灰色脉冲条）</pre>
+
+  <h4>拖拽实现</h4>
+  <pre>
+// 在侧边栏右边缘放置一个 6px 宽的拖拽手柄
+// mousedown → 注册 mousemove/mouseup 监听
+// 使用 CSS transition 优化（拖拽时 transition: none）
+// Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, newWidth)) 防越界</pre>
+
+  <h4>缩略图设计（v1 简化版）</h4>
+  <pre>
+// SceneThumbnail.tsx
+// 对于 speech 场景：显示前 3 个关键句摘要
+// 对于 quiz 场景：显示"📝 3 道练习题" 标签
+// 对于 wb_draw 场景：显示 "📐 白板内容" + 内容摘要
+// 对于 discussion 场景：显示 "💬 讨论主题：" + 标题
+// 使用 motion 的 layoutId 实现选中项的平滑过渡</pre>
+</div>
+
+<!-- 3.5 课件富化 -->
+<h3>3.5 富白板渲染器</h3>
+<div class="card">
+  <h4>依赖添加</h4>
+  <ul>
+    <li><code>react-markdown</code> — Markdown 渲染</li>
+    <li><code>react-syntax-highlighter</code> — 代码高亮（或 shiki）</li>
+    <li><code>katex</code> — LaTeX 公式渲染</li>
+    <li><code>motion</code> — 动画引擎</li>
+  </ul>
+
+  <h4>渲染流程</h4>
+  <pre>
+  输入: action.content (纯文本或 Markdown)
+  ↓
+  react-markdown 渲染出 HTML
+  ↓
+  识别代码块 → react-syntax-highlighter 替换
+  识别 $$...$$ → katex 替换
+  识别 ![...](url) → 图片组件
+  ↓
+  motion.div 包装入场动画
+  ↓
+  输出到 DOM</pre>
+</div>
+
+<!-- ================================================================ -->
+<h2>4. 状态管理重构</h2>
+
+<div class="card">
+  <h3>4.1 当前 vs 目标</h3>
+  <table>
+    <tr><th>当前（usePlayback.ts）</th><th>目标（usePlayback.ts + useTTSPlayer）</th></tr>
+    <tr><td>
+      <pre>单一 hook:
+- state 枚举
+- scene/action 指针
+- setTimeout 自动播放
+- setInterval 进度上报
+- Quiz 提交
+- API 加载</pre>
+    </td>
+    <td>
+      <pre>usePlayback（精简）:
+- scene/action 指针
+- 进度上报
+- Quiz 提交
+- API 加载
+- 调用 useTTSPlayer
+
+useTTSPlayer（新增）:
+- 音频播放状态
+- play/pause/stop
+- 缓存管理
+- 播放链回调</pre>
+    </td>
+  </tr></table>
+
+  <h3>4.2 自动播放链优化</h3>
+  <pre>
+// 当前：所有类型统一 setTimeout 3s
+// 目标：基于 Action 类型 + TTS 状态
+
+switch (currentAction.type) {
+  case 'speech':
+    // TTS 播放结束后自动 nextAction
+    // TTS 状态 'completed' → nextAction()
+    break;
+  case 'speech_with_highlight':
+    // TTS 播放结束后自动 nextAction
+    break;
+  case 'scene_transition':
+    // 显示 2s 过渡动画后自动 nextAction
+    break;
+  case 'pause_for_thought':
+    // 1.5s 后自动 nextAction
+    break;
+  case 'quiz':
+  case 'discussion':
+    // 等待用户交互，不自动前进
+    break;
+  case 'wb_draw_text':
+  case 'wb_draw_diagram':
+    // 3s 展示时间后自动 nextAction
+    break;
+  case 'code_demo':
+    // 4s 展示时间后自动 nextAction
+    break;
+}</pre>
+</div>
+
+<!-- ================================================================ -->
+<h2>5. 目录结构（最终）</h2>
+
+<div class="card">
+  <pre>
+frontend/src/pages/classroom/
+├── ClassroomPlayback.tsx          ← 重构：提取子组件，集成动画
+├── ClassroomList.tsx              ← 不变
+├── ClassroomHistory.tsx           ← 不变
+├── TeacherClassrooms.tsx          ← 不变
+├── usePlayback.ts                 ← 修改：集成 TTS
+├── animations.ts                  ← [新增] 统一动画配置
+├── components/
+│   ├── ActionDispatcher.tsx       ← 增强：添加 motion 包装
+│   ├── SpeechRenderer.tsx         ← 增强：TTS 视觉反馈 + 动画
+│   ├── WhiteboardRenderer.tsx     ← 增强：Markdown/公式/代码 + 动画
+│   ├── QuizRenderer.tsx           ← 增强：选项/反馈动画
+│   ├── DiscussionRenderer.tsx     ← 增强：入场动画
+│   ├── SceneTransitionRenderer.tsx← 增强：过渡动画
+│   ├── PauseForThoughtRenderer.tsx← 增强：动画
+│   ├── TeacherAvatar.tsx          ← [新增] AI 讲师头像
+│   ├── SceneSidebar.tsx           ← [新增] 场景侧边栏
+│   └── SceneThumbnail.tsx         ← [新增] 场景缩略图
+
+frontend/src/hooks/
+├── useTTSPlayer.ts                ← [新增] TTS 播放控制
+
+frontend/src/services/
+├── ttsService.ts                  ← [新增] TTS API 服务</pre>
+</div>
+
+<hr>
+<p style="text-align:center; color:#999; font-size:0.85em;">— Architecture Design End —</p>
+
+</div>
+</body>
+</html>
+

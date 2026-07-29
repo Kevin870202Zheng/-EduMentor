@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduMentor vs OpenMAIC 电子课堂对比分析</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 1100px; margin: 0 auto; padding: 24px; background: #f5f5f5; color: #333; line-height: 1.7; }
+  h1 { font-size: 28px; border-bottom: 3px solid #1677ff; padding-bottom: 12px; }
+  h2 { font-size: 22px; margin-top: 36px; border-left: 4px solid #1677ff; padding-left: 12px; }
+  h3 { font-size: 18px; margin-top: 28px; color: #444; }
+  .summary-box { background: #e6f4ff; border: 1px solid #91caff; border-radius: 12px; padding: 20px; margin: 20px 0; }
+  .verdict-box { background: #fff7e6; border: 1px solid #ffd591; border-radius: 12px; padding: 20px; margin: 20px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  th, td { border: 1px solid #ddd; padding: 10px 14px; text-align: left; }
+  th { background: #f0f0f0; font-weight: 600; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+  .badge.red { background: #fff1f0; color: #cf1322; }
+  .badge.green { background: #f6ffed; color: #389e0d; }
+  .badge.orange { background: #fff7e6; color: #d46b08; }
+  .badge.blue { background: #e6f4ff; color: #1677ff; }
+  .severity { font-weight: 600; }
+  .severity.critical { color: #cf1322; }
+  .severity.high { color: #d46b08; }
+  .severity.medium { color: #1677ff; }
+  .severity.low { color: #389e0d; }
+  ul { padding-left: 20px; }
+  li { margin: 6px 0; }
+  .code { background: #f6f8fa; padding: 2px 6px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<h1>EduMentor vs OpenMAIC 电子课堂功能对比分析</h1>
+<p>分析目的：找出 EduMentor 课程展示前端效果远不如 OpenMAIC 的根本原因，产出可执行的改进方向。</p>
+
+<div class="summary-box">
+  <strong>结论先行：</strong>EduMentor 的"沉浸课堂"并非<strong>不完整</strong>，而是<strong>在视觉体验、交互深度、内容渲染、动画反馈、生成预览、AI 角色塑造六大维度上全面落后</strong>。OpenMAIC 经历了更长的迭代周期，其 Stage 组件体系是一个<strong>经过深度打磨的、可编辑的、多媒体丰富的课件播放引擎</strong>，而 EduMentor 的 ClassroomPlayback 更接近一个<strong>最小可行性原型（MVP）</strong>。
+</div>
+
+<!-- ========== 1 ========== -->
+<h2>一、技术栈对比</h2>
+<table>
+  <thead>
+    <tr><th>维度</th><th>EduMentor</th><th>OpenMAIC</th><th>差距</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>框架</td><td>React 18</td><td>Next.js 16 + React 19</td>
+      <td><span class="badge orange">OpenMAIC 使用更新的 SSR/SSG 框架</span></td>
+    </tr>
+    <tr>
+      <td>语言</td><td>混合 JSX + TSX（部分 .ts、部分 .jsx）</td><td>纯 TypeScript</td>
+      <td><span class="badge orange">EduMentor 类型一致性差</span></td>
+    </tr>
+    <tr>
+      <td>UI 库</td><td>Ant Design 5（重型组件库）</td><td>shadcn/ui + Radix UI + Tailwind CSS</td>
+      <td><span class="badge orange">Ant Design 定制化能力弱、包体积大</span></td>
+    </tr>
+    <tr>
+      <td>动画</td><td>无专用动画库</td><td>motion (Framer Motion) + CSS animations + GSAP</td>
+      <td><span class="badge red">巨大差距 — 动画是视觉体验的核心</span></td>
+    </tr>
+    <tr>
+      <td>状态管理</td><td>React useState + useRef 手动管理</td><td>Zustand（持久化 + immer）</td>
+      <td><span class="badge orange">EduMentor 缺乏全局状态管理</span></td>
+    </tr>
+    <tr>
+      <td>样式方案</td><td>Ant Design 主题 + inline style</td><td>Tailwind CSS + CSS Modules + 高级主题系统</td>
+      <td><span class="badge orange">inline style 难以维护且性能差</span></td>
+    </tr>
+    <tr>
+      <td>字体/排版</td><td>系统默认字体</td><td>12 种精选字体（Inter, Noto Sans SC, LaTeX 等）</td>
+      <td><span class="badge red">巨大差距</span></td>
+    </tr>
+    <tr>
+      <td>数学公式</td><td>无支持</td><td>KaTeX + temml + MathML 转换</td>
+      <td><span class="badge red">巨大差距</span></td>
+    </tr>
+    <tr>
+      <td>代码高亮</td><td>无支持</td><td>Shiki（语法高亮引擎）</td>
+      <td><span class="badge red">巨大差距</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ========== 2 ========== -->
+<h2>二、课程展示核心架构差距</h2>
+
+<h3>2.1 渲染模型对比</h3>
+<table>
+  <thead>
+    <tr><th>维度</th><th>EduMentor</th><th>OpenMAIC</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>核心组件</td><td>ClassroomPlayback.tsx（296 行）</td><td>Stage.tsx + PlaybackChromeRoot.tsx（~2000 行）</td>
+    </tr>
+    <tr>
+      <td>场景类型</td><td>线性 Action 列表（speech/quiz/whiteboard/discussion）</td><td>4 种独立场景：slide（画布）、quiz（问卷）、interactive（交互 iframe）、pbl（项目式学习）</td>
+    </tr>
+    <tr>
+      <td>内容渲染</td><td>纯文本 + 基本卡片 + 简单 Radio 选择题</td><td>画布式 Slide 渲染器：支持文本/图片/形状/表格/代码/LateX/视频/图表等 10+ 元素类型</td>
+    </tr>
+    <tr>
+      <td>播放引擎</td><td>手动 setTimeout + useRef 管理</td><td>独立 PlaybackEngine 类 + ActionEngine 类 + 状态机</td>
+    </tr>
+    <tr>
+      <td>进度持久化</td><td>每 5 秒调用 API</td><td>本地 localStorage/IndexedDB 持久化 + API 双写</td>
+    </tr>
+    <tr>
+      <td>自动播放</td><td>简单 useEffect 定时器</td><td>PlaybackEngine 状态机驱动，支持场景内 Action 重放、断点续播</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>2.2 Slide/课件渲染 — 最大差距所在</h3>
+<p>这是 EduMentor 与 OpenMAIC 之间<strong>最根本的差距</strong>。</p>
+
+<p><strong>OpenMAIC 的 Slide 渲染器</strong>是一个<strong>完整的画布式课件引擎</strong>，文件结构如下：</p>
+<ul>
+  <li>Canvas 层：<code>components/slide-renderer/Editor/Canvas/</code> — 无限画布、网格线、缩放</li>
+  <li>元素层：10 种元素类型（Text / Image / Shape / Table / Code / LaTeX / Video / Chart / Line / Group）</li>
+  <li>每个元素都有独立的 Base*Element + 编辑态 + 播放态</li>
+  <li>支持：锚点对齐、旋转、阴影、描边、渐变填充、透明度、裁剪路径</li>
+  <li>支持：Spotlight 高亮叠加层（<code>SpotlightOverlay.tsx</code>）</li>
+  <li>缩放/平移、全屏演示模式、画布比例自适应</li>
+</ul>
+
+<p><strong>EduMentor 的"白板"</strong>只是一个简单的 <code>WhiteboardRenderer.tsx</code>（55 行）：</p>
+<ul>
+  <li>一个带虚线边框的 Card 组件</li>
+  <li>纯文本内容展示（<code>action.text || action.wbContent</code>）</li>
+  <li>无图形、无图片、无表格、无公式、无代码高亮</li>
+  <li>更致命的是：白板内容仅作为纯文本从 AI 生成，不是结构化的画布元素</li>
+</ul>
+
+<h3>2.3 场景导航对比</h3>
+<p><strong>EduMentor：</strong>横向排列的 Ant Design Button 列表（<code>classroom.scenes.map</code>），只显示标题文本。</p>
+<p><strong>OpenMAIC：</strong>可拖拽宽度的侧边栏（220px~400px），每个场景以<strong>可视化缩略图</strong>展示：</p>
+<ul>
+  <li>Slide 场景：实时缩略图 <code>SlideThumbnail</code>，展示画布上的所有元素</li>
+  <li>Quiz 场景：模拟 2×2 选项网格小图</li>
+  <li>Interactive 场景：浏览器窗口 + iframe 实时预览</li>
+  <li>PBL 场景：看板式三列 Kanban 小图</li>
+  <li>生成中的场景：skeleton pulsing 动画 + 失败状态（错误图标 + 重试按钮）</li>
+  <li>课程完成标记：金色 Trophy 图标 + 星形装饰</li>
+</ul>
+
+<!-- ========== 3 ========== -->
+<h2>三、视觉体验差距详解</h2>
+
+<h3>3.1 动画与微交互</h3>
+<table>
+  <thead>
+    <tr><th>场景</th><th>EduMentor</th><th>OpenMAIC</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>场景切换</td><td>无动画，立即切换</td><td>AnimatePresence 淡入淡出 + Spring 弹性动画</td></tr>
+    <tr><td>Action 过渡</td><td>按钮点击或定时器跳转</td><td>PlaybackEngine 驱动的平滑过渡，结合 TTS 音频节奏</td></tr>
+    <tr><td>加载状态</td><td>Ant Design Spin 组件</td><td>Skeleton pulsing shimmer + 自定义加载动画</td></tr>
+    <tr><td>生成进度</td><td>无</td><td>6 步可视化流程（PDF扫描 → 网络搜索 → 大纲 → 智能体创建 → 内容 → 动作）</td></tr>
+    <tr><td>大纲流式展示</td><td>无</td><td>实时 SSE 流式大纲，时间线动画 + 圆点脉搏</td></tr>
+    <tr><td>交互反馈</td><td>基本 Ant Design 交互</td><td>Spring 弹性动画、悬浮缩放、微光扫描线、轨道环旋转</td></tr>
+    <tr><td>背景/氛围</td><td>纯色 #fafafa</td><td>毛玻璃 backdrop-blur、微妙渐变、圆形辉光</td></tr>
+    <tr><td>全屏演示</td><td>无</td><td>全屏演示模式，自动隐藏控件，鼠标移动恢复</td></tr>
+  </tbody>
+</table>
+
+<h3>3.2 大纲/生成预览 — EduMentor 完全缺失</h3>
+<p><strong>OpenMAIC 的 <code>generation-preview/page.tsx</code>（1581 行）</strong>是一个完整的课程生成预览系统：</p>
+<ul>
+  <li>6 个步骤可视化：PDF 解析 → 网络搜索 → 大纲流式生成 → AI 智能体自动创建 → 课件内容生成 → 教学动作生成</li>
+  <li>每个步骤都有独立的 <code>StepVisualizer</code> 动画组件（<code>visualizers.tsx</code>，848 行）</li>
+  <li>大纲流式展示：SSE 实时推送 + 时间线圆点动画</li>
+  <li>可交互的大纲编辑（用户可在大纲生成后修改/确认）</li>
+  <li>Agent Reveal Modal：Flip Card 翻牌动画展示 AI 讲师</li>
+  <li>Web Search 结果集成展示</li>
+</ul>
+<p><strong>EduMentor：</strong>课堂是异步生成的（<code>POST /api/v2/classrooms/generate</code>），用户在列表页看到"生成中"状态等待，无任何生成过程的视觉反馈。</p>
+
+<!-- ========== 4 ========== -->
+<h2>四、AI 角色与交互深度差距</h2>
+
+<h3>4.1 虚拟讲师/智能体</h3>
+<p><strong>OpenMAIC：</strong></p>
+<ul>
+  <li>完整的 Agent 系统：自动生成 AI 讲师角色（名称/角色/人设/头像/语音）</li>
+  <li>12 种预设头像（教师/助教/好奇者/记录员/思考者等），Flip Card 翻牌动画展示</li>
+  <li>Discussion Trigger：AI 同学在讲课时主动提问打断</li>
+  <li>Roundtable 圆桌讨论组件：多人 AI 对话</li>
+  <li>Agent 语音分配 + TTS 配置</li>
+  <li>Chat Area 聊天区：课程讲解 + 即时问答 + SSE 流式输出</li>
+</ul>
+<p><strong>EduMentor：</strong></p>
+<ul>
+  <li><code>DiscussionRenderer.tsx</code> 中仅显示一个硬编码的 "AI同学 小E"</li>
+  <li>无头像、无角色定制、无语音</li>
+  <li>课件讲解仅是静态文字展示，无 TTS 播放</li>
+  <li>无问答交互功能</li>
+</ul>
+
+<h3>4.2 TTS（文字转语音）</h3>
+<p><strong>OpenMAIC：</strong>完整的 TTS 系统，支持：</p>
+<ul>
+  <li>多种 TTS Provider（browser-native / OpenAI TTS / 其他服务商）</li>
+  <li>生成时预先生成 TTS 音频并存储</li>
+  <li>播放时 audioPlayer 控制音量/语速/静音</li>
+  <li>讨论时实时 TTS</li>
+</ul>
+<p><strong>EduMentor：</strong>无 TTS 功能。</p>
+
+<!-- ========== 5 ========== -->
+<h2>五、代码质量与架构差距</h2>
+
+<table>
+  <thead>
+    <tr><th>维度</th><th>EduMentor</th><th>OpenMAIC</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>文件组织</td><td>pages/classroom/ + api/ 两层结构</td><td>components/ (ui/stage/edit/slide-renderer) + lib/ (store/playback/action/hooks) + app/</td></tr>
+    <tr><td>组件粒度</td><td>各 Renderer 文件 30~150 行，混合 ActionDispatcher 分发</td><td>PlaybackChromeRoot ~1680 行（但内聚高）、SceneRenderer 分发到独立组件</td></tr>
+    <tr><td>状态管理</td><td>useRef + useState 手动管理，逻辑分散</td><td>Zustand store（playback/canvas/settings/stage）+ PlaybackEngine 类</td></tr>
+    <tr><td>播放引擎</td><td>函数式 hook（usePlayback.ts）</td><td>Class 式 PlaybackEngine（状态机）+ ActionEngine（动作执行）+ StreamBuffer（文字流）</td></tr>
+    <tr><td>数据流</td><td>API 驱动（每次操作都调后端 API）</td><td>客户端优先（IndexedDB + localStorage），后端仅做持久化和生成任务</td></tr>
+    <tr><td>测试覆盖</td><td>无前端测试</td><td>Playwright E2E + Vitest 单元测试 + 专用 tests/ 目录</td></tr>
+    <tr><td>i18n</td><td>无</td><td>i18next + react-i18next</td></tr>
+  </tbody>
+</table>
+
+<!-- ========== 6 ========== -->
+<h2>六、总结：EduMentor 的根本问题</h2>
+
+<div class="verdict-box">
+  <h3 style="margin-top:0;">核心结论：EduMentor 的"沉浸课堂"是一个功能性 MVP，而非沉浸式体验。</h3>
+  <p>根本差距不在于某个单一的"bug"或"缺失功能"，而是以下 <strong>6 个维度</strong>的全面落后：</p>
+</div>
+
+<h3>P0 — 最严重问题（必须优先解决）</h3>
+<table>
+  <tr>
+    <td class="severity critical">P0</td>
+    <td><strong>课件的视觉呈现</strong></td>
+    <td>OpenMAIC 的核心是<strong>画布式 Slide 渲染器</strong>（10+ 元素类型），而 EduMentor 仅用纯文本展示。课件是课堂的"界面"，如果课件本身不好看，整个课堂就不好看。</td>
+  </tr>
+  <tr>
+    <td class="severity critical">P0</td>
+    <td><strong>缺少生成预览</strong></td>
+    <td>OpenMAIC 的 6 步生成预览 + 流式大纲 + 动画反馈是用户"被惊艳到"的第一印象。EduMentor 让用户面对一个"加载中"的 Spin。</td>
+  </tr>
+  <tr>
+    <td class="severity critical">P0</td>
+    <td><strong>缺乏动画与微交互</strong></td>
+    <td>EduMentor 没有任何动画框架，页面是"静态"的。OpenMAIC 使用 motion 在每个环节都注入了弹性动画、渐变、扫描线、辉光等。</td>
+  </tr>
+</table>
+
+<h3>P1 — 重要问题</h3>
+<table>
+  <tr>
+    <td class="severity high">P1</td>
+    <td><strong>无 TTS / 语音讲解</strong></td>
+    <td>课堂应该是"听得见的"，但 EduMentor 的"讲解"只是静态文本。</td>
+  </tr>
+  <tr>
+    <td class="severity high">P1</td>
+    <td><strong>AI 角色单一且无视觉表现</strong></td>
+    <td>OpenMAIC 有 12 种 AI 讲师头像 + 角色卡翻牌动画。EduMentor 只有文本 "AI同学 小E"。</td>
+  </tr>
+  <tr>
+    <td class="severity high">P1</td>
+    <td><strong>场景导航缺少缩略图</strong></td>
+    <td>EduMentor 的场景导航是文本按钮列表；OpenMAIC 的侧边栏有实时视觉缩略图。</td>
+  </tr>
+</table>
+
+<h3>P2 — 改进项</h3>
+<table>
+  <tr>
+    <td class="severity medium">P2</td>
+    <td><strong>缺乏全屏/演示模式</strong></td>
+    <td>OpenMAIC 支持全屏演示 + 自动隐藏控件。</td>
+  </tr>
+  <tr>
+    <td class="severity medium">P2</td>
+    <td><strong>无国际化（i18n）</strong></td>
+    <td>OpenMAIC 完整支持多语言。</td>
+  </tr>
+  <tr>
+    <td class="severity medium">P2</td>
+    <td><strong>播放引擎过于简单</strong></td>
+    <td>EduMentor 使用 useRef + setTimeout；OpenMAIC 使用独立 PlaybackEngine 类 + 状态机。</td>
+  </tr>
+</table>
+
+<!-- ========== 7 ========== -->
+<h2>七、改进建议路线图</h2>
+
+<h3>Phase 1 (MVP 升级) — 快速见效</h3>
+<ul>
+  <li><strong>引入动画库：</strong>安装 motion (Framer Motion)，为场景切换、Action 过渡、加载状态添加基础动画</li>
+  <li><strong>改进场景导航侧边栏：</strong>从横向 Button 改为左侧 SceneSidebar，增加场景类型图标和基本的视觉缩略图</li>
+  <li><strong>替换白板渲染器：</strong>将 WhiteboardRenderer 从纯文本升级为支持 Markdown / KaTeX 数学公式 / 代码高亮的渲染器</li>
+  <li><strong>添加生成进度反馈：</strong>在课堂生成过程中显示步骤进度条（哪怕只有 3 步：大纲→内容→完成）</li>
+  <li><strong>增加 AI 讲师头像：</strong>至少为不同角色（教师/助教）显示不同的圆形头像和颜色</li>
+</ul>
+
+<h3>Phase 2 (体验提升) — 核心重构</h3>
+<ul>
+  <li><strong>重构播放引擎：</strong>从 usePlayback hook 升级为独立的状态机类，支持断点续播、Action 重放</li>
+  <li><strong>添加 TTS 功能：</strong>集成浏览器原生 TTS 或云端 TTS API，让 speech 动作实际发声</li>
+  <li><strong>建设生成预览页：</strong>仿照 OpenMAIC 的 generation-preview，在课堂生成时展示流式大纲和进度</li>
+  <li><strong>Ant Design 逐步替换：</strong>引入 Tailwind CSS + Radix UI 原语，逐步替换重型 Ant Design 组件</li>
+  <li><strong>Slide 渲染器初步建设：</strong>先从 Text + Image + 表格 3 种元素开始，构建基础的画布式 Slide 组件</li>
+</ul>
+
+<h3>Phase 3 (追赶 OpenMAIC) — 长期目标</h3>
+<ul>
+  <li>完整的画布式 Slide 渲染器（10+ 元素类型）</li>
+  <li>AI Agent 系统：自动生成讲师角色、个性化头像、语音分配</li>
+  <li>讨论/问答交互：Chat Area + SSE 流式对话</li>
+  <li>全屏演示模式</li>
+  <li>PBL 场景支持</li>
+</ul>
+
+<!-- ========== 8 ========== -->
+<h2>八、决定性差距总结</h2>
+
+<p>最后用一个简单的方式总结：</p>
+
+<blockquote style="background: #f6f8fa; border-left: 4px solid #1677ff; padding: 16px 20px; margin: 20px 0; border-radius: 0 8px 8px 0;">
+OpenMAIC 的电子课堂是一个<strong>「AI 驱动的沉浸式课件播放器 + 实时交互平台」</strong>。<br><br>
+EduMentor 的电子课堂是一个<strong>「结构化的课件内容序列展示器」</strong>。
+</blockquote>
+
+<p>EduMentor 的功能骨架（Action 序列、场景划分、Quiz 提交）是合理的，但缺乏以下三个让体验"飞起来"的关键要素：</p>
+<ol>
+  <li><strong>动画：</strong>没有 motion 级别的动画库支持，所有过渡都是生硬的切换</li>
+  <li><strong>视听沉浸感：</strong>没有 TTS、没有 AI 角色视觉化、没有课件本身的丰富视觉渲染</li>
+  <li><strong>生成过程的仪式感：</strong>没有用动画和步骤分解来让用户感知"AI 正在为你创建课程"的过程</li>
+</ol>
+
+<p>如果不解决 P0 的三项问题（课件渲染、生成预览、动画体系），EduMentor 的"沉浸课堂"将始终停留在"能用但不好看"的阶段。</p>
+
+</body>
+</html>

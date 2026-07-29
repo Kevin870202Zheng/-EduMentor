@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduMentor v2.0 — 沉浸式智慧课堂需求文档</title>
+<style>
+  :root {
+    --bg: #fafafa;
+    --card: #ffffff;
+    --border: #e0e0e0;
+    --text: #1a1a2e;
+    --muted: #6b7280;
+    --accent: #2563eb;
+    --accent-light: #dbeafe;
+    --green: #059669;
+    --green-light: #d1fae5;
+    --orange: #d97706;
+    --orange-light: #fef3c7;
+    --red: #dc2626;
+    --red-light: #fee2e2;
+    --purple: #7c3aed;
+    --purple-light: #ede9fe;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, 'Segoe UI', 'Noto Sans SC', 'PingFang SC', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; padding: 2rem; }
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  h1 { font-size: 2rem; font-weight: 700; margin-bottom: 0.25rem; }
+  .subtitle { color: var(--muted); font-size: 1rem; margin-bottom: 1.5rem; }
+  h2 { font-size: 1.4rem; font-weight: 600; margin-top: 2.5rem; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--accent); }
+  h3 { font-size: 1.15rem; font-weight: 600; margin-top: 1.8rem; margin-bottom: 0.6rem; }
+  h4 { font-size: 1rem; font-weight: 600; margin-top: 1.2rem; margin-bottom: 0.4rem; }
+  p { margin-bottom: 0.8rem; }
+
+  .meta { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.5rem; display: flex; gap: 1.5rem; flex-wrap: wrap; }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; margin-bottom: 1.5rem; }
+  .card-title { font-weight: 600; font-size: 1.05rem; margin-bottom: 0.8rem; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.2rem; }
+  @media (max-width: 768px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+  .badge { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 999px; font-size: 0.75rem; font-weight: 500; }
+  .badge-p0 { background: var(--red-light); color: var(--red); }
+  .badge-p1 { background: var(--orange-light); color: var(--orange); }
+  .badge-p2 { background: var(--purple-light); color: var(--purple); }
+  .badge-green { background: var(--green-light); color: var(--green); }
+  .badge-blue { background: var(--accent-light); color: var(--accent); }
+
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
+  th, td { padding: 0.6rem 0.8rem; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: #f3f4f6; font-weight: 600; }
+
+  .flow { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85rem; background: #f3f4f6; padding: 1rem; border-radius: 8px; line-height: 1.6; white-space: pre; overflow-x: auto; }
+
+  .highlight { background: var(--accent-light); padding: 0.1rem 0.3rem; border-radius: 3px; font-weight: 500; }
+
+  ul, ol { margin: 0.5rem 0 1rem 1.5rem; }
+  li { margin-bottom: 0.3rem; }
+
+  .insight { border-left: 4px solid var(--accent); padding: 1rem 1.2rem; background: #f8faff; margin: 1rem 0; border-radius: 0 8px 8px 0; }
+  .insight-warn { border-left-color: var(--orange); background: #fffbeb; }
+  .insight-success { border-left-color: var(--green); background: #ecfdf5; }
+
+  .toc { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; margin-bottom: 2rem; }
+  .toc h3 { margin-top: 0; }
+  .toc ol { margin-top: 0.5rem; }
+  .toc li { margin-bottom: 0.4rem; }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+
+  .tag { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; margin-right: 0.3rem; }
+  .tag-new { background: var(--green-light); color: var(--green); }
+  .tag-change { background: var(--orange-light); color: var(--orange); }
+  .tag-keep { background: #f3f4f6; color: #6b7280; }
+
+  .story { border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.2rem; margin: 0.8rem 0; background: #fafcff; }
+  .story-title { font-weight: 600; color: var(--accent); margin-bottom: 0.3rem; }
+  .story-meta { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.5rem; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>EduMentor v2.0 — 沉浸式智慧课堂</h1>
+<p class="subtitle">让学习从"做题+问答"升级为"边学边练的沉浸式课堂体验"</p>
+<p class="meta">
+  <span>版本: 2.0 (Draft)</span>
+  <span>状态: 需求规划</span>
+  <span>依赖: EduMentor v1.0 (BKT + 学习路径 + 答疑 + 复盘)</span>
+  <span>参考: OpenMAIC Multi-Agent Classroom Architecture</span>
+</p>
+
+<div class="toc">
+  <h3>📑 目录</h3>
+  <ol>
+    <li><a href="#overview">产品愿景与定位</a></li>
+    <li><a href="#user-stories">用户故事</a></li>
+    <li><a href="#features">核心功能需求</a>
+      <ol>
+        <li><a href="#f1">课堂生成管线</a></li>
+        <li><a href="#f2">Playback 播放引擎</a></li>
+        <li><a href="#f3">多Agent教学交互</a></li>
+        <li><a href="#f4">课堂内Quiz与BKT联动</a></li>
+        <li><a href="#f5">学练结合流程</a></li>
+        <li><a href="#f6">教学动作系统</a></li>
+      </ol>
+    </li>
+    <li><a href="#ux">用户体验设计</a></li>
+    <li><a href="#data">数据模型</a></li>
+    <li><a href="#api">API 接口</a></li>
+    <li><a href="#tech">技术约束与决策</a></li>
+    <li><a href="#phases">分阶段实施计划</a></li>
+    <li><a href="#non-functional">非功能性需求</a></li>
+  </ol>
+</div>
+
+<!-- ======================== 1. 产品愿景与定位 ======================== -->
+<h2 id="overview">1. 产品愿景与定位</h2>
+
+<h3>1.1 现状问题</h3>
+<p>EduMentor v1.0 的核心产品形态是<strong>"诊断 → 推荐路径 → 做题 → 答疑 → 复盘"</strong>。学生的主要学习活动是做题和对话。这种形式存在以下不足：</p>
+<ul>
+  <li><strong>缺乏知识传授环节</strong>：学习路径节点仅展示"做题验证"，缺少"教师讲授"的过程</li>
+  <li><strong>学习体验单一</strong>：界面以列表、表格、对话气泡为主，缺乏沉浸感</li>
+  <li><strong>多Agent优势未发挥</strong>：当前仅支持单Agent答疑（苏格拉底式引导），没有课程中的多角色互动</li>
+  <li><strong>知识呈现方式单一</strong>：知识点以文本卡片展示，缺少白板、公式推导、可视化等教学手段</li>
+</ul>
+
+<h3>1.2 产品愿景</h3>
+<div class="insight">
+  <strong>一句话愿景：</strong>让每个学生拥有一位<strong>AI教师</strong>，自动根据薄弱点为TA生成专属课堂，边学边练，让知识从"被验证"到"被教授"。
+</div>
+
+<p><strong>核心体验升级：</strong></p>
+<div class="flow">
+┌─────────────────────────────────────────────────────────────┐
+│  v1.0 体验:                                                   │
+│  打开App → 学习路径列表 → 选节点 → 做题 → 错了？→ 去答疑      │
+│                                          ↓                   │
+│  v2.0 体验:                                                   │
+│  打开App → 智能诊断薄弱点 → AI教师自动生成今日课堂 →            │
+│  开始播放授课 → AI教师讲解 + 白板演示 + 穿插Quiz确认理解 →     │
+│  AI同学提问引发讨论 → 苏格拉底导师引导反思 →                    │
+│  下课前总结 + BKT更新 → 课后自适应练习题 → 完成                │
+└─────────────────────────────────────────────────────────────┘
+</div>
+
+<h3>1.3 目标用户</h3>
+<table>
+  <tr><th>用户</th><th>痛点</th><th>v2.0 解决</th></tr>
+  <tr>
+    <td>高校学生</td>
+    <td>自学缺乏教师引导，做题遇到难点无讲解，容易卡住放弃</td>
+    <td>AI教师自动生成课堂，主动讲解而不是被动等待提问</td>
+  </tr>
+  <tr>
+    <td>自学备考者</td>
+    <td>需要系统化的知识讲解，而非碎片化做题</td>
+    <td>知识点→课堂的自动转化，像真实上课一样系统学习</td>
+  </tr>
+  <tr>
+    <td>教师</td>
+    <td>需要了解学生的薄弱点和课堂学习表现</td>
+    <td>驾驶舱增加"课堂完成度"、"课堂Quiz正确率"等学情指标</td>
+  </tr>
+</table>
+
+<!-- ======================== 2. 用户故事 ======================== -->
+<h2 id="user-stories">2. 用户故事</h2>
+
+<div class="story">
+  <div class="story-title">📖 故事 1：小明的第一堂薄弱点补强课</div>
+  <div class="story-meta">角色：学生 | 触发条件：完成BKT诊断后</div>
+  <p>小明登录EduMentor，系统诊断出他在"微积分"课程的"链式求导法则"掌握度仅38%（薄弱知识点）。系统自动为该薄弱知识点生成了一堂15分钟的补强课——包含概念回顾、白板推导演示、三道渐进式Quiz。小明点击"开始学习"，AI教师开始讲解，每一步配合白板动画。讲解到第二道Quiz时，AI同学"小E"主动提问："为什么这里要用链式法则而不是乘法法则？" AI教师暂停，给予进一步的推导说明。答对所有Quiz后，BKT更新链式法则掌握度至72%。系统提示："知识点提升显著，是否继续下一课'隐函数求导'？"</p>
+</div>
+
+<div class="story">
+  <div class="story-title">📖 故事 2：小红的主动预习课堂</div>
+  <div class="story-meta">角色：学生 | 触发条件：主动选择知识点进入课堂</div>
+  <p>小红下周要学"概率论-贝叶斯公式"，选择该知识点→点击"生成预习课堂"。系统5秒内生成了4个教学场景：(1) 问题引入（用经典例子激发兴趣），(2) 公式推导（含白板动画），(3) 应用示例（含互动Quiz），(4) 总结与前置知识链接。小红边听边做笔记，遇到不理解的公式可以随时暂停并语音提问。课堂结束后，系统记录了小红在Quiz中的表现，推荐了相关的前置知识点复习。</p>
+</div>
+
+<div class="story">
+  <div class="story-title">📖 故事 3：小刚的课后复习+做题组合</div>
+  <div class="story-meta">角色：学生 | 触发条件：完成课堂学习后</div>
+  <p>小刚完成了"线性代数-矩阵乘法"课堂后，系统自动为他生成了5道针对性的练习题（基于课堂中Quzi答错的变体）。小刚做题时，每道题旁边都关联了课堂中的对应讲解片段——点击"回顾课堂"即可回看AI教师的对应讲解。做完所有题后，复习报告显示：课堂中的薄弱点在课后练习中正确率提升了40%。系统建议明天再进行一次间隔复习。</p>
+</div>
+
+<div class="story">
+  <div class="story-title">📖 故事 4：教师的课堂学情总览</div>
+  <div class="story-meta">角色：教师 | 触发条件：查看班级学情</div>
+  <p>李老师打开教师驾驶舱，看到"课堂学习"栏目：全班30人中有28人完成了"微积分-不定积分"的AI课堂，平均Quiz正确率82%。筛选出正确率低于60%的6位学生，可以看到他们在具体哪个教学场景中卡住了（例如："场景3：换元积分法"的Quiz答对率仅35%）。李老师据此决定下节课重点讲解换元积分法，并推送给这6位学生一份补充题。</p>
+</div>
+
+<!-- ======================== 3. 核心功能需求 ======================== -->
+<h2 id="features">3. 核心功能需求</h2>
+
+<!------------ 3.1 课堂生成管线 ------------>
+<h3 id="f1">3.1 课堂生成管线 <span class="tag tag-new">新增</span></h3>
+
+<h4>3.1.1 功能概述</h4>
+<p>基于课程知识图谱（KnowledgePoint + KnowledgeRelation），自动生成结构化课堂教学内容。这是整个v2.0的基础设施。</p>
+
+<h4>3.1.2 核心流程</h4>
+<div class="flow">
+┌───────────────────────────────────────────────────────────────────────┐
+│  输入: 知识点ID (或知识点集合) + 学生学习画像 (BKT状态)                │
+│                                                                       │
+│  阶段1: 课堂大纲生成 (SceneOutline)                                    │
+│  ─────────────────────────────────────────────────────────────────    │
+│  输入 → LLM 分析知识点 → 生成 3-8 个教学场景大纲                      │
+│  每个大纲: { type, title, description, keyPoints, teachingObjective }  │
+│  场景类型: slide(讲解) | quiz(练习) | interactive(互动)               │
+│  输出: SceneOutline[]                                                  │
+│                                                                       │
+│  阶段2: 场景内容生成 (Scene)                                           │
+│  ─────────────────────────────────────────────────────────────────    │
+│  每个大纲 → LLM 生成完整场景内容                                       │
+│  Slide场景: 讲解文本 + 教学动作序列 (speech/白板/高亮...)             │
+│  Quiz场景: 题目 + 选项 + 答案 + 讲解                                  │
+│  Interactive场景: 互动内容 + 引导逻辑                                  │
+│  输出: Scene[] (含 Action[])                                           │
+│                                                                       │
+│  阶段3: 持久化                                                         │
+│  ─────────────────────────────────────────────────────────────────    │
+│  保存到数据库: classroom + scene + action + scene_quiz                 │
+│  关联: classroom ↔ course ↔ knowledge_point                           │
+└───────────────────────────────────────────────────────────────────────┘
+</div>
+
+<h4>3.1.3 生成策略</h4>
+<table>
+  <tr><th>策略</th><th>适用场景</th><th>说明</th></tr>
+  <tr>
+    <td>逐场景按需生成</td>
+    <td>首次观看</td>
+    <td>只生成下一个场景（降低首屏等待），学生学完时后台预生成下一个</td>
+  </tr>
+  <tr>
+    <td>全量预生成</td>
+    <td>教师备课/离线导出</td>
+    <td>一次性生成所有场景，适合需要检查内容的教师</td>
+  </tr>
+  <tr>
+    <td>增量补强生成</td>
+    <td>复习/补强</td>
+    <td>基于已有课堂，仅针对薄弱知识点新增/替换场景</td>
+  </tr>
+</table>
+
+<h4>3.1.4 知识点→课堂大纲的提示词策略</h4>
+<table>
+  <tr><th>输入元素</th><th>说明</th></tr>
+  <tr><td>KnowledgePoint.name + description</td><td>核心教学内容</td></tr>
+  <tr><td>KnowledgeRelation (PREREQUISITE/SUBSUMED_BY)</td><td>前置/后置知识链接（用于课堂定位和回顾）</td></tr>
+  <tr><td>BKT 掌握度 (mastery)</td><td>学生当前掌握水平，控制讲解难度和深度</td></tr>
+  <tr><td>错题历史 (error_records)</td><td>学生曾做错的题目相关知识点，作为重点讲解方向</td></tr>
+  <tr><td>CourseMaterial (教材资料)</td><td>引用教材原文/示例，增强课堂权威性</td></tr>
+</table>
+
+<!------------ 3.2 Playback 播放引擎 ------------>
+<h3 id="f2">3.2 Playback 播放引擎 <span class="tag tag-new">新增</span></h3>
+
+<h4>3.2.1 功能概述</h4>
+<p>前端沉浸式播放器，逐场景播放教学内容，按Action顺序驱动教学动作。核心体验是"像看视频一样上课"，但内容是AI实时生成的交互式课堂。</p>
+
+<h4>3.2.2 状态机设计</h4>
+<div class="flow">
+                    start()                pause()
+    idling ──────────────────→ playing ──────────────→ paused
+      ▲                           │                       │
+      │     finish()              │  resume()              │
+      └───────────────────────────┘───────────────────────┘
+                                  │                         
+                    userInterrupt()                         
+                                  ▼                         
+                               live ──────────────→ paused
+                                 ▲      pause()       │
+                                 │                    │
+                                 └────────────────────┘
+                                  resume / user msg
+
+  状态说明:
+  - idling:   初始/结束，等待用户点击"开始"
+  - playing:  自动播放中，按顺序消费 Scene[].Action[]
+  - paused:   用户主动暂停/系统暂停等待用户操作（如完成Quiz）
+  - live:     讨论模式——学生打断发言/回答问题后，Agent接管对话流
+</div>
+
+<h4>3.2.3 播放控制</h4>
+<table>
+  <tr><th>控制</th><th>行为</th><th>优先级</th></tr>
+  <tr><td>▶ 开始/继续</td><td>从当前暂停的场景继续播放下一个Action</td><td><span class="badge badge-p0">P0</span></td></tr>
+  <tr><td>⏸ 暂停</td><td>停止当前Action执行，保存播放位置</td><td><span class="badge badge-p0">P0</span></td></tr>
+  <tr><td>⏭ 下一场景</td><td>跳过当前场景剩余Action，进入下一个场景</td><td><span class="badge badge-p1">P1</span></td></tr>
+  <tr><td>⏮ 上一场景</td><td>回到上一个场景从头播放</td><td><span class="badge badge-p1">P1</span></td></tr>
+  <tr><td>🙋 举手提问</td><td>中断播放 → 进入 live 模式 → 学生输入问题 → Agent回答 → 恢复播放</td><td><span class="badge badge-p0">P0</span></td></tr>
+  <tr><td>📌 场景选择</td><td>直接跳转到任意场景（不一定要按顺序播放）</td><td><span class="badge badge-p2">P2</span></td></tr>
+</table>
+
+<h4>3.2.4 播放器UI构成</h4>
+<ul>
+  <li><strong>主播放区</strong>：展示当前场景的内容（讲解文本、白板、Quiz、互动组件）</li>
+  <li><strong>场景导航</strong>：顶部/侧边显示场景列表（已完成/当前/未完成状态），可点击跳转</li>
+  <li><strong>控制栏</strong>：播放/暂停/上一场景/下一场景/进度条/TTS开关</li>
+  <li><strong>AI角色展示</strong>：当前发言Agent的头像、名字、角色（教师/同学/导师）</li>
+  <li><strong>讲解区</strong>：AI教师的当前讲解文本（流式显示或逐步显示）</li>
+  <li><strong>交互区</strong>：白板绘图区域 / Quiz作答区域 / 互动仿真区域</li>
+</ul>
+
+<!------------ 3.3 多Agent教学交互 ------------>
+<h3 id="f3">3.3 多Agent教学交互 <span class="tag tag-new">新增</span></h3>
+
+<h4>3.3.1 角色体系</h4>
+<table>
+  <tr><th>角色</th><th>职责</th><th>交互方式</th></tr>
+  <tr>
+    <td><strong>🧑‍🏫 AI教师 (Teacher)</strong></td>
+    <td>主讲人：讲解概念、推导公式、演示示例、主持课堂节奏</td>
+    <td>自动播放讲解 + 白板演示 + 提问引导，学生可随时打断提问</td>
+  </tr>
+  <tr>
+    <td><strong>🧑‍🎓 AI同学 (Classmate)</strong></td>
+    <td>学习伙伴：提出疑惑、展示错误思考过程、降低学生心理压力</td>
+    <td>在课堂中适时"举手"提问："老师，为什么这里不能直接用这个公式？"</td>
+  </tr>
+  <tr>
+    <td><strong>🧑‍🏫 苏格拉底导师 (Tutor)</strong></td>
+    <td>引导者：通过追问引导学生自己发现问题、反思总结</td>
+    <td>在Quiz答错后介入："你的答案是这样的，那我问你——这个公式的前提条件是什么？"</td>
+  </tr>
+</table>
+
+<h4>3.3.2 交互流程</h4>
+<div class="flow">
+┌────────────────────────────────────────────────────────────┐
+│  正常播放模式 (playing):                                     │
+│  AI教师按Action顺序讲解 → 每个Action渲染完成后自动下一个     │
+│  → 遇到QuizAction → 暂停等待学生作答 → 根据答对/错触发反馈 │
+│  → 继续下一个Action                                          │
+│                                                              │
+│  讨论模式 (live):                                            │
+│  学生打断/提问 → 暂停播放 → Director决定谁发言               │
+│  → Agent生成回答 + 可能的动作(白板/高亮)                     │
+│  → 多轮对话直到学生满意 → 恢复播放                           │
+│                                                              │
+│  AI同学触发:                                                   │
+│  在预设时机（讲解完复杂概念后）→ Director让AI同学"举手"       │
+│  → AI同学提一个问题 → AI教师解答 → 继续                      │
+└────────────────────────────────────────────────────────────┘
+</div>
+
+<p><strong>Java 实现方案：</strong>使用状态模式实现 Director-Agent 循环，调用现有 LLMService 做决策和内容生成，保持 Spring Boot 统一技术栈。</p>
+<ul>
+  <li><code>DirectorService</code>：决定当前场景的下一个Action/下一个Agent角色</li>
+  <li><code>AgentService</code>：根据角色和上下文生成教学内容文本+动作指令</li>
+  <li><code>PlaybackController</code>：管理播放状态，协调Action执行顺序</li>
+</ul>
+
+<p><strong>WebSocket 事件推送：</strong></p>
+<ul>
+  <li><code>text_delta</code>：流式讲解文本</li>
+  <li><code>action</code>：执行某个教学动作（白板绘图/高亮/Quiz...）</li>
+  <li><code>agent_start</code> / <code>agent_end</code>：Agent发言开始/结束</li>
+  <li><code>scene_change</code>：场景切换</li>
+  <li><code>cue_user</code>：等待学生操作</li>
+</ul>
+
+<!------------ 3.4 课堂内Quiz与BKT联动 ------------>
+<h3 id="f4">3.4 课堂内Quiz与BKT联动 <span class="tag tag-new">新增</span></h3>
+
+<h4>3.4.1 联动逻辑</h4>
+<div class="flow">
+课堂Quiz提交
+    │
+    ├── 答对 → 通知BKT引擎 (正确响应) → BKT更新知识点掌握度
+    │          → 掌握度 > 阈值 → 自动跳过后续same-KP的简单Quiz
+    │          → 课堂自适应缩短
+    │
+    └── 答错 → 通知BKT引擎 (错误响应) → BKT更新知识点掌握度
+               → 记录到 error_records (关联课堂ID+场景ID)
+               → AI教师补充讲解该知识点
+               → 生成一道同类变体题验证是否理解
+</div>
+
+<h4>3.4.2 课堂与错题联动的复习</h4>
+<div class="story" style="margin:0.8rem 0;">
+<strong>场景示例：</strong>
+<p>小刚在"矩阵乘法"课堂的场景3 Quiz中答错了一道关于"矩阵乘法结合律"的题目。系统自动：</p>
+<ol>
+  <li>将该题加入 error_records，标记来源为课堂</li>
+  <li>生成一条错题记录，附带此知识点的课堂讲解片段引用</li>
+  <li>在复习模式下，展示错题时提供"回放课堂讲解"按钮</li>
+  <li>基于艾宾浩斯遗忘曲线，在合适的时间提醒复习</li>
+</ol>
+</div>
+
+<!------------ 3.5 学练结合流程 ------------>
+<h3 id="f5">3.5 学练结合流程 <span class="tag tag-new">新增</span></h3>
+
+<h4>3.5.1 完整学习闭环</h4>
+<div class="flow">
+┌──────────────────────────────────────────────────────────────────┐
+│  完整的"学→练→测→复盘"闭环                                        │
+│                                                                  │
+│  ① 学情诊断 → BKT识别薄弱点 → 弱在哪？                          │
+│       ↓                                                         │
+│  ② 课堂生成 → 针对薄弱知识点生成3-5个教学场景                    │
+│       ↓                                                         │
+│  ③ 课堂播放 → AI教师边讲边练 + 穿插Quiz                         │
+│       ↓                                                         │
+│  ④ Quiz反馈 → BKT实时更新知识点掌握度                            │
+│       ↓                                                         │
+│  ⑤ 课后练习 → 基于课堂Quiz答错生成5道变体练习题                 │
+│       ↓                                                         │
+│  ⑥ 结果分析 → 对比"课堂Quiz vs 课后练习"掌握度变化               │
+│       ↓                                                         │
+│  ⑦ 下一课规划 → 根据最新BKT状态调整后续学习路径                  │
+└──────────────────────────────────────────────────────────────────┘
+</div>
+
+<h4>3.5.2 学习路径的升级</h4>
+<p>v1.0 的学习路径节点（LearningPathNode）仅指向"做题验证"。v2.0 升级为三种节点类型：</p>
+<table>
+  <tr><th>节点类型</th><th>含义</th><th>用户操作</th></tr>
+  <tr><td><code>classroom</code></td><td>沉浸式课堂学习节点</td><td>进入课堂播放器，自动播放教学</td></tr>
+  <tr><td><code>quiz</code></td><td>练习验证节点（现有方式）</td><td>做题 → 提交 → 看解析</td></tr>
+  <tr><td><code>review</code></td><td>复习+复盘节点</td><td>课堂片段回放 + 错题重做</td></tr>
+</table>
+
+<h4>3.5.3 "学练结合"UI设计</h4>
+<ul>
+  <li><strong>学习模式选择</strong>：学生进入课程后，可选择"课堂学习"或"直接做题"两种模式</li>
+  <li><strong>课堂播放器内嵌练习</strong>：课堂过程中自动穿插Quiz场景，完成后自动继续</li>
+  <li><strong>知识点关联</strong>：每道课后练习题旁边标注"关联课堂片段"，点击可回放AI教师对应讲解</li>
+  <li><strong>进度同步</strong>：课堂完成度 = 已学场景数 / 总场景数；练习完成度 = 已做题数 / 总题数</li>
+</ul>
+
+<!------------ 3.6 教学动作系统 ------------>
+<h3 id="f6">3.6 教学动作系统 <span class="tag tag-new">新增</span></h3>
+
+<h4>3.6.1 动作类型定义</h4>
+<table>
+  <tr><th>动作类型</th><th>含义</th><th>前端行为</th><th>优先级</th></tr>
+  <tr><td><code>speech</code></td><td>AI教师讲解</td><td>显示讲解文本（可配合TTS朗读）</td><td><span class="badge badge-p0">P0</span></td></tr>
+  <tr><td><code>speech_with_highlight</code></td><td>带高亮的讲解</td><td>讲解文本同时高亮屏幕上的关键元素</td><td><span class="badge badge-p1">P1</span></td></tr>
+  <tr><td><code>wb_draw_text</code></td><td>白板书写文字</td><td>在白板上逐字写出公式或要点</td><td><span class="badge badge-p1">P1</span></td></tr>
+  <tr><td><code>wb_draw_diagram</code></td><td>白板画图</td><td>在白板上画出图表/流程图</td><td><span class="badge badge-p2">P2</span></td></tr>
+  <tr><td><code>quiz</code></td><td>弹出题目</td><td>显示Quiz组件，等待学生作答</td><td><span class="badge badge-p0">P0</span></td></tr>
+  <tr><td><code>discussion</code></td><td>触发讨论</td><td>AI同学提问，或邀请学生思考</td><td><span class="badge badge-p1">P1</span></td></tr>
+  <tr><td><code>scene_transition</code></td><td>场景过渡</td><td>显示场景切换动画/标题</td><td><span class="badge badge-p1">P1</span></td></tr>
+  <tr><td><code>pause_for_thought</code></td><td>等待思考</td><td>暂停播放2-5秒，留出思考时间</td><td><span class="badge badge-p1">P1</span></td></tr>
+  <tr><td><code>code_demo</code></td><td>代码演示</td><td>显示代码片段并逐行高亮</td><td><span class="badge badge-p2">P2</span></td></tr>
+</table>
+
+<h4>3.6.2 Action 数据格式</h4>
+<div class="flow">
+// 后端LLM生成的结构化输出
+{
+  "sceneId": "uuid",
+  "order": 1,
+  "actions": [
+    {
+      "type": "speech",
+      "text": "同学们好，今天我们来学习链式求导法则。首先，让我们一起回顾一下什么是复合函数。",
+      "duration": 5000
+    },
+    {
+      "type": "wb_draw_text",
+      "content": "如果 y = f(g(x))，则 dy/dx = f'(g(x)) · g'(x)",
+      "position": "center"
+    },
+    {
+      "type": "speech",
+      "text": "这个公式的意思是：外层函数的导数乘以内层函数的导数。我们来看一个例子。",
+      "duration": 4000
+    },
+    {
+      "type": "quiz",
+      "question": "求 y = (2x+1)³ 的导数",
+      "options": ["...", "6(2x+1)²", "3(2x+1)²", "6x+3"],
+      "correctIndex": 1,
+      "explanation": "外层f(u)=u³ → f'=3u², 内层g(x)=2x+1 → g'=2, 相乘得6(2x+1)²"
+    }
+  ]
+}
+</div>
+
+<h4>3.6.3 前端渲染流程</h4>
+<div class="flow">
+场景加载 → 按顺序消费 actions[]:
+    │
+    ├─ speech → 讲解区显示文本，同时可选TTS朗读
+    │           → 等待 duration 毫秒 → 自动下一个Action
+    │
+    ├─ wb_draw_* → 白板区域执行绘图操作
+    │           → 完成后自动下一个Action
+    │
+    ├─ quiz → 显示Quiz组件 → 等待学生提交答案
+    │       → 根据答对/错 → AI教师反馈 → 继续
+    │       → 若答错 → 可能插入补充讲解Action
+    │
+    └─ discussion → 显示AI同学"举手"提示
+                  → 播放AI同学提问 → 等待学生回应或自动继续
+</div>
+
+<!-- ======================== 4. 用户体验设计 ======================== -->
+<h2 id="ux">4. 用户体验设计</h2>
+
+<h3>4.1 学生端新增/改造页面</h3>
+
+<table>
+  <tr><th>页面</th><th>类型</th><th>说明</th></tr>
+  <tr>
+    <td><strong>课堂播放器</strong></td>
+    <td><span class="tag tag-new">新增</span></td>
+    <td>沉浸式播放页面：顶部场景列表（横向滚动），中部交互区域（讲解区+白板区），底部控制栏，右侧AI角色展示区</td>
+  </tr>
+  <tr>
+    <td><strong>学与练总览</strong></td>
+    <td><span class="tag tag-change">改造</span></td>
+    <td>v1.0的学习路径页面新增"课堂模式"和"做题模式"切换，展示课堂完成度和Quiz正确率</td>
+  </tr>
+  <tr>
+    <td><strong>课堂历史记录</strong></td>
+    <td><span class="tag tag-new">新增</span></td>
+    <td>展示已完成课堂列表、每堂课的成绩摘要、薄弱点变化、回放入口</td>
+  </tr>
+  <tr>
+    <td><strong>课后练习</strong></td>
+    <td><span class="tag tag-change">改造</span></td>
+    <td>v1.0的答题页面新增"关联课堂"标签，题目标注对应课堂场景，提供"回顾课堂讲解"入口</td>
+  </tr>
+  <tr>
+    <td><strong>课程详情页</strong></td>
+    <td><span class="tag tag-change">改造</span></td>
+    <td>新增"课堂"标签页，列出该课程下所有可用的AI课堂（按知识点分组），支持"开始学习"入口</td>
+  </tr>
+</table>
+
+<h3>4.2 教师端新增模块</h3>
+
+<table>
+  <tr><th>模块</th><th>说明</th></tr>
+  <tr>
+    <td><strong>课堂学情概览</strong></td>
+    <td>每个学生的课堂完成度、Quiz正确率、场景级耗时分布</td>
+  </tr>
+  <tr>
+    <td><strong>班级薄弱点聚合</strong></td>
+    <td>所有学生的课堂Quiz数据聚合，展示全班在哪些知识点/场景上普遍薄弱</td>
+  </tr>
+  <tr>
+    <td><strong>课堂内容预览</strong></td>
+    <td>教师可预览系统为学生生成的课堂内容，检查知识准确性</td>
+  </tr>
+</table>
+
+<h3>4.3 移动端适配</h3>
+<ul>
+  <li>课堂播放器在小屏上：场景导航收起为汉堡菜单，控制栏精简</li>
+  <li>白板区域在手机端支持手势缩放</li>
+  <li>TTS 朗读在移动端作为默认方式（减少阅读疲劳）</li>
+</ul>
+
+<!-- ======================== 5. 数据模型 ======================== -->
+<h2 id="data">5. 数据模型</h2>
+
+<h3>5.1 新增表</h3>
+
+<table>
+  <tr><th>表名</th><th>字段</th><th>说明</th></tr>
+  <tr>
+    <td><code>classrooms</code></td>
+    <td>id, course_id, knowledge_point_id, title, description, difficulty, total_duration_seconds, status(draft/published/archived), created_at, updated_at</td>
+    <td>课堂主表。一个知识点可以对应多个课堂版本（不同难度/学情适配）</td>
+  </tr>
+  <tr>
+    <td><code>scenes</code></td>
+    <td>id, classroom_id, type(slide/quiz/interactive), title, description, order, estimated_duration_seconds, content_json(jsonb), created_at</td>
+    <td>教学场景。content_json 存储场景的具体内容结构化数据</td>
+  </tr>
+  <tr>
+    <td><code>scene_actions</code></td>
+    <td>id, scene_id, action_type, order, params_json(jsonb), created_at</td>
+    <td>教学动作序列。params_json 存储动作参数（text/position/duration等）</td>
+  </tr>
+  <tr>
+    <td><code>classroom_progress</code></td>
+    <td>id, student_id, classroom_id, status(not_started/in_progress/completed), current_scene_id, current_action_order, scenes_completed, quiz_correct_count, quiz_total_count, started_at, completed_at</td>
+    <td>学生学习课堂的进度记录，支持断点续播</td>
+  </tr>
+  <tr>
+    <td><code>scene_quiz_records</code></td>
+    <td>id, student_id, scene_id, quiz_data(jsonb), answer(jsonb), is_correct, ai_feedback, created_at</td>
+    <td>课堂内Quiz作答记录。与BKT联动的基础数据</td>
+  </tr>
+</table>
+
+<h3>5.2 现有表改造</h3>
+
+<table>
+  <tr><th>表名</th><th>改造</th><th>说明</th></tr>
+  <tr>
+    <td><code>learning_path_nodes</code></td>
+    <td>新增字段: node_type(quiz/classroom/review), classroom_id, scene_id</td>
+    <td>支持课堂类型的路径节点</td>
+  </tr>
+  <tr>
+    <td><code>error_records</code></td>
+    <td>新增字段: source(quiz/exam/classroom), classroom_id, scene_id, action_order</td>
+    <td>追踪错题来源——来自课堂内Quiz的错题</td>
+  </tr>
+  <tr>
+    <td><code>study_sessions</code></td>
+    <td>新增字段: session_type(quiz/classroom/mixed), classroom_id</td>
+    <td>区分学习会话的类型</td>
+  </tr>
+</table>
+
+<h3>5.3 实体关系图</h3>
+<div class="flow">
+course (1) ──→ (N) knowledge_point (1) ──→ (1) knowledge_relation
+                  │
+                  ▼
+             classroom (1) ──→ (N) scene (1) ──→ (N) scene_action
+                  │
+                  ▼
+        classroom_progress (N) ─→ student (1)
+                  │
+                  ▼
+         scene_quiz_records (N) ─→ BKT Engine
+                  │
+                  ▼
+          error_records (source=classroom)
+</div>
+
+<!-- ======================== 6. API接口 ======================== -->
+<h2 id="api">6. API 接口</h2>
+
+<h3>6.1 课堂管理</h3>
+<table>
+  <tr><th>方法</th><th>路径</th><th>说明</th><th>优先级</th></tr>
+  <tr><td>POST</td><td><code>/api/v2/classrooms/generate</code></td><td>基于知识点生成课堂（异步任务，返回 jobId）</td><td><span class="badge badge-p0">P0</span></td></tr>
+  <tr><td>GET</td><td><code>/api/v2/classrooms/generate/{jobId}/status</code></td><td>查询生成任务状态</td><td><span class="badge badge-p0">P0</span></td></tr>
+  <tr><td>GET</td><td><code>/api/v2/classrooms/{id}</code></td><td>获取课堂详情（含场景列表和Action）</td><td><span class="badge badge-p0">P0</span></td></tr>
+  <tr><td>GET</td><td><code>/api/v2/classrooms</code></td><td>课程下的课堂列表（按知识点过滤）</td><td><span class="badge badge-p0">P0</span></td></tr>
+  <tr><td>DELETE</td><td><code>/api/v2/classrooms/{id}</code></td><td>删除课堂</td><td><span class="badge badge-p1">P1</span></td></tr>
+  <tr><td>POST</td><td><code>/api/v2/classrooms/{id}/regenerate-scene/{sceneId}</code></td><td>重新生成单个场景</td><td><span class="badge badge-p1">P1</span></td></tr>
+</table>
+
+<h3>6.2 课堂播放</h3>
+<table>
+  <tr><th>方法</th><th>路径</th><th>说明</th><th>优先级</th></tr>
+  <tr><td>POST</td><td><code>/api/v2/classrooms/{id}/start</code></td><td>开始学习课堂（创建/恢复进度记录）</td><td><span class="badge badge-p0">P0</span></td></tr>
+  <tr><td>POST</td><td><code>/api/v2/classrooms/{id}/progress</code></td><td>更新播放进度（当前场景+Action序号）</td><td><span class="badge badge-p0">P0</span></td></tr>
+  <tr><td>GET</td><td><code>/api/v2/classrooms/{id}/progress</code></td><td>获取当前播放进度</td><td><span class="badge badge-p0">P0</span></td></tr>
+  <tr><td>POST</td><td><code>/api/v2/classrooms/{id}/complete</code></td><td>标记课堂完成</td><td><span class="badge badge-p0">P0</span></td></tr>
+</table>
+
+<h3>6.3 课堂Quiz</h3>
+<table>
+  <tr><th>方法</th><th>路径</th><th>说明</th><th>优先级</th></tr>
+  <tr><td>POST</td><td><code>/api/v2/classrooms/scenes/{sceneId}/quiz/submit</code></td><td>提交课堂内Quiz答案</td><td><span class="badge badge-p0">P0</span></td></tr>
+  <tr><td>GET</td><td><code>/api/v2/classrooms/scenes/{sceneId}/quiz/result</code></td><td>获取Quiz作答结果（含AI反馈）</td><td><span class="badge badge-p0">P0</span></td></tr>
+</table>
+
+<h3>6.4 交互式课堂（WebSocket）</h3>
+<table>
+  <tr><th>事件方向</th><th>事件类型</th><th>说明</th></tr>
+  <tr><td>服务端→客户端</td><td><code>classroom.action</code></td><td>推送教学Action（speech/白板/Quiz等）</td></tr>
+  <tr><td>服务端→客户端</td><td><code>classroom.scene_change</code></td><td>通知场景切换</td></tr>
+  <tr><td>服务端→客户端</td><td><code>classroom.agent_start</code></td><td>Agent开始发言</td></tr>
+  <tr><td>服务端→客户端</td><td><code>classroom.agent_end</code></td><td>Agent发言结束</td></tr>
+  <tr><td>服务端→客户端</td><td><code>classroom.agent_thinking</code></td><td>Agent正在思考（显示加载状态）</td></tr>
+  <tr><td>客户端→服务端</td><td><code>classroom.interrupt</code></td><td>学生举手打断</td></tr>
+  <tr><td>客户端→服务端</td><td><code>classroom.message</code></td><td>学生发送消息（在讨论模式中）</td></tr>
+  <tr><td>客户端→服务端</td><td><code>classroom.resume</code></td><td>学生请求恢复播放</td></tr>
+  <tr><td>客户端→服务端</td><td><code>classroom.heartbeat</code></td><td>心跳保活（含当前播放位置）</td></tr>
+</table>
+
+<h3>6.5 课后练习</h3>
+<table>
+  <tr><th>方法</th><th>路径</th><th>说明</th><th>优先级</th></tr>
+  <tr><td>POST</td><td><code>/api/v2/classrooms/{id}/generate-practice</code></td><td>基于课堂Quiz结果生成课后练习</td><td><span class="badge badge-p0">P0</span></td></tr>
+  <tr><td>GET</td><td><code>/api/v2/classrooms/{id}/practice-questions</code></td><td>获取课后练习题列表</td><td><span class="badge badge-p0">P0</span></td></tr>
+</table>
+
+<h3>6.6 教师端</h3>
+<table>
+  <tr><th>方法</th><th>路径</th><th>说明</th><th>优先级</th></tr>
+  <tr><td>GET</td><td><code>/api/v2/dashboard/classroom-overview</code></td><td>全班课堂完成度 + Quiz正确率聚合</td><td><span class="badge badge-p1">P1</span></td></tr>
+  <tr><td>GET</td><td><code>/api/v2/dashboard/classroom-detail/{studentId}/{classroomId}</code></td><td>某个学生的课堂详情（场景级数据）</td><td><span class="badge badge-p1">P1</span></td></tr>
+</table>
+
+<!-- ======================== 7. 技术约束与决策 ======================== -->
+<h2 id="tech">7. 技术约束与决策</h2>
+
+<h3>7.1 技术栈限制</h3>
+<ul>
+  <li><strong>后端</strong>：Java 21 + Spring Boot 3.3.5（必须保持，不得引入 Python/Node 后端服务）</li>
+  <li><strong>前端</strong>：React 18.3 + Vite 5 + Ant Design 5.20 + Zustand（课堂播放器考虑到交互复杂度，建议引入状态管理库）</li>
+  <li><strong>数据库</strong>：PostgreSQL 16 + pgvector</li>
+  <li><strong>实时通信</strong>：WebSocket（已有基础设施）</li>
+</ul>
+
+<h3>7.2 关键设计决策</h3>
+
+<table>
+  <tr><th>决策</th><th>选项</th><th>选择</th><th>理由</th></tr>
+  <tr>
+    <td>多Agent编排</td>
+    <td>LangGraph vs Java状态机</td>
+    <td><span class="badge badge-green">Java状态机</span></td>
+    <td>保持统一技术栈。使用 Spring State Machine 或自实现状态模式，调用现有 LLMService</td>
+  </tr>
+  <tr>
+    <td>课堂生成策略</td>
+    <td>全量预生成 vs 逐场景按需</td>
+    <td><span class="badge badge-green">逐场景按需</span></td>
+    <td>降低首次加载时间，首屏加载3秒内可看。后台异步生成后续场景</td>
+  </tr>
+  <tr>
+    <td>场景存储格式</td>
+    <td>JSONB vs 独立表</td>
+    <td><span class="badge badge-green">独立Scene表+JSONB</span></td>
+    <td>场景元数据用独立字段（id/type/order等），场景内容用JSONB。兼顾查询性能和灵活性</td>
+  </tr>
+  <tr>
+    <td>实时推送方式</td>
+    <td>SSE vs WebSocket</td>
+    <td><span class="badge badge-green">WebSocket</span></td>
+    <td>EduMentor 已有 WebSocket 基础设施，双工通信对课堂交互（学生打断+Agent回复）更自然</td>
+  </tr>
+  <tr>
+    <td>前端课堂状态管理</td>
+    <td>React Context vs Zustand</td>
+    <td><span class="badge badge-green">Zustand</span></td>
+    <td>课堂播放器状态复杂（播放状态/场景列表/进度/Action队列），Zustand 比 Context 性能更好、代码更简洁</td>
+  </tr>
+  <tr>
+    <td>白板实现</td>
+    <td>Canvas vs SVG vs React组件</td>
+    <td><span class="badge badge-green">React组件+SVG</span></td>
+    <td>初期白板场景以文字/公式/简单图表为主，React组件+SVG足以应对。Canvas留作未来互动仿真使用</td>
+  </tr>
+</table>
+
+<h3>7.3 LLM 结构化输出设计</h3>
+<p>需要增强现有 LLMService 以支持结构化输出解析：</p>
+<div class="flow">
+现有: LLMService.call(request: LlmRequest) → String (原始文本)
+
+增强: LLMService.generateStructured&lt;T&gt;(request: StructuredRequest&lt;T&gt;) → T
+  - 支持 JSON schema 定义输出格式
+  - 内置重试 + 格式校验
+  - 错误时提供 fallback 默认值
+
+具体应用:
+  - SceneOutlineGenerator: 输入知识点 → 输出 SceneOutline[]
+  - SceneContentGenerator: 输入 SceneOutline → 输出 Scene (含 Action[])
+  - QuizGenerator: 输入知识点+难度 → 输出 QuizQuestion[]
+  - DirectorDecider: 输入课堂上下文 → 输出 下一位Agent/Action决定
+</div>
+
+<!-- ======================== 8. 分阶段实施计划 ======================== -->
+<h2 id="phases">8. 分阶段实施计划</h2>
+
+<h3>Phase 1 — 课堂生成基础 <span class="badge badge-p0">P0</span></h3>
+<p><strong>目标：</strong>知识图谱→课堂场景的自动生成链路打通，学生可观看AI教师讲解的Slide课堂</p>
+
+<table>
+  <tr><th>#</th><th>任务</th><th>预估天数</th><th>产出</th></tr>
+  <tr><td>1.1</td><td>新增数据库迁移：classrooms / scenes / scene_actions / classroom_progress / scene_quiz_records 表</td><td>2天</td><td>V14 Flyway 迁移文件</td></tr>
+  <tr><td>1.2</td><td>新增 Entity / Repository / DTO：Classroom / Scene / SceneAction / ClassroomProgress</td><td>2天</td><td>Java 实体类</td></tr>
+  <tr><td>1.3</td><td>增强 LLMService：支持 JSON Schema 结构化输出 + 格式校验 + 重试</td><td>2天</td><td>LLMService.generateStructured&lt;T&gt;()</td></tr>
+  <tr><td>1.4</td><td>实现 SceneOutlineGenerator：KnowledgePoint → SceneOutline[]</td><td>2天</td><td>课堂大纲生成 Service</td></tr>
+  <tr><td>1.5</td><td>实现 SceneContentGenerator：SceneOutline → Scene + Action[]</td><td>3天</td><td>场景内容生成 Service</td></tr>
+  <tr><td>1.6</td><td>实现 ClassroomService.generate() + 异步Job</td><td>2天</td><td>课堂生成 API + 异步处理</td></tr>
+  <tr><td>1.7</td><td>前端：课堂播放器基础架构（场景列表 + 当前场景展示 + speech动作渲染）</td><td>4天</td><td>基础播放页面</td></tr>
+  <tr><td>1.8</td><td>前端：学习路径页面增加"课堂模式"节点类型</td><td>1天</td><td>路径节点升级</td></tr>
+  <tr><td></td><td><strong>Phase 1 合计</strong></td><td><strong>~18天</strong></td><td></td></tr>
+</table>
+
+<h3>Phase 2 — 课堂内Quiz与学练结合 <span class="badge badge-p0">P0</span></h3>
+<p><strong>目标：</strong>课堂内可穿插Quiz，答完自动反馈+与BKT联动；课后生成变体练习题</p>
+
+<table>
+  <tr><th>#</th><th>任务</th><th>预估天数</th><th>产出</th></tr>
+  <tr><td>2.1</td><td>实现 SceneQuizGenerator：根据知识点+难度生成 QuizQuestion[]</td><td>2天</td><td>课堂Quiz生成</td></tr>
+  <tr><td>2.2</td><td>后端：课堂Quiz提交 + 自动批改 + 错误记录写入 error_records</td><td>2天</td><td>Quiz提交API</td></tr>
+  <tr><td>2.3</td><td>后端：BKT联动——课堂Quiz结果实时更新知识点掌握度</td><td>2天</td><td>BKT集成</td></tr>
+  <tr><td>2.4</td><td>后端：课后练习生成——基于课堂Quiz答错题目生成变体题</td><td>2天</td><td>Practice 生成API</td></tr>
+  <tr><td>2.5</td><td>前端：Quiz组件（嵌入课堂播放器，支持单选/多选）</td><td>2天</td><td>课堂内Quiz UI</td></tr>
+  <tr><td>2.6</td><td>前端：课后练习页面（展示课堂关联的练习题，支持"回顾课堂讲解"）</td><td>3天</td><td>练习页面</td></tr>
+  <tr><td>2.7</td><td>前端：Playback引擎支持QuizAction——播放到Quiz时暂停等待~作答后继续</td><td>2天</td><td>Playback增强</td></tr>
+  <tr><td></td><td><strong>Phase 2 合计</strong></td><td><strong>~15天</strong></td><td></td></tr>
+</table>
+
+<h3>Phase 3 — 多Agent交互 + 播放体验 <span class="badge badge-p1">P1</span></h3>
+<p><strong>目标：</strong>多角色AI教学、学生举手打断、白板演示、断点续播</p>
+
+<table>
+  <tr><th>#</th><th>任务</th><th>预估天数</th><th>产出</th></tr>
+  <tr><td>3.1</td><td>设计Agent角色体系 + 注册表</td><td>1天</td><td>Agent 角色定义</td></tr>
+  <tr><td>3.2</td><td>实现 DirectorService：决定下一步Action/Agent角色</td><td>3天</td><td>Director 决策服务</td></tr>
+  <tr><td>3.3</td><td>实现 AgentService：按角色生成教学内容+动作</td><td>3天</td><td>Agent 内容生成</td></tr>
+  <tr><td>3.4</td><td>WebSocket Channel 设计：课堂事件推送（scene_change/action/agent_start/end/cue_user）</td><td>2天</td><td>WebSocket 课堂频道</td></tr>
+  <tr><td>3.5</td><td>前端 Playback 状态机：idling/playing/paused/live 完整实现</td><td>3天</td><td>状态机引擎</td></tr>
+  <tr><td>3.6</td><td>前端"举手提问"功能：播放中中断→进入 live→Agent回答→恢复</td><td>3天</td><td>打断/恢复机制</td></tr>
+  <tr><td>3.7</td><td>前端：白板组件（文字/公式/简单图形绘制）</td><td>3天</td><td>白板 SVG 组件</td></tr>
+  <tr><td>3.8</td><td>课堂进度持久化 + 断点续播</td><td>2天</td><td>进度恢复</td></tr>
+  <tr><td></td><td><strong>Phase 3 合计</strong></td><td><strong>~20天</strong></td><td></td></tr>
+</table>
+
+<h3>Phase 4 — 增强体验 + 教师端 <span class="badge badge-p2">P2</span></h3>
+<p><strong>目标：</strong>TTS语音、互动场景、教师驾驶舱升级、学生历史课堂</p>
+
+<table>
+  <tr><th>#</th><th>任务</th><th>预估天数</th><th>产出</th></tr>
+  <tr><td>4.1</td><td>TTS 语音集成（浏览器原生 SpeechSynthesis + 第三方API降级）</td><td>2天</td><td>TTS 朗读</td></tr>
+  <tr><td>4.2</td><td>教师驾研舱：课堂学情指标（完成度/正确率/场景级数据）</td><td>3天</td><td>教师学情</td></tr>
+  <tr><td>4.3</td><td>学生端：课堂历史记录页面（已完成课堂列表+统计）</td><td>2天</td><td>历史课堂</td></tr>
+  <tr><td>4.4</td><td>"知识点→课堂"关联推荐：基于BKT状态自动推荐课堂</td><td>2天</td><td>智能推荐</td></tr>
+  <tr><td>4.5</td><td>互动场景类型支持（代码演示/可视化基础）</td><td>4天</td><td>互动场景</td></tr>
+  <tr><td>4.6</td><td>性能优化：场景预加载、Action队列缓存、白板渲染优化</td><td>3天</td><td>性能优化</td></tr>
+  <tr><td></td><td><strong>Phase 4 合计</strong></td><td><strong>~16天</strong></td><td></td></tr>
+</table>
+
+<div class="insight-success">
+  <strong>📅 整体工期估算：</strong> Phase 1-4 合计约 <strong>69天</strong>（含并行任务优化后可压缩至 8-10 周）。其中 Phase 1 是必须的基础设施，完成后即可发布 v2.0-alpha 体验版。
+</div>
+
+<!-- ======================== 9. 非功能性需求 ======================== -->
+<h2 id="non-functional">9. 非功能性需求</h2>
+
+<h3>9.1 性能</h3>
+<ul>
+  <li><strong>首次场景生成</strong>：LLM 生成场景大纲 ≤ 5秒，生成第一个场景内容 ≤ 8秒</li>
+  <li><strong>场景切换</strong>：播放器场景切换 ≤ 500ms（使用预加载策略）</li>
+  <li><strong>WebSocket 延迟</strong>：Action 事件从触发到前端渲染 ≤ 200ms</li>
+  <li><strong>并发课堂</strong>：单个服务器支持 ≥ 30 个并发课堂播放（主要瓶颈在 LLM 调用，使用缓存+队列）</li>
+  <li><strong>数据库查询</strong>：课堂加载 < 100ms（含所有场景和Action）</li>
+</ul>
+
+<h3>9.2 可扩展性</h3>
+<ul>
+  <li><strong>Action 类型可插拔</strong>：新增 Action 类型只需注册前端渲染器，后端 Action 表类型字段用枚举+JSONB</li>
+  <li><strong>Agent 角色可配置</strong>：Agent 角色列表应支持配置化，可在 application.yml 中定义</li>
+  <li><strong>生成策略可切换</strong>：支持逐场景/全量/增量生成策略的运行时切换</li>
+</ul>
+
+<h3>9.3 数据一致性</h3>
+<ul>
+  <li>课堂生成是异步任务，需保证生成完成后的数据一致性（使用数据库事务）</li>
+  <li>课堂内Quiz提交需同步更新 BKT 和 error_records（使用 @Transactional）</li>
+  <li>播放进度支持断点续播，以服务端持久化进度为准</li>
+</ul>
+
+<h3>9.4 安全性</h3>
+<ul>
+  <li>LLM 生成的课堂内容需做基本的安全过滤（避免敏感/不当内容）</li>
+  <li>课堂内容应基于学生身份做访问控制（只能访问已选课课程的课堂）</li>
+  <li>课后练习题应基于学生已完成的课堂生成，避免题目泄露</li>
+</ul>
+
+<h3>9.5 可观测性</h3>
+<ul>
+  <li>课堂生成任务增加日志埋点：生成耗时、token消耗、重试次数</li>
+  <li>课堂播放增加事件埋点：场景耗时、Action执行延迟、学生打断频率</li>
+  <li>新增 Actuator 指标：classroom_generation_duration、classroom_playback_concurrent、quiz_submit_count</li>
+</ul>
+
+<!-- ======================== 10. 附录 ======================== -->
+<h2>10. 附录：与现有系统的集成要点</h2>
+
+<table>
+  <tr><th>集成点</th><th>说明</th></tr>
+  <tr><td>BKT 引擎</td><td>课堂Quiz结果作为BKT的观察值（observation）输入。答对→正确响应，答错→错误响应，更新知识点掌握度</td></tr>
+  <tr><td>知识图谱</td><td>课堂生成时读取 KnowledgeRelation 作为上下文。课堂中引用前置知识时，提供"点此复习"链接</td></tr>
+  <tr><td>学习路径</td><td>LearningPathNode 新增 classroom 类型。路径规划引擎可选择"课堂模式"或"练习模式"</td></tr>
+  <tr><td>答疑辅导</td><td>课堂内的"举手提问"复用现有的 TutoringService + LLM 网关，但扩展为多Agent形态</td></tr>
+  <tr><td>错题复盘</td><td>课堂内Quiz错题写入 error_records（source=classroom），可在 ErrorReview 页面查看并标记"回放课堂讲解"</td></tr>
+  <tr><td>WebSocket</td><td>复用现有 WebSocketSessionManager 和认证拦截器，新增课堂频道（classroom.{id}）</td></tr>
+  <tr><td>教师驾驶舱</td><td>Dashboard API 新增课堂学情聚合接口，复用现有的班级+学生数据权限</td></tr>
+</table>
+
+<div class="insight" style="margin-top:2rem;">
+  <strong>🚀 总结：</strong>EduMentor v2.0 不是重写，而是<strong>在现有基础上叠加课堂能力层</strong>。学生端的核心入口升级为"课堂学习+课后练习"双模式，教师端增加课堂维度的学情数据。数据模型扩展 5 张新表，改造 3 张现有表。后端核心增加课堂生成管线、Playback 控制器、多Agent编排；前端核心增加课堂播放器、课堂内Quiz组件、WebSocket课堂频道。
+</div>
+
+<p style="color: var(--muted); font-size: 0.85rem; margin-top: 3rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+</div>
+</body>
+</html>

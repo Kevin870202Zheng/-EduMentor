@@ -580,11 +580,20 @@ public class LLMService {
 
     /**
      * 解析结构化输出 JSON。
+     * 当 outputClass 为 String.class 时，直接返回提取到的 JSON 原始文本，
+     * 而非尝试将其解析为 JSON 字符串值。
      */
     private <T> T parseStructuredOutput(String content, Class<T> outputClass) {
         // 尝试提取 JSON 部分（模型有时会在 JSON 前后添加说明文字）
         String jsonContent = extractJsonContent(content);
         try {
+            // 当请求 String.class 时，直接返回原始 JSON 文本
+            // 而非用 Jackson 解析（Jackson 无法将 JSON 对象解析为 String）
+            if (outputClass == String.class) {
+                @SuppressWarnings("unchecked")
+                T result = (T) jsonContent;
+                return result;
+            }
             return objectMapper.readValue(jsonContent, outputClass);
         } catch (JsonProcessingException e) {
             log.error("Failed to parse structured output as {}: {}",

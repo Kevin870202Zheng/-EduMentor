@@ -1,6 +1,7 @@
 package com.edumentor.config;
 
 import com.edumentor.websocket.ChatWebSocketHandler;
+import com.edumentor.websocket.ClassroomWebSocketHandler;
 import com.edumentor.websocket.WebSocketAuthInterceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,13 +26,16 @@ public class WebSocketRegistrationConfig implements WebSocketConfigurer {
     private static final Logger log = LoggerFactory.getLogger(WebSocketRegistrationConfig.class);
 
     private final ChatWebSocketHandler chatWebSocketHandler;
+    private final ClassroomWebSocketHandler classroomWebSocketHandler;
     private final WebSocketAuthInterceptor webSocketAuthInterceptor;
     private final WebSocketConfigProperties configProperties;
 
     public WebSocketRegistrationConfig(ChatWebSocketHandler chatWebSocketHandler,
+                                       ClassroomWebSocketHandler classroomWebSocketHandler,
                                        WebSocketAuthInterceptor webSocketAuthInterceptor,
                                        WebSocketConfigProperties configProperties) {
         this.chatWebSocketHandler = chatWebSocketHandler;
+        this.classroomWebSocketHandler = classroomWebSocketHandler;
         this.webSocketAuthInterceptor = webSocketAuthInterceptor;
         this.configProperties = configProperties;
     }
@@ -59,5 +63,18 @@ public class WebSocketRegistrationConfig implements WebSocketConfigurer {
         log.info("WebSocket config: heartbeatInterval={}ms, sessionIdleTimeout={}ms",
                 configProperties.getHeartbeatInterval(),
                 configProperties.getMaxSessionIdleTimeout());
+
+        // 注册课堂 WebSocket 端点
+        registry.addHandler(classroomWebSocketHandler, "/ws/classroom")
+                .addInterceptors(webSocketAuthInterceptor)
+                .setAllowedOriginPatterns("*")
+                .withSockJS()
+                .setDisconnectDelay(30_000)
+                .setHeartbeatTime(25_000)
+                .setSessionCookieNeeded(false);
+
+        registry.addHandler(classroomWebSocketHandler, "/ws/classroom/raw")
+                .addInterceptors(webSocketAuthInterceptor)
+                .setAllowedOriginPatterns("*");
     }
 }

@@ -73,7 +73,7 @@ export const tokenManager = {
 
 const apiClient = axios.create({
   baseURL: API_BASE,
-  timeout: 30000,
+  timeout: 180000, // 课堂生成等 LLM 调用可能需要 2-3 分钟
   headers: {
     'Content-Type': 'application/json',
   },

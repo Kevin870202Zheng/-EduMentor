@@ -59,7 +59,7 @@ public class LLMConfig {
             case OLLAMA -> new OllamaProviderConfig(rawConfig.getOllama());
             case ZHIPU -> new ZhipuProviderConfig(rawConfig.getZhipu());
             case WENXIN -> new WenxinProviderConfig(rawConfig.getWenxin());
-            case MOCK -> new MockProviderConfig();
+            default -> throw new IllegalArgumentException("不支持的供应商: " + provider);
         };
     }
 
@@ -234,16 +234,4 @@ public class LLMConfig {
         public Map<String, String> getExtraParams() { return Map.of(); }
     }
 
-    // ──── Mock ────
-
-    private static class MockProviderConfig implements ProviderConfig {
-        @Override
-        public String getApiBase() { return ""; }
-        @Override
-        public String getApiKey() { return ""; }
-        @Override
-        public String getModel() { return "mock-model"; }
-        @Override
-        public Map<String, String> getExtraParams() { return Map.of(); }
-    }
 }

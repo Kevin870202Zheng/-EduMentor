@@ -18,6 +18,7 @@ export { reviewApi } from './reviewApi';
 export { alertApi } from './alertApi';
 export { dashboardApi } from './dashboardApi';
 export { knowledgeApi } from './knowledgeApi';
+export { classroomApi } from './classroomApi';
 
 export { wsClient, WebSocketClient } from './websocketClient';
 export type { WsClientMessage, WsServerMessage, WsMessageHandler } from './websocketClient';
@@ -79,4 +80,14 @@ export type {
 
   // 学习会话
   StudySessionDto,
+
+  // 沉浸式课堂
+  ActionType,
+  ActionDTO,
+  SceneDetailDto,
+  ClassroomDetailDto,
+  ClassroomProgressDto,
+  QuizSubmitRequest,
+  QuizSubmitResponse,
+  PracticeQuestionDto,
 } from './types';

@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenMAIC → EduMentor 架构借鉴分析</title>
+<style>
+  :root {
+    --bg: #fafafa;
+    --card: #ffffff;
+    --border: #e0e0e0;
+    --text: #1a1a2e;
+    --muted: #6b7280;
+    --accent: #2563eb;
+    --accent-light: #dbeafe;
+    --green: #059669;
+    --green-light: #d1fae5;
+    --orange: #d97706;
+    --orange-light: #fef3c7;
+    --red: #dc2626;
+    --red-light: #fee2e2;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, 'Segoe UI', 'Noto Sans SC', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; padding: 2rem; }
+  .container { max-width: 1100px; margin: 0 auto; }
+  
+  h1 { font-size: 2rem; font-weight: 700; margin-bottom: 0.5rem; }
+  h2 { font-size: 1.4rem; font-weight: 600; margin-top: 2.5rem; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--accent); }
+  h3 { font-size: 1.15rem; font-weight: 600; margin-top: 1.8rem; margin-bottom: 0.6rem; }
+  h4 { font-size: 1rem; font-weight: 600; margin-top: 1.2rem; margin-bottom: 0.4rem; }
+  p { margin-bottom: 0.8rem; }
+  
+  .meta { color: var(--muted); font-size: 0.9rem; margin-bottom: 2rem; }
+  
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; margin-bottom: 1.5rem; }
+  .card-title { font-weight: 600; font-size: 1.05rem; margin-bottom: 0.8rem; }
+  
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+  @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
+  
+  .badge { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 999px; font-size: 0.75rem; font-weight: 500; }
+  .badge-blue { background: var(--accent-light); color: var(--accent); }
+  .badge-green { background: var(--green-light); color: var(--green); }
+  .badge-orange { background: var(--orange-light); color: var(--orange); }
+  .badge-red { background: var(--red-light); color: var(--red); }
+
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
+  th, td { padding: 0.6rem 0.8rem; text-align: left; border-bottom: 1px solid var(--border); }
+  th { background: #f3f4f6; font-weight: 600; }
+  
+  .flow { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85rem; background: #f3f4f6; padding: 1rem; border-radius: 8px; line-height: 1.6; white-space: pre; overflow-x: auto; }
+  
+  .highlight { background: var(--accent-light); padding: 0.1rem 0.3rem; border-radius: 3px; font-weight: 500; }
+  
+  ul, ol { margin: 0.5rem 0 1rem 1.5rem; }
+  li { margin-bottom: 0.3rem; }
+  
+  .insight { border-left: 4px solid var(--accent); padding: 1rem 1.2rem; background: #f8faff; margin: 1rem 0; border-radius: 0 8px 8px 0; }
+  .insight-warn { border-left-color: var(--orange); background: #fffbeb; }
+  
+  .arch-svg { width: 100%; max-width: 900px; margin: 1rem auto; display: block; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>OpenMAIC → EduMentor 架构借鉴分析</h1>
+<p class="meta">版本 1.0 | 2026-06-25 | 分析范围：OpenMAIC Multi-Agent Classroom vs EduMentor 学习赋能智能体</p>
+
+<div class="card">
+  <div class="card-title">📋 文档目的</div>
+  <p>分析 OpenMAIC（Open Multi-Agent Interactive Classroom）的多智能体电子课堂架构，提取可被 EduMentor 借鉴的核心设计模式与技术方案，帮助 EduMentor 从"诊断-辅导型"工具升级为"沉浸式课堂体验型"教育智能体。</p>
+</div>
+
+<!-- ======================== 1. 项目定位对比 ======================== -->
+<h2>1. 项目定位对比</h2>
+
+<table>
+  <tr>
+    <th style="width:20%">维度</th>
+    <th style="width:40%">OpenMAIC</th>
+    <th style="width:40%">EduMentor</th>
+  </tr>
+  <tr>
+    <td><strong>定位</strong></td>
+    <td>多智能体交互式课堂生成与播放平台</td>
+    <td>个性化学习赋能智能体（诊断+辅导+路径）</td>
+  </tr>
+  <tr>
+    <td><strong>核心能力</strong></td>
+    <td>一键生成完整课堂（大纲→场景→多媒体），多Agent讲解+讨论+互动</td>
+    <td>学情诊断、知识追踪、个性化路径、苏格拉底答疑、教师驾驶舱</td>
+  </tr>
+  <tr>
+    <td><strong>目标用户</strong></td>
+    <td>自学者（学生/爱好者），一键输入主题→获得课堂体验</td>
+    <td>高校学生+教师，辅助教学过程管理</td>
+  </tr>
+  <tr>
+    <td><strong>技术栈</strong></td>
+    <td>Next.js + TypeScript + LangGraph + Tailwind</td>
+    <td>Java Spring Boot + React/TS + Ant Design</td>
+  </tr>
+  <tr>
+    <td><strong>AI 编排</strong></td>
+    <td>LangGraph StateGraph（Director-Agent 模式）</td>
+    <td>LLM 多模型网关（Provier 模式）+ RAG</td>
+  </tr>
+  <tr>
+    <td><strong>内容类型</strong></td>
+    <td>Slides（画布编辑）、Quiz、Interactive、PBL</td>
+    <td>知识点、题目、教材资料</td>
+  </tr>
+  <tr>
+    <td><strong>实时交互</strong></td>
+    <td>SSE 流式、TTS/ASR、白板绘图、课堂讨论</td>
+    <td>WebSocket 学情推送、SSE 流式答疑</td>
+  </tr>
+</table>
+
+<div class="insight">
+  <strong>💡 核心洞察：</strong> 两者互补性极强。<br>
+  OpenMAIC 擅长 <span class="highlight">"课堂体验的创造与呈现"</span>（生成+多Agent+播放），
+  EduMentor 擅长 <span class="highlight">"学习状态的诊断与个性化适配"</span>（BKT+RAG+路径规划）。<br>
+  <strong>EduMentor 可以借鉴 OpenMAIC 的课堂生成与多Agent交互能力，让学习从"问答式"升级为"沉浸式课堂体验"。</strong>
+</div>
+
+<!-- ======================== 2. OpenMAIC 电子课堂架构拆解 ======================== -->
+<h2>2. OpenMAIC 电子课堂架构拆解</h2>
+
+<h3>2.1 整体架构</h3>
+
+<div class="flow">
+┌─────────────────────────────────────────────────────────────┐
+│                   OpenMAIC Classroom Architecture           │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌──────────────────────┐   ┌───────────────────────────┐   │
+│  │  ① Generation Pipe   │   │   ⑤ Playback Engine       │   │
+│  │  (Content Creation)   │   │   (Content Delivery)      │   │
+│  │                      │   │                           │   │
+│  │  requirement ──→     │   │  scenes[].actions[] ──→   │   │
+│  │  outline ──→         │   │  speech/spotlight/wb ──→  │   │
+│  │  scene content +     │   │  Action Engine executes    │   │
+│  │  scene actions ──→   │   │                           │   │
+│  │  persist classroom   │   │  State Machine:           │   │
+│  └──────────┬───────────┘   │  idle→playing→paused→live │   │
+│             │               └──────────┬────────────────┘   │
+│             │                          │                    │
+│             ▼                          ▼                    │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │  ② Multi-Agent Orchestration (LangGraph)             │   │
+│  │                                                      │   │
+│  │  ┌──────────┐    ┌──────────────┐                    │   │
+│  │  │ Director ├───→│ Agent Generate│                   │   │
+│  │  │ (LLM)    │    │ (speech+action)│                   │   │
+│  │  └──────────┘    └──────────────┘                    │   │
+│  │       │                │                             │   │
+│  │       └────────────────┘                             │   │
+│  │  每个请求一轮 director→agent，客户端串行实现多轮讨论     │   │
+│  └──────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │  ③ Stage API + Store (内容状态管理)                    │   │
+│  │  Zustand store: stage, scenes, currentSceneId, mode  │   │
+│  └──────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+</div>
+
+<h3>2.2 核心数据模型</h3>
+
+<p>OpenMAIC 的课堂由以下层级结构构成：</p>
+
+<div class="flow">
+Course / Classroom
+└── Stage (元数据: title, style, languageDirective, agents)
+    └── Scene[] (场景列表)
+        ├── Scene (type: 'slide' | 'quiz' | 'interactive' | 'pbl')
+        │   ├── id, title, description, order
+        │   ├── content (根据type不同的内容结构)
+        │   │   ├── SlideContent → PPTElement[]
+        │   │   ├── QuizContent → QuizQuestion[]
+        │   │   ├── InteractiveContent → html + widgetConfig
+        │   │   └── PBLContent → projectConfig + PBLProjectV2
+        │   └── actions[] (播放时执行的动作序列)
+        │       ├── SpeechAction (TTS朗读)
+        │       ├── SpotlightAction / LaserAction (视觉特效)
+        │       ├── WbDrawAction* (白板绘图)
+        │       ├── DiscussionAction (主动发起讨论)
+        │       └── PlayVideoAction / WidgetAction*
+        └── Scene (next...)
+</div>
+
+<h3>2.3 课堂生成管线（Generation Pipeline）</h3>
+
+<div class="grid-2">
+<div class="card">
+  <div class="card-title"><span class="badge badge-blue">阶段1</span> 大纲生成</div>
+  <p>用户输入需求 + 可选的PDF文档 + 网络搜索结果</p>
+  <p>→ AI 分析生成结构化的课堂大纲</p>
+  <p>→ 输出: <code>SceneOutline[]</code> (标题、类型、关键点、配图需求)</p>
+</div>
+<div class="card">
+  <div class="card-title"><span class="badge badge-green">阶段2</span> 场景生成</div>
+  <p>每个大纲→AI 生成对应的 <code>SceneContent</code></p>
+  <p>→ 再生成 <code>Action[]</code> (讲解台词+白板动作+讨论点)</p>
+  <p>→ 支持重试机制（<code>withGenerationRetry</code>）</p>
+</div>
+</div>
+
+<div class="grid-2">
+<div class="card">
+  <div class="card-title"><span class="badge badge-orange">阶段3</span> 媒体生成</div>
+  <p>可选：AI 生成图片/视频</p>
+  <p>→ 替换场景中的占位符</p>
+</div>
+<div class="card">
+  <div class="card-title"><span class="badge badge-red">阶段4</span> TTS生成</div>
+  <p>可选：将 SpeechAction 合成为音频</p>
+  <p>→ 持久化课堂数据</p>
+</div>
+</div>
+
+<h3>2.4 多智能体编排（Multi-Agent Orchestration）</h3>
+
+<div class="flow">
+┌──────────────────────────────────────────────────────────┐
+│  LangGraph StateGraph                                    │
+│                                                          │
+│  START ──→ director ──(end)──→ END                      │
+│                │                                         │
+│                └─(next)→ agent_generate ──→ END          │
+│                                                          │
+│  State:                                                  │
+│  - messages, storeState, availableAgentIds               │
+│  - currentAgentId, turnCount, agentResponses[]           │
+│  - whiteboardLedger[], shouldEnd                         │
+│                                                          │
+│  Director (LLM决策): "下一位该谁发言？"                   │
+│  - 单Agent模式：纯代码逻辑，turn0走Agent，之后cue用户     │
+│  - 多Agent模式：LLM决定下一发言人 / USER / END           │
+│                                                          │
+│  Agent Generate: 调用LLM生成文本+动作                    │
+│  - 通过结构化解析器（<thinking>/<action>标签）            │
+│  - 流式输出 text_delta / action 事件到 SSE               │
+│  - 白板动作记录到 ledger                                  │
+└──────────────────────────────────────────────────────────┘
+</div>
+
+<h3>2.5 Playback 引擎（状态机）</h3>
+
+<div class="flow">
+                  start()                  pause()
+   idle ──────────────────→ playing ──────────────→ paused
+     ▲                         ▲                       │
+     │                         │  resume()             │
+     │                         └───────────────────────┘
+     │
+     │  handleEndDiscussion()
+     │                         confirmDiscussion()
+     │                         / handleUserInterrupt()
+     │                              │
+     │                              ▼         pause()
+     └──────────────────────── live ──────────────→ paused
+                                 ▲                    │
+                                 │ resume / user msg  │
+                                 └────────────────────┘
+
+  核心设计:
+  - Action[] 直接消费，无需中间编译步骤
+  - 支持 28+ 动作类型: speech, spotlight, laser, wb_draw*, discussion, play_video, widget_*
+  - 讨论触发: 3秒延迟 → ProactiveCard → 用户选择"加入"/"跳过"
+  - 用户中断: 保存当前播放位置 → 进入 live 模式 → 结束后恢复
+  - TTS: 浏览器原生 + 外部服务 + 阅读计时器(降级)
+</div>
+
+<!-- ======================== 3. 可借鉴能力分析 ======================== -->
+<h2>3. 可借鉴能力分析</h2>
+
+<p>对比两个项目，以下 OpenMAIC 的能力对 EduMentor 有借鉴价值：</p>
+
+<table>
+  <tr>
+    <th style="width:8%">优先级</th>
+    <th style="width:25%">能力</th>
+    <th style="width:37%">OpenMAIC 实现</th>
+    <th style="width:30%">EduMentor 借鉴价值</th>
+  </tr>
+  <tr>
+    <td><span class="badge badge-red">P0</span></td>
+    <td><strong>课堂场景生成管线</strong></td>
+    <td>需求→大纲→场景(多类型)→动作序列的端到端生成</td>
+    <td>EduMentor 已有课程和知识点管理，可补充自动生成教学内容和互动场景的能力</td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-red">P0</span></td>
+    <td><strong>多Agent课堂交互</strong></td>
+    <td>Director-Agent 编排 + 流式 SSE + 结构化动作输出</td>
+    <td>EduMentor 目前只有单Agent答疑，可扩展为多角色课堂（AI教师+AI同学）</td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-orange">P1</span></td>
+    <td><strong>Action 动作系统</strong></td>
+    <td>28+ 动作类型：讲解、高亮、白板绘图、讨论、效果</td>
+    <td>EduMentor 辅导可包含白板绘图、引导标注、渐进式展示等动作</td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-orange">P1</span></td>
+    <td><strong>Playback 状态机</strong></td>
+    <td>idle→playing→paused→live 的完整播放控制</td>
+    <td>EduMentor 的学习路径播放器可以引入类似的播放控制体验</td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-orange">P1</span></td>
+    <td><strong>场景内容多样性</strong></td>
+    <td>Slide/Quiz/Interactive HTML/PBL 四种场景</td>
+    <td>EduMentor 可增加互动仿真、可视化、编程沙盒等场景</td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-green">P2</span></td>
+    <td><strong>TTS/ASR 集成</strong></td>
+    <td>多TTS供应商 + 浏览器原生 + ASR语音识别</td>
+    <td>EduMentor 可补充语音讲解能力（辅助阅读障碍学生）</td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-green">P2</span></td>
+    <td><strong>离线课堂导出</strong></td>
+    <td>可导出独立 HTML / PPTX / Classroom ZIP</td>
+    <td>EduMentor 可支持学习内容离线包导出</td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-green">P2</span></td>
+    <td><strong>富白板系统</strong></td>
+    <td>SVG白板：文字、形状、图表、公式、表格、代码</td>
+    <td>EduMentor 辅导答疑可配合白板做可视化引导</td>
+  </tr>
+</table>
+
+<!-- ======================== 4. EduMentor 当前状态与缺口分析 ======================== -->
+<h2>4. EduMentor 当前状态与缺口分析</h2>
+
+<h3>4.1 已有能力对照</h3>
+
+<table>
+  <tr>
+    <th>能力维度</th>
+    <th>EduMentor 现状</th>
+    <th>状态</th>
+  </tr>
+  <tr>
+    <td>课程与知识点管理</td>
+    <td>Course/KnowledgePoint/KnowledgeRelation 实体完备，支持上传教材、AI提取知识点</td>
+    <td><span class="badge badge-green">✅ 较强</span></td>
+  </tr>
+  <tr>
+    <td>学情诊断与知识追踪</td>
+    <td>BKT引擎、认知画像、雷达图、三级预警</td>
+    <td><span class="badge badge-green">✅ 强</span></td>
+  </tr>
+  <tr>
+    <td>个性化学习路径</td>
+    <td>LearningPath + PathNode + 多种路径规划策略</td>
+    <td><span class="badge badge-green">✅ 较强</span></td>
+  </tr>
+  <tr>
+    <td>智能答疑辅导</td>
+    <td>TutoringController + LLM网关 + RAG（L1-L5分级）</td>
+    <td><span class="badge badge-green">✅ 较强</span></td>
+  </tr>
+  <tr>
+    <td>错题复盘与反思</td>
+    <td>多维分类 + 艾宾浩斯遗忘曲线 + 反思循环</td>
+    <td><span class="badge badge-green">✅ 较强</span></td>
+  </tr>
+  <tr>
+    <td>教师驾驶舱</td>
+    <td>Dashboard API + 学情列表 + 教学建议</td>
+    <td><span class="badge badge-green">✅ 基础</span></td>
+  </tr>
+  <tr>
+    <td><strong>课堂内容自动生成</strong></td>
+    <td>❌ 无 - 仅支持知识点提取，无课堂场景生成</td>
+    <td><span class="badge badge-red">❌ 缺失</span></td>
+  </tr>
+  <tr>
+    <td><strong>多Agent课堂交互</strong></td>
+    <td>❌ 无 - 仅单Agent对话</td>
+    <td><span class="badge badge-red">❌ 缺失</span></td>
+  </tr>
+  <tr>
+    <td><strong>沉浸式播放引擎</strong></td>
+    <td>❌ 无 - 学习路径以列表展示</td>
+    <td><span class="badge badge-red">❌ 缺失</span></td>
+  </tr>
+  <tr>
+    <td><strong>互动场景类型</strong></td>
+    <td>❌ 无 - 仅文本/题目的展示</td>
+    <td><span class="badge badge-red">❌ 缺失</span></td>
+  </tr>
+  <tr>
+    <td><strong>白板协作</strong></td>
+    <td>❌ 无</td>
+    <td><span class="badge badge-red">❌ 缺失</span></td>
+  </tr>
+  <tr>
+    <td><strong>TTS语音讲解</strong></td>
+    <td>❌ 无 - 仅文本交互</td>
+    <td><span class="badge badge-red">❌ 缺失</span></td>
+  </tr>
+</table>
+
+<h3>4.2 差距总结</h3>
+
+<div class="insight insight-warn">
+  <strong>⚠️ 最核心的差距在于：</strong><br>
+  EduMentor 目前解决的是 <strong>"学什么 + 学到什么程度"</strong> 的问题——诊断、规划、答疑。
+  但缺乏 <strong>"怎么学"</strong> 的沉浸式课堂体验——内容呈现、多角色交互、渐进式引导播放。
+  <br><br>
+  <strong>EduMentor 的技术优势（BKT + RAG + 知识图谱 + 路径规划）可以作为 OpenMAIC 课堂体验的"大脑"——</strong>
+  <br>
+  知道学生的薄弱点 → 生成针对性的课堂内容 → 用多Agent课堂的形式呈现 → 实时监测掌握度并调整
+</div>
+
+<!-- ======================== 5. 架构借鉴方案 ======================== -->
+<h2>5. 架构借鉴方案</h2>
+
+<h3>5.1 建议融入 EduMentor 的核心能力</h3>
+
+<div class="card">
+  <div class="card-title">🎯 核心借鉴点一：基于知识图谱的课堂内容自动生成</div>
+  <p><strong>OpenMAIC 的做法：</strong> 根据用户需求（一句话 + 可选文档）→ LLM 生成课堂大纲 → 每个大纲点生成完整的教学场景（幻灯片+讲解词+互动+讨论）</p>
+  <p><strong>EduMentor 的改进：</strong></p>
+  <ul>
+    <li>利用已有知识图谱（KnowledgePoint + KnowledgeRelation）作为输入，而非从零生成</li>
+    <li>对于已识别出的学生薄弱知识点，自动生成"针对性补强课堂"</li>
+    <li>每个知识点可生成包含：讲解幻灯片 + Quiz练习 + 互动演示的教学场景</li>
+    <li><span class="highlight">= BKT诊断薄弱点 → 知识图谱定位 → 课堂内容自动生成 → 沉浸式教学</span></li>
+  </ul>
+</div>
+
+<div class="card">
+  <div class="card-title">🎯 核心借鉴点二：多Agent课堂交互</div>
+  <p><strong>OpenMAIC 的做法：</strong> AI教师主讲 + AI同学讨论 + 导演Agent协调发言顺序</p>
+  <p><strong>EduMentor 的改进：</strong></p>
+  <ul>
+    <li>保留 L1-L5 分级答疑策略，但扩展为多Agent形态</li>
+    <li><strong>"苏格拉底导师"Agent</strong>：负责引导式提问，提供支架</li>
+    <li><strong>"AI同学"Agent</strong>：提出"我也不会"的问题，降低学生心理压力</li>
+    <li><strong>"助教"Agent</strong>：实时补充公式推导、图示说明</li>
+    <li>三种角色轮流发言，构成"课堂讨论"效果</li>
+  </ul>
+</div>
+
+<div class="card">
+  <div class="card-title">🎯 核心借鉴点三：场景化学习路径播放</div>
+  <p><strong>OpenMAIC 的做法：</strong> Scene[] + Action[] 构成完整的教室播放体验</p>
+  <p><strong>EduMentor 的改进：</strong></p>
+  <ul>
+    <li>将 LearningPathNode 从"跳转链接列表"升级为"可播放的教学场景"</li>
+    <li>每个节点可包含：讲解幻灯片（自动生成）+ 互动练习 + Quiz验证</li>
+    <li>引入 Playback 状态机：播放→暂停→讨论→继续 的完整体验</li>
+    <li>学生可随时"举手"中断并提出问题，结束后自动恢复</li>
+  </ul>
+</div>
+
+<h3>5.2 架构融合方案图</h3>
+
+<div class="flow">
+┌─────────────────────────────────────────────────────────────────────┐
+│                    EduMentor + OpenMAIC 融合架构                     │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │                    🧠 智能编排层                               │   │
+│  │                                                              │   │
+│  │  学情诊断Agent ─→ BKT知识追踪 → 识别薄弱点                   │   │
+│  │       ↓                                                     │   │
+│  │  路径规划Agent ─→ 确定学习顺序 + 生成课堂大纲                │   │
+│  │       ↓                                                     │   │
+│  │  课堂生成Agent ─→ 为每个大纲生成教学场景                     │   │
+│  │       ↓                                                     │   │
+│  │  多Agent课堂 ──→ AI教师 + 苏格拉底导师 + AI同学              │   │
+│  │                   轮流发言 + 白板 + 互动                      │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+│                                                                     │
+│  ┌────────────────────────────────────────┐  ┌──────────────────┐  │
+│  │  📖 已有能力（保持）                     │  │  🆕 新增能力      │  │
+│  │                                        │  │                  │  │
+│  │  - BKT 知识追踪引擎                     │  │  - 课堂生成管线   │  │
+│  │  - L1-L5 分级答疑策略                   │  │  - Director-Agent│  │
+│  │  - 错题复盘 + 艾宾浩斯                    │  │  - Playback引擎  │  │
+│  │  - 教师驾驶舱 + 三级预警                 │  │  - Scene 场景系统 │  │
+│  │  - 课程/知识点/知识图谱管理               │  │  - Action 动作系统│  │
+│  │  - RAG 检索增强生成                     │  │  - 白板 + TTS    │  │
+│  │  - WebSocket 实时推送                   │  │  - 互动HTML场景  │  │
+│  └────────────────────────────────────────┘  └──────────────────┘  │
+│                                                                     │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │  🎯 产品形态升级                                              │   │
+│  │                                                              │   │
+│  │  现状: 诊断报告 + 推荐列表 + 问答对话                          │   │
+│  │  升级: 个性化课堂播放器 (Auto-Play Classroom)                  │   │
+│  │                                                              │   │
+│  │  学生打开EduMentor → 自动诊断薄弱点 → 生成今天课程 →           │   │
+│  │  AI教师开始讲授 → 穿插Quiz验证掌握度 → AI同学提问 →            │   │
+│  │  苏格拉底引导思考 → 结束并更新知识状态 → 继续下一课             │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────┘
+</div>
+
+<h3>5.3 需要改造/新增的模块清单</h3>
+
+<table>
+  <tr>
+    <th>模块</th>
+    <th>类型</th>
+    <th>参考 OpenMAIC</th>
+    <th>实现说明</th>
+  </tr>
+  <tr>
+    <td><strong>Course → Scene 转换</strong></td>
+    <td><span class="badge badge-red">新增</span></td>
+    <td><code>lib/generation/</code><br><code>classroom-generation.ts</code></td>
+    <td>将课程知识点/知识图谱结构转化为 Scene[] + Action[] 的课堂内容</td>
+  </tr>
+  <tr>
+    <td><strong>多Agent编排</strong></td>
+    <td><span class="badge badge-red">新增</span></td>
+    <td><code>lib/orchestration/</code><br><code>director-graph.ts</code></td>
+    <td>引入 Director(决策) + Agent(内容生成) 模式，Java版可用 LLMService + 状态机实现</td>
+  </tr>
+  <tr>
+    <td><strong>Playback 引擎</strong></td>
+    <td><span class="badge badge-red">新增</span></td>
+    <td><code>lib/playback/engine.ts</code></td>
+    <td>前端实现 play/pause/resume/interrupt/live 状态机 + Action消费</td>
+  </tr>
+  <tr>
+    <td><strong>Action 系统</strong></td>
+    <td><span class="badge badge-red">新增</span></td>
+    <td><code>@openmaic/dsl (Action)</code></td>
+    <td>定义教学动作协议：SpeechAction, QuizAction, DiscussionAction, WhiteboardAction…</td>
+  </tr>
+  <tr>
+    <td><strong>白板系统</strong></td>
+    <td><span class="badge badge-orange">新增</span></td>
+    <td><code>components/whiteboard/</code></td>
+    <td>SVG/Canvas白板，支持文字/形状/公式/图表绘制</td>
+  </tr>
+  <tr>
+    <td><strong>TTS 语音</strong></td>
+    <td><span class="badge badge-orange">新增</span></td>
+    <td><code>lib/audio/</code></td>
+    <td>接入 TTS 服务（可用浏览器原生 + 第三方API降级），为讲解场景配音</td>
+  </tr>
+  <tr>
+    <td><strong>LLM网关增强</strong></td>
+    <td><span class="badge badge-blue">改造</span></td>
+    <td><code>lib/ai/llm.ts</code><br><code>resolveModel()</code></td>
+    <td>EduMentor 已有 LLMProvider 体系，需增强：结构化输出解析、模型路由</td>
+  </tr>
+  <tr>
+    <td><strong>前端学习页面</strong></td>
+    <td><span class="badge badge-red">新增</span></td>
+    <td><code>components/stage/</code></td>
+    <td>新建"课堂播放器"页面，取代当前列表式学习路径展示</td>
+  </tr>
+</table>
+
+<!-- ======================== 6. 关键技术决策 ======================== -->
+<h2>6. 关键技术决策</h2>
+
+<table>
+  <tr>
+    <th style="width:12%">决策</th>
+    <th style="width:18%">选项A</th>
+    <th style="width:18%">选项B</th>
+    <th style="width:52%">推荐</th>
+  </tr>
+  <tr>
+    <td><strong>多Agent编排</strong></td>
+    <td>LangGraph (Python/JS)</td>
+    <td>Java 自实现状态机</td>
+    <td><span class="badge badge-green">推荐B</span> EduMentor 是 Java 技术栈，引入 LangGraph 增加异构运维成本。用 Java 状态模式实现 Director-Agent 循环，调用 LLMService 做决策和内容生成，保持统一技术栈。</td>
+  </tr>
+  <tr>
+    <td><strong>课堂数据存储</strong></td>
+    <td>PostgreSQL JSONB</td>
+    <td>独立 Scene/Action 表</td>
+    <td><span class="badge badge-green">推荐B</span> Scene/Action 独立表结构，利于查询和索引。Scene 支持按 course 关联，Action 支持按 scene 关联。</td>
+  </tr>
+  <tr>
+    <td><strong>前端播放器</strong></td>
+    <td>React flow-based</td>
+    <td>Canvas/SVG 渲染引擎</td>
+    <td><span class="badge badge-green">推荐A+B</span> 普通课堂用 React 组件渲染（成本低），互动仿真用 Canvas（复用 OpenMAIC 的 widget 模式）。</td>
+  </tr>
+  <tr>
+    <td><strong>实时通信</strong></td>
+    <td>SSE (OpenMAIC方式)</td>
+    <td>WebSocket (EduMentor已有)</td>
+    <td><span class="badge badge-green">推荐B</span> EduMentor 已有 WebSocket 基础，对课堂播放场景足够。课堂事件（text_delta, action）通过 WebSocket 推送比 SSE 更灵活（双工通信）。</td>
+  </tr>
+  <tr>
+    <td><strong>内容生成</strong></td>
+    <td>全量一次性生成</td>
+    <td>按需逐场景生成</td>
+    <td><span class="badge badge-green">推荐B</span> 先只生成下一个场景（降低首屏等待），学生学完一个Scene 时后台预生成下一个。借鉴 OpenMAIC 的 async job + polling 模式。</td>
+  </tr>
+</table>
+
+<!-- ======================== 7. 实施路径建议 ======================== -->
+<h2>7. 实施路径建议</h2>
+
+<h3>Phase 1 — 基础能力建设</h3>
+<table>
+  <tr><th>步骤</th><th>内容</th><th>工作量估计</th></tr>
+  <tr><td>1.1</td><td>新增 Scene / Action 数据模型 + 数据库迁移</td><td>3天</td></tr>
+  <tr><td>1.2</td><td>增强 LLM Service：支持结构化输出解析（Action/Scene 格式）</td><td>2天</td></tr>
+  <tr><td>1.3</td><td>新增课堂生成 Service：KnowledgePoint + Course → Scene[] 的转换管线</td><td>5天</td></tr>
+  <tr><td>1.4</td><td>前端新增"课堂播放器"基础页面（场景列表 + 当前场景展示）</td><td>3天</td></tr>
+</table>
+
+<h3>Phase 2 — 多Agent课堂交互</h3>
+<table>
+  <tr><th>步骤</th><th>内容</th><th>工作量估计</th></tr>
+  <tr><td>2.1</td><td>设计 Agent 角色体系（教师/导师/同学）+ 注册表</td><td>2天</td></tr>
+  <tr><td>2.2</td><td>实现 Director 决策服务（Java状态机 + LLM调用）</td><td>5天</td></tr>
+  <tr><td>2.3</td><td>实现单 Agent 内容生成 + 流式推送（WebSocket）</td><td>4天</td></tr>
+  <tr><td>2.4</td><td>前端课堂播放器集成流式事件（text_delta / action 渲染）</td><td>4天</td></tr>
+</table>
+
+<h3>Phase 3 — Playback 体验完善</h3>
+<table>
+  <tr><th>步骤</th><th>内容</th><th>工作量估计</th></tr>
+  <tr><td>3.1</td><td>前端 Playback 引擎：play/pause/interrupt/resume 状态机</td><td>3天</td></tr>
+  <tr><td>3.2</td><td>学生"举手"中断 + 讨论模式恢复</td><td>3天</td></tr>
+  <tr><td>3.3</td><td>TTS 语音讲解集成</td><td>3天</td></tr>
+  <tr><td>3.4</td><td>课堂进度持久化 + 断点续播</td><td>2天</td></tr>
+</table>
+
+<h3>Phase 4 — 互动场景增强</h3>
+<table>
+  <tr><th>步骤</th><th>内容</th><th>工作量估计</th></tr>
+  <tr><td>4.1</td><td>白板系统（文本 + 公式 + 图表绘制）</td><td>5天</td></tr>
+  <tr><td>4.2</td><td>互动 Quiz 场景（自动生成题目 + 实时候批改 + 反馈）</td><td>4天</td></tr>
+  <tr><td>4.3</td><td>互动 HTML 场景（仿真/可视化基础支持）</td><td>5天</td></tr>
+  <tr><td>4.4</td><td>与 BKT 引擎联动：课堂Quiz结果 → 知识状态实时更新 → 自适应调整后续内容</td><td>3天</td></tr>
+</table>
+
+<!-- ======================== 8. 核心设计模式总结 ======================== -->
+<h2>8. 核心设计模式总结</h2>
+
+<div class="grid-2">
+<div class="card">
+  <div class="card-title">📐 模式1: Director-Agent Cycle</div>
+  <div class="flow" style="font-size:0.8rem">
+每次请求 = 一轮 director→agent
+director决定"谁来发言"
+agent生成"说什么+做什么"
+客户端串行调用实现多轮讨论
+无需服务端状态管理（无状态）
+
+Java实现方案:
+- State enum: WAITING, DIRECTOR_AGENT_DECISION, AGENT_GENERATING, COMPLETED
+- DirectorService.decideNext()
+- AgentService.generate()
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">📐 模式2: 结构化Action协议</div>
+  <div class="flow" style="font-size:0.8rem">
+LLM输出格式:
+{
+  "text": "讲解内容",
+  "actions": [
+    {"type": "speech", "text": "..."},
+    {"type": "wb_draw_text", "x": 10, "y": 20, "text": "..."},
+    {"type": "quiz", "question": "...", "options": [...]}
+  ]
+}
+
+前端解析器:
+- 流式解析 text_delta 和 action 事件
+- action 按类型分发到不同渲染器
+- speech → TTS播放
+- wb_* → 白板渲染
+- quiz → Quiz组件
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">📐 模式3: Playback 状态机</div>
+  <div class="flow" style="font-size:0.8rem">
+状态转换:
+  idle: 初始/结束
+  playing: 自动播放中（消费Action[]）
+  paused: 用户暂停
+  live: 讨论模式（Agent轮流传话）
+  
+关键设计:
+- 用户消息→中断→进入live
+- 讨论结束→恢复断点→回到playing
+- 讨论可"跳过"→继续播放
+  
+Event流:
+  text_delta(实时文本)
+  action(白板/Quiz/效果)
+  agent_start/end
+  cue_user(等用户发言)
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">📐 模式4: 生成管线 + 重试</div>
+  <div class="flow" style="font-size:0.8rem">
+OpenMAIC生成管线:
+  requirement → outlines → scenes → media → TTS → persist
+
+EduMentor适配:
+  knowledgeGraph → sceneOutlines → scenes → media → persist
+
+重试策略:
+  withGenerationRetry(label, fn, {
+    maxAttempts: 3,
+    shouldRetryResult: (r) => r === null,
+    backoff: exponential(2s, 30s),
+    onRetry: (event) => notifyProgress()
+  })
+  </div>
+</div>
+</div>
+
+<!-- ======================== 9. 结论 ======================== -->
+<h2>9. 结论</h2>
+
+<div class="card">
+  <p><strong>OpenMAIC 对 EduMentor 的最大价值不是代码复用，而是设计模式借鉴。</strong></p>
+  <p>两个项目的技术栈不同（TS vs Java），但核心的<strong>架构设计模式</strong>是语言无关的：</p>
+  <ol>
+    <li><strong>生成管线模式</strong>（大纲→场景→媒体→持久化）— 适用于任何教育内容生成场景</li>
+    <li><strong>Director-Agent 循环</strong>（决策→生成→反馈）— 通用的多Agent编排模式</li>
+    <li><strong>Action 动作系统</strong>（统一的播放指令协议）— 场景无感知的内容交付机制</li>
+    <li><strong>Playback 状态机</strong>（播放→中断→讨论→恢复）— 自然的课堂交互流</li>
+  </ol>
+  <p style="margin-top: 1rem;">
+    <strong>EduMentor 的核心竞争力</strong>（BKT+RAG+知识图谱+路径规划）+ 
+    <strong>OpenMAIC 的交互模式</strong>（多Agent课堂+Playback引擎+场景生成）
+    = <strong>下一代自适应沉浸式教育智能体</strong>
+  </p>
+  <p style="margin-top: 0.5rem; color: var(--muted); font-size: 0.9rem;">
+    建议先从 Phase 1（数据模型 + LLM增强 + 基础生成管线）开始，用最小的投入验证"知识图谱→课堂场景"的生成链路。
+  </p>
+</div>
+
+</div>
+</body>
+</html>
+

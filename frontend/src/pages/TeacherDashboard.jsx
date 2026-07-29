@@ -174,6 +174,9 @@ export default function TeacherDashboard() {
           <Button type="link" size="small" style={{ marginLeft: 12 }} onClick={() => navigate(`/teacher/courses/${selectedCourse.courseCode}/manage`)}>
             内容管理 →
           </Button>
+          <Button type="link" size="small" icon={<span>🎓</span>} onClick={() => navigate(`/teacher/classrooms?courseId=${selectedCourse.id}`)}>
+            课堂学情 →
+          </Button>
         </Card>
       )}
 

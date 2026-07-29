@@ -22,6 +22,10 @@ const TeacherCourseList = lazy(() => import('./pages/TeacherCourseList'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const AdminTeachers = lazy(() => import('./pages/AdminTeachers'));
 const AdminStudents = lazy(() => import('./pages/AdminStudents'));
+const ClassroomPlayback = lazy(() => import('./pages/classroom/ClassroomPlayback'));
+const ClassroomList = lazy(() => import('./pages/classroom/ClassroomList'));
+const TeacherClassrooms = lazy(() => import('./pages/classroom/TeacherClassrooms'));
+
 
 function PageLoading() {
   return (
@@ -70,6 +74,8 @@ function App() {
                 <Route path="error-review" element={<ErrorReview />} />
                 <Route path="courses" element={<StudentCourses />} />
                 <Route path="learning/:courseCode" element={<StudentLearning />} />
+                <Route path="classrooms" element={<ClassroomList />} />
+                <Route path="classroom/:classroomId" element={<ClassroomPlayback />} />
                 <Route path="profile" element={<StudentProfileEdit />} />
               </Route>
 
@@ -86,6 +92,7 @@ function App() {
                 <Route path="dashboard" element={<TeacherDashboard />} />
                 <Route path="courses" element={<TeacherCourseList />} />
                 <Route path="courses/:courseCode/manage" element={<TeacherCourseManage />} />
+                <Route path="classrooms" element={<TeacherClassrooms />} />
               </Route>
 
               {/* 管理员路由 */}
@@ -102,6 +109,7 @@ function App() {
                 <Route path="teachers" element={<AdminTeachers />} />
                 <Route path="students" element={<AdminStudents />} />
               </Route>
+
 
               {/* 404 */}
               <Route path="*" element={<Navigate to="/" replace />} />

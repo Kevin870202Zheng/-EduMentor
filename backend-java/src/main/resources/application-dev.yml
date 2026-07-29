@@ -25,6 +25,8 @@ jwt:
 
 llm:
   provider: DEEPSEEK
+  deepseek:
+    api-key: sk-REPLACED_DEEPSEEK_KEY
 
 logging:
   level:

@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduMentor 沉浸课堂优化 - 实施计划</title>
+<style>
+  :root {
+    --primary: #1677ff;
+    --success: #52c41a;
+    --warning: #faad14;
+    --danger: #ff4d4f;
+    --bg: #f5f7fa;
+    --card-bg: #ffffff;
+    --text: #1a1a2e;
+    --text-secondary: #595959;
+    --border: #e8e8e8;
+    --code-bg: #1e1e2e;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; padding: 0; }
+  .container { max-width: 960px; margin: 0 auto; padding: 40px 24px; }
+  h1 { font-size: 2em; margin-bottom: 8px; font-weight: 800; letter-spacing: -0.02em; }
+  h2 { font-size: 1.4em; margin: 32px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--primary); font-weight: 700; }
+  h3 { font-size: 1.1em; margin: 24px 0 12px; font-weight: 600; }
+  h4 { font-size: 1em; margin: 16px 0 8px; font-weight: 600; }
+  p, li { color: var(--text-secondary); margin-bottom: 8px; }
+  .card { background: var(--card-bg); border-radius: 12px; padding: 24px; margin-bottom: 16px; border: 1px solid var(--border); box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+  pre { background: var(--code-bg); color: #cdd6f4; padding: 16px; border-radius: 8px; overflow-x: auto; margin: 12px 0; font-size: 0.85em; line-height: 1.5; }
+  pre code { background: none; padding: 0; color: inherit; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9em; margin: 12px 0; }
+  th { background: #f0f5ff; text-align: left; padding: 10px 12px; font-weight: 600; border-bottom: 2px solid var(--primary); }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .tag { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 0.8em; font-weight: 600; margin-right: 6px; }
+  .tag-p0 { background: #fff2f0; color: #cf1322; border: 1px solid #ffa39e; }
+  .tag-p1 { background: #fff7e6; color: #d48806; border: 1px solid #ffd591; }
+  .tag-p2 { background: #e6f7ff; color: #096dd9; border: 1px solid #91d5ff; }
+  .tag-done { background: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; }
+  .step { display: flex; gap: 12px; align-items: flex-start; margin: 16px 0; }
+  .step-num { background: var(--primary); color: #fff; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85em; flex-shrink: 0; }
+  .step-content { flex: 1; }
+  .step-content h4 { margin: 0 0 4px; }
+  ul, ol { padding-left: 20px; }
+  li { margin-bottom: 4px; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+  .highlight-box { background: #fff7e6; border-left: 4px solid var(--warning); padding: 16px; border-radius: 8px; margin: 16px 0; }
+  .check-box { background: #f6ffed; border-left: 4px solid var(--success); padding: 16px; border-radius: 8px; margin: 16px 0; }
+  .file-path { font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: #666; background: #f5f5f5; padding: 1px 6px; border-radius: 4px; }
+  .file-diff-add { color: #52c41a; } .file-diff-mod { color: #d48806; } .file-diff-del { color: #ff4d4f; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>📋 EduMentor 沉浸课堂优化 — 实施计划</h1>
+<p style="font-size: 1.1em; color: var(--text-secondary);">Implementation Plan — 分步可执行任务清单</p>
+<div style="margin: 8px 0 32px; color:#999;">
+  基于 PRD v2.0-draft + 架构设计 • 2026-06-25
+</div>
+
+<div class="card">
+  <h3>计划总览</h3>
+  <table>
+    <tr><th>阶段</th><th>版本</th><th>工时</th><th>目标</th></tr>
+    <tr><td>Phase 1</td><td>v2.0-alpha</td><td>~12-15h</td><td>动画框架 + 渲染器动画化 + TTS + AI讲师头像</td></tr>
+    <tr><td>Phase 2</td><td>v2.0-beta</td><td>~8-10h</td><td>场景侧边栏 2.0 + 场景切换动画</td></tr>
+    <tr><td>Phase 3</td><td>v2.0-rc</td><td>~6-8h</td><td>课件富化 + 性能优化 + 集成测试</td></tr>
+  </table>
+</div>
+
+<!-- ================================================================ -->
+<h2>Phase 1: 动画框架 + 渲染器动画化 + TTS + AI讲师</h2>
+<p><strong>目标版本：</strong>v2.0-alpha &nbsp;|&nbsp; <strong>工时：</strong>12-15 小时 &nbsp;|&nbsp; <strong>优先级：</strong><span class="tag tag-p0">P0</span></p>
+
+<!-- Step 1 -->
+<div class="step">
+  <div class="step-num">1</div>
+  <div class="step-content">
+    <h4>添加依赖 & 创建动画配置文件</h4>
+    <p><strong>文件：</strong><span class="file-path">package.json</span> + <span class="file-path">frontend/src/pages/classroom/animations.ts</span></p>
+    <p><strong>操作：</strong></p>
+    <ol>
+      <li>在 <code>package.json</code> 的 <code>dependencies</code> 中添加 <code>"motion": "^11.0.0"</code></li>
+      <li>运行 <code>npm install motion</code>（或 <code>pnpm add motion</code>）</li>
+      <li>创建 <span class="file-path">animations.ts</span>，内容参照架构设计中 3.1 节的代码</li>
+    </ol>
+    <p><strong>验收：</strong><code>npm run build</code> 不报错，可以通过 <code>import { motion } from 'motion/react'</code> 正常使用</p>
+  </div>
+</div>
+
+<!-- Step 2 -->
+<div class="step">
+  <div class="step-num">2</div>
+  <div class="step-content">
+    <h4>SpeechRenderer 动画化</h4>
+    <p><strong>文件：</strong><span class="file-path">frontend/src/pages/classroom/components/SpeechRenderer.tsx</span></p>
+    <p><strong>操作：</strong></p>
+    <ol>
+      <li>将外层 <code>&lt;div&gt;</code> 替换为 <code>&lt;motion.div&gt;</code>，应用 <code>slideUp</code> 变体</li>
+      <li>使用 <code>AnimatePresence</code> 包装，使内容切换时有退出动画</li>
+      <li>高亮模式（<code>speech_with_highlight</code>）增加辉光脉冲动画</li>
+      <li>文字内容增加逐行淡入（使用 <code>staggerContainer</code> + <code>staggerItem</code>）</li>
+    </ol>
+    <p><strong>关键代码：</strong></p>
+    <pre>
+import { motion, AnimatePresence } from 'motion/react';
+import { slideUp, fadeIn } from '../animations';
+
+// 外层
+&lt;motion.div
+  variants={slideUp}
+  initial="hidden"
+  animate="visible"
+  exit="exit"
+  style={{ padding: '24px', maxWidth: 800, margin: '0 auto' }}
+&gt;
+  {/* ...原有内容... */}
+&lt;/motion.div&gt;</pre>
+    <p><strong>验收：</strong>进入 speech Action 时卡片从底部滑入，退出时向上淡出</p>
+  </div>
+</div>
+
+<!-- Step 3 -->
+<div class="step">
+  <div class="step-num">3</div>
+  <div class="step-content">
+    <h4>QuizRenderer 动画化</h4>
+    <p><strong>文件：</strong><span class="file-path">frontend/src/pages/classroom/components/QuizRenderer.tsx</span></p>
+    <p><strong>操作：</strong></p>
+    <ol>
+      <li>用 <code>&lt;motion.div&gt;</code> 包装整个 Card，添加 <code>scaleIn</code> 入场</li>
+      <li>选项使用 <code>staggerContainer</code> / <code>staggerItem</code> 逐个从下方弹入</li>
+      <li>选择后：正确选项 <code>springBouncy</code> 放大 + 绿色勾选</li>
+      <li>错误时：错误选项红色边框 + 轻微水平抖动动画</li>
+      <li>反馈 Alert：从底部滑入</li>
+    </ol>
+    <p><strong>验收：</strong>选项逐个弹出，选择后有弹簧反馈，错误提示轻抖</p>
+  </div>
+</div>
+
+<!-- Step 4 -->
+<div class="step">
+  <div class="step-num">4</div>
+  <div class="step-content">
+    <h4>剩余渲染器动画化</h4>
+    <p><strong>文件：</strong>WhiteboardRenderer, DiscussionRenderer, SceneTransitionRenderer, PauseForThoughtRenderer</p>
+    <p><strong>操作：</strong></p>
+    <ol>
+      <li><strong>WhiteboardRenderer：</strong>应用 <code>fadeIn</code> + 内容从左到右"书写"效果</li>
+      <li><strong>DiscussionRenderer：</strong>头像弹跳进入，文字渐显，底部提示脉冲</li>
+      <li><strong>SceneTransitionRenderer：</strong>图标旋转 + 缩放 + 文字打字机效果</li>
+      <li><strong>PauseForThoughtRenderer：</strong>三点跳动 + 淡入淡出循环</li>
+    </ol>
+    <p><strong>验收：</strong>每个 Action 切换时都有匹配场景的流畅动画</p>
+  </div>
+</div>
+
+<!-- Step 5 -->
+<div class="step">
+  <div class="step-num">5</div>
+  <div class="step-content">
+    <h4>创建 TTS 服务层</h4>
+    <p><strong>文件：</strong><span class="file-path">frontend/src/services/ttsService.ts</span></p>
+    <p><strong>操作：</strong></p>
+    <ol>
+      <li>定义 <code>TTSRequest</code> / <code>TTSResponse</code> 接口</li>
+      <li>实现 <code>synthesize()</code> — 调用后端 TTS API，返回音频 URL</li>
+      <li>实现 <code>prefetchSceneAudios()</code> — 预取场景中所有 speech 文本</li>
+      <li>简陋版本先用浏览器原生 <code>SpeechSynthesisUtterance</code>（Web Speech API）做 fallback</li>
+    </ol>
+    <p><strong>关键代码：</strong></p>
+    <pre>
+import { apiClient } from '../../api/apiClient';
+
+export interface TTSResponse {
+  audioUrl: string;
+  durationMs: number;
+}
+
+export async function synthesize(text: string): Promise&lt;TTSResponse&gt; {
+  // 方案 A: 后端 API 合成
+  try {
+    const res = await apiClient.post&lt;TTSResponse&gt;('/api/tts/synthesize', { text });
+    return res.data;
+  } catch {
+    // 方案 B: 浏览器原生 TTS fallback
+    return synthesizeBrowser(text);
+  }
+}
+
+function synthesizeBrowser(text: string): Promise&lt;TTSResponse&gt; {
+  return new Promise((resolve, reject) => {
+    if (!window.speechSynthesis) {
+      reject(new Error('TTS not supported'));
+      return;
+    }
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'zh-CN';
+    utterance.rate = 1.0;
+    // 用 blob URL 模拟（实际用 AudioContext 录制—简化版直接用时长估算）
+    utterance.onend = () => resolve({
+      audioUrl: '',  // 浏览器原生不需要 URL
+      durationMs: (text.length / 4) * 1000,  // 粗略估算
+    });
+    utterance.onerror = reject;
+    window.speechSynthesis.speak(utterance);
+  });
+}</pre>
+    <p><strong>验收：</strong>API 调用成功后返回音频 URL，可被 Audio 元素播放</p>
+  </div>
+</div>
+
+<!-- Step 6 -->
+<div class="step">
+  <div class="step-num">6</div>
+  <div class="step-content">
+    <h4>创建 useTTSPlayer hook</h4>
+    <p><strong>文件：</strong><span class="file-path">frontend/src/hooks/useTTSPlayer.ts</span></p>
+    <p><strong>操作：</strong></p>
+    <ol>
+      <li>实现音频播放状态管理（playing/paused/idle/error）</li>
+      <li>实现 <code>play(text)</code> — 缓存音频 → 创建 Audio → 播放 → 回调</li>
+      <li>实现 <code>pause()</code> / <code>stop()</code> / <code>resume()</code></li>
+      <li>音频缓存 Map&lt;text, audioUrl&gt; 防止重复合成</li>
+      <li>播放结束回调 <code>onComplete</code> 供 usePlayback 使用</li>
+    </ol>
+    <p><strong>验收：</strong>在 Storybook 或临时页面中可以播放/暂停 TTS 音频</p>
+  </div>
+</div>
+
+<!-- Step 7 -->
+<div class="step">
+  <div class="step-num">7</div>
+  <div class="step-content">
+    <h4>集成 TTS 到 usePlayback</h4>
+    <p><strong>文件：</strong><span class="file-path">frontend/src/pages/classroom/usePlayback.ts</span></p>
+    <p><strong>操作：</strong></p>
+    <ol>
+      <li>在 usePlayback 中引入 <code>useTTSPlayer()</code></li>
+      <li>修改 <code>autoPlayAction</code>：对于 speech 类型，不再用 setTimeout，而是监听 TTS onComplete</li>
+      <li>暂停时调用 <code>ttsPlayer.pause()</code>，恢复时 <code>ttsPlayer.resume()</code></li>
+      <li>预取：进入场景时调用 <code>ttsPlayer.prefetch()</code> 预合成所有 speech 音频</li>
+    </ol>
+    <p><strong>关键逻辑变更：</strong></p>
+    <pre>
+// 修改前（当前）
+const autoPlayAction = useCallback(() => {
+  if (currentAction.type === 'speech') {
+    const duration = currentAction.duration ?? 3000;
+    actionTimerRef.current = setTimeout(nextAction, duration);
+  }
+}, [currentAction, nextAction]);
+
+// 修改后（集成 TTS）
+const autoPlayAction = useCallback(() => {
+  if (currentAction.type === 'speech' && currentAction.text) {
+    ttsPlayer.play(currentAction.text, currentAction.id);
+    // 不需要 setTimeout，TTS onComplete 会调用 nextAction
+  } else if (currentAction.type === 'scene_transition') {
+    actionTimerRef.current = setTimeout(nextAction, 2000);
+  } else if (currentAction.type === 'pause_for_thought') {
+    actionTimerRef.current = setTimeout(nextAction, 1500);
+  }
+  // quiz/discussion 等待用户交互
+}, [currentAction, nextAction, ttsPlayer]);</pre>
+    <p><strong>验收：</strong>speech 类型的 Action 现在播放 TTS 语音，结束后自动跳到下一个 Action</p>
+  </div>
+</div>
+
+<!-- Step 8 -->
+<div class="step">
+  <div class="step-num">8</div>
+  <div class="step-content">
+    <h4>集成 TTS 波形到 SpeechRenderer</h4>
+    <p><strong>文件：</strong><span class="file-path">frontend/src/pages/classroom/components/SpeechRenderer.tsx</span></p>
+    <p><strong>操作：</strong></p>
+    <ol>
+      <li>在 SpeechRenderer 中添加 <code>isPlaying</code> prop</li>
+      <li>讲话时显示简易音频波形动画（CSS animation: 多个条柱高低变化）</li>
+      <li>SpeechRenderer 从 usePlayback 接收 <code>isSpeaking</code> 状态</li>
+    </ol>
+    <p><strong>验收：</strong>TTS 播放时文字旁显示波形动画</p>
+  </div>
+</div>
+
+<!-- Step 9 -->
+<div class="step">
+  <div class="step-num">9</div>
+  <div class="step-content">
+    <h4>创建 AI 讲师 Avatar</h4>
+    <p><strong>文件：</strong><span class="file-path">frontend/src/pages/classroom/components/TeacherAvatar.tsx</span></p>
+    <p><strong>操作：</strong></p>
+    <ol>
+      <li>创建静态头像组件：64x64 圆形，支持图片 URL</li>
+      <li>添加"讲话中"状态动画：脉冲边框辉光 + 轻微呼吸缩放</li>
+      <li>预设 3 个头像（教师1、教师2、助教）作为默认配置</li>
+      <li>在 ClassroomPlayback 右上角固定渲染</li>
+    </ol>
+    <p><strong>验收：</strong>播放器右上角显示讲师头像，TTS 讲话时头像有脉冲反馈</p>
+  </div>
+</div>
+
+<div class="check-box">
+  <strong>✅ Phase 1 完成标志：</strong>所有渲染器有入场动画，speech 播放 TTS 语音且头像有反馈，npm run build 无错误
+</div>
+
+<!-- ================================================================ -->
+<hr>
+<h2>Phase 2: 场景侧边栏 2.0 + 场景切换动画</h2>
+<p><strong>目标版本：</strong>v2.0-beta &nbsp;|&nbsp; <strong>工时：</strong>8-10 小时 &nbsp;|&nbsp; <strong>优先级：</strong><span class="tag tag-p1">P1</span></p>
+
+<!-- Step 10 -->
+<div class="step">
+  <div class="step-num">10</div>
+  <div class="step-content">
+    <h4>创建 SceneThumbnail 组件</h4>
+    <p><strong>文件：</strong><span class="file-path">frontend/src/pages/classroom/components/SceneThumbnail.tsx</span></p>
+    <p><strong>操作：</strong></p>
+    <ol>
+      <li>根据 Action 类型显示不同内容的缩略图预览</li>
+      <li>speech 类型：显示前 3 行文本摘要</li>
+      <li>quiz 类型：显示"📝 N 道练习题"标签</li>
+      <li>wb_draw 类型：显示"📐 含图示内容"标签</li>
+      <li>discussion 类型：显示"💬 讨论"标签</li>
+      <li>使用 Ant Design 的 <code>Tooltip</code> 包裹以提供完整内容预览</li>
+    </ol>
+    <p><strong>验收：</strong>侧边栏每项场景都有对应类型的缩略图</p>
+  </div>
+</div>
+
+<!-- Step 11 -->
+<div class="step">
+  <div class="step-num">11</div>
+  <div class="step-content">
+    <h4>创建 SceneSidebar 组件</h4>
+    <p><strong>文件：</strong><span class="file-path">frontend/src/pages/classroom/components/SceneSidebar.tsx</span></p>
+    <p><strong>操作：</strong></p>
+    <ol>
+      <li>侧边栏容器：flex 布局，默认宽度 220px，可折叠</li>
+      <li>顶部：logo + 折叠按钮</li>
+      <li>场景列表：SceneItem 组件（序号圆圈 + 标题 + 类型图标 + 缩略图）</li>
+      <li>拖拽手柄：右边缘 6px 宽，mousedown 注册拖拽</li>
+      <li>完成场景用 ✓ 标记，当前场景紫色高亮</li>
+      <li>生成中的场景显示骨架屏动画</li>
+      <li>折叠动画：使用 <code>motion.div</code> 的 <code>animate={{ width: [220, 0] }}</code></li>
+    </ol>
+    <p><strong>关键代码：</strong></p>
+    <pre>
+// 拖拽实现
+const handleMouseDown = (e: React.MouseEvent) => {
+  e.preventDefault();
+  const startX = e.clientX;
+  const startWidth = sidebarWidth;
+  const handleMove = (me: MouseEvent) => {
+    const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth + me.clientX - startX));
+    setSidebarWidth(newWidth);
+  };
+  const handleUp = () => {
+    document.removeEventListener('mousemove', handleMove);
+    document.removeEventListener('mouseup', handleUp);
+  };
+  document.addEventListener('mousemove', handleMove);
+  document.addEventListener('mouseup', handleUp);
+};</pre>
+    <p><strong>验收：</strong>侧边栏可折叠/展开，可拖拽调整宽度，场景列表渲染正确</p>
+  </div>
+</div>
+
+<!-- Step 12 -->
+<div class="step">
+  <div class="step-num">12</div>
+  <div class="step-content">
+    <h4>重构 ClassroomPlayback 布局</h4>
+    <p><strong>文件：</strong><span class="file-path">frontend/src/pages/classroom/ClassroomPlayback.tsx</span></p>
+    <p><strong>操作：</strong></p>
+    <ol>
+      <li>将水平导航按钮替换为 SceneSidebar 组件</li>
+      <li>移除旧的场景导航 <code>div</code>（第 131-161 行）</li>
+      <li>布局改为 flex row：侧边栏 + 内容区</li>
+      <li>内容区保持原有结构（TitleBar → Progress → Content → Controls）</li>
+      <li>右上角添加 TeacherAvatar</li>
+    </ol>
+    <p><strong>验收：</strong>播放器从顶部导航改为左侧边栏，右侧为内容区域</p>
+  </div>
+</div>
+
+<!-- Step 13 -->
+<div class="step">
+  <div class="step-num">13</div>
+  <div class="step-content">
+    <h4>场景切换动画增强</h4>
+    <p><strong>文件：</strong><span class="file-path">frontend/src/pages/classroom/components/SceneTransitionRenderer.tsx</span></p>
+    <p><strong>操作：</strong></p>
+    <ol>
+      <li>添加方向性滑动过渡（前进/后退）</li>
+      <li>过渡期间显示大号场景标题 + 知识点标签</li>
+      <li>下端显示 3-2-1 倒计时或进度指示</li>
+      <li>用户可点击跳过过渡</li>
+    </ol>
+    <p><strong>验收：</strong>场景切换时有平滑的方向性滑动过渡，1.5s 后自动进入内容</p>
+  </div>
+</div>
+
+<div class="check-box">
+  <strong>✅ Phase 2 完成标志：</strong>侧边栏功能完整、可拖拽折叠，场景切换有方向性过渡动画
+</div>
+
+<!-- ================================================================ -->
+<hr>
+<h2>Phase 3: 课件富化 + 性能优化 + 集成测试</h2>
+<p><strong>目标版本：</strong>v2.0-rc &nbsp;|&nbsp; <strong>工时：</strong>6-8 小时 &nbsp;|&nbsp; <strong>优先级：</strong><span class="tag tag-p2">P2</span></p>
+
+<!-- Step 14 -->
+<div class="step">
+  <div class="step-num">14</div>
+  <div class="step-content">
+    <h4>WhiteboardRenderer 富化</h4>
+    <p><strong>文件：</strong><span class="file-path">frontend/src/pages/classroom/components/WhiteboardRenderer.tsx</span></p>
+    <p><strong>操作：</strong></p>
+    <ol>
+      <li>添加依赖：<code>react-markdown</code>, <code>react-syntax-highlighter</code>, <code>katex</code></li>
+      <li>用 <code>react-markdown</code> 替换纯文本渲染</li>
+      <li>自定义 <code>components</code> 属性处理代码块和图片</li>
+      <li>使用 <code>rehype-katex</code> 插件渲染 LaTeX 公式</li>
+      <li>保留原有的白板虚线边框样式</li>
+    </ol>
+    <p><strong>关键代码：</strong></p>
+    <pre>
+import ReactMarkdown from 'react-markdown';
+import rehypeKatex from 'rehype-katex';
+import remarkMath from 'remark-math';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+
+// 渲染 Markdown 内容
+&lt;ReactMarkdown
+  remarkPlugins={[remarkMath]}
+  rehypePlugins={[rehypeKatex]}
+  components={{
+    code({ node, inline, className, children, ...props }) {
+      const match = /language-(\w+)/.exec(className || '');
+      return !inline && match
+        ? &lt;SyntaxHighlighter style={oneDark} language={match[1]} PreTag="div" {...props}&gt;
+            {String(children).replace(/\n$/, '')}
+          &lt;/SyntaxHighlighter&gt;
+        : &lt;code className={className} {...props}&gt;{children}&lt;/code&gt;;
+    },
+    img({ src, alt }) {
+      return &lt;img src={src} alt={alt} style={{ maxWidth: '100%', borderRadius: 8 }} /&gt;;
+    },
+  }}
+&gt;
+  {content}
+&lt;/ReactMarkdown&gt;</pre>
+    <p><strong>验收：</strong>白板内容中支持 Markdown 格式、代码高亮、LaTeX 公式和图片</p>
+  </div>
+</div>
+
+<!-- Step 15 -->
+<div class="step">
+  <div class="step-num">15</div>
+  <div class="step-content">
+    <h4>性能优化</h4>
+    <p><strong>操作：</strong></p>
+    <table>
+      <tr><th>问题</th><th>方案</th></tr>
+      <tr><td>动画触发频繁重排</td><td>所有动画使用 <code>transform</code> 和 <code>opacity</code> 属性，避免使用 <code>width/height/top/left</code></td></tr>
+      <tr><td>侧边栏拖拽卡顿</td><td>拖拽过程中设置 <code>transition: none</code>，松手后恢复 CSS transition</td></tr>
+      <tr><td>多个 motion 组件同时渲染</td><td>使用 <code>AnimatePresence mode="wait"</code> 确保同一时刻只有一个动画运行</td></tr>
+      <tr><td>TTS 音频重复加载</td><td>缓存 <code>Map&lt;text, AudioBuffer&gt;</code>，进入场景时预加载</td></tr>
+      <tr><td>motion 库包体积</td><td>Tree-shaking 确认只导入使用的 API，<code>import { motion, AnimatePresence }</code></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- Step 16 -->
+<div class="step">
+  <div class="step-num">16</div>
+  <div class="step-content">
+    <h4>无障碍 & 设置选项</h4>
+    <p><strong>操作：</strong></p>
+    <ol>
+      <li>在全局或用户设置中添加"减少动画"开关（对应 CSS <code>@media (prefers-reduced-motion)</code>）</li>
+      <li>所有 <code>&lt;motion.div&gt;</code> 检查 <code>prefers-reduced-motion</code>，若用户启用则跳过动画直接显示</li>
+      <li>添加 TTS 开关：用户可设置是否启用语音</li>
+      <li>关键交互（如 Quiz 提交、学习完成）即使在无动画模式下也保持可理解性</li>
+    </ol>
+    <p><strong>验收：</strong>设置中可关闭动画和 TTS，关闭后功能不变但无动画/语音</p>
+  </div>
+</div>
+
+<!-- Step 17 -->
+<div class="step">
+  <div class="step-num">17</div>
+  <div class="step-content">
+    <h4>集成测试与回归</h4>
+    <p><strong>操作：</strong></p>
+    <ol>
+      <li>回归测试所有 Action 类型（speech / quiz / discussion / wb_draw / scene_transition / pause_for_thought）的渲染正确性</li>
+      <li>测试场景导航：点击侧边栏场景 → 正确跳转并播放过渡动画</li>
+      <li>测试播放控制：暂停 → TTS 暂停；恢复 → TTS 继续；上一/下一 → 正确切换场景</li>
+      <li>测试侧边栏交互：折叠/展开、拖拽调整宽度</li>
+      <li>测试富白板：Markdown 渲染、代码高亮、公式显示</li>
+      <li>测试无障碍模式：关闭动画后所有动画跳过，关闭 TTS 后无语音</li>
+      <li><code>npm run build</code> 无 TypeScript 错误</li>
+    </ol>
+  </div>
+</div>
+
+<div class="check-box">
+  <strong>✅ Phase 3 完成标志：</strong>富白板渲染正确、性能达标、所有测试通过、npm run build 成功
+</div>
+
+<!-- ================================================================ -->
+<hr>
+<h2>附录：风险与预案</h2>
+
+<div class="card">
+  <table>
+    <tr><th>风险</th><th>概率</th><th>影响</th><th>预案</th></tr>
+    <tr><td><code>motion</code> 与 Ant Design CSS 冲突</td><td>低</td><td>中</td><td>对 Ant Design 组件外层包裹 <code>&lt;motion.div&gt;</code>，不直接替换 AntD 组件</td></tr>
+    <tr><td>TTS 后端 API 不可用</td><td>中</td><td>中</td><td>使用浏览器原生 SpeechSynthesis API 作为 fallback</td></tr>
+    <tr><td>动画导致低端设备性能问题</td><td>中</td><td>中</td><td>提供"减少动画"选项，使用 <code>will-change: transform</code> 优化</td></tr>
+    <tr><td><code>react-markdown</code> + <code>katex</code> 包体积过大</td><td>低</td><td>中</td><td>使用 <code>dynamic import</code> 延迟加载，只在白板 Action 时按需引入</td></tr>
+    <tr><td>拖拽侧边栏与页面滚动冲突</td><td>低</td><td>低</td><td>拖拽手柄区域宽度 6px 且垂直居中，不影响页面的其他区域</td></tr>
+  </table>
+</div>
+
+<hr>
+<p style="text-align:center; color:#999; font-size:0.85em;">— Implementation Plan End —</p>
+
+</div>
+</body>
+</html>

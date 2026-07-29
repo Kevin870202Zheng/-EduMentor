@@ -4,7 +4,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   DashboardOutlined, NodeIndexOutlined, QuestionCircleOutlined,
   FileExclamationOutlined, UserOutlined, BookOutlined,
-  LogoutOutlined, SwapOutlined, FileTextOutlined, ReadOutlined, TeamOutlined,
+  LogoutOutlined, SwapOutlined, FileTextOutlined, ReadOutlined, TeamOutlined, ThunderboltOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../../context/AuthContext';
 import { enrollmentAPI } from '../../services/api';
@@ -16,6 +16,7 @@ const studentMenuItems = [
   { key: '/student/dashboard', icon: <DashboardOutlined />, label: '学情总览' },
   { key: '/student/learning', icon: <ReadOutlined />, label: '课程学习' },
   { key: '/student/learning-path', icon: <NodeIndexOutlined />, label: '学习路径' },
+  { key: '/student/classrooms', icon: <ThunderboltOutlined />, label: '智慧课堂' },
   { key: '/student/qa', icon: <QuestionCircleOutlined />, label: '智能答疑' },
   { key: '/student/error-review', icon: <FileExclamationOutlined />, label: '错题复盘' },
   { key: '/student/courses', icon: <BookOutlined />, label: '我的课程' },
@@ -24,6 +25,7 @@ const studentMenuItems = [
 
 const teacherMenuItems = [
   { key: '/teacher/dashboard', icon: <DashboardOutlined />, label: '教学驾驶舱' },
+  { key: '/teacher/classrooms', icon: <ThunderboltOutlined />, label: '课堂学情' },
   { key: '/teacher/courses', icon: <FileTextOutlined />, label: '课程管理' },
 ];
 
@@ -142,6 +144,12 @@ export default function MainLayout({ role = 'student' }) {
               const code = currentCourse?.courseCode;
               if (code) navigate(`/student/learning/${code}`);
               else message.warning('请先选择一门课程');
+            } else if (key === '/student/classrooms') {
+              if (!selectedCourseId) {
+                message.warning('请先选择一门课程');
+              } else {
+                navigate(key);
+              }
             } else if (key === '/teacher/courses') {
               navigate(key);
             } else {

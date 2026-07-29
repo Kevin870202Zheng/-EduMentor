@@ -1,5 +1,121 @@
 // ================================================================
 // EduMentor 前端 API 类型定义
+
+// ─── 沉浸式课堂模块 ──────────────────────────────────
+
+/** 教学动作类型 */
+export type ActionType =
+  | 'speech'
+  | 'speech_with_highlight'
+  | 'wb_draw_text'
+  | 'wb_draw_diagram'
+  | 'quiz'
+  | 'discussion'
+  | 'scene_transition'
+  | 'pause_for_thought'
+  | 'code_demo';
+
+/** 教学动作 DTO */
+export interface ActionDTO {
+  type: ActionType;
+  text?: string;
+  content?: string;
+  position?: string;
+  duration?: number;
+  params?: Record<string, any>;
+  // Quiz 专用
+  question?: string;
+  options?: string[];
+  correctIndex?: number;
+  explanation?: string;
+  // 白板专用
+  wbContent?: string;
+  wbStyle?: string;
+}
+
+/** 教学场景详情 */
+export interface SceneDetailDto {
+  id: string;
+  classroomId: string;
+  title: string;
+  description?: string;
+  sceneType: string;
+  orderIndex: number;
+  estimatedDurationSeconds?: number;
+  actions: ActionDTO[];
+  content?: Record<string, any>;
+  createdAt?: string;
+}
+
+/** 课堂完整详情 */
+export interface ClassroomDetailDto {
+  id: string;
+  courseId: string;
+  knowledgePointId: string;
+  title: string;
+  description?: string;
+  difficulty: number;
+  totalDurationSeconds?: number;
+  status: string;
+  sceneCount: number;
+  version: number;
+  scenes: SceneDetailDto[];
+  metadata?: Record<string, any>;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/** 课堂进度 */
+export interface ClassroomProgressDto {
+  id: string;
+  studentId: string;
+  classroomId: string;
+  status: string;
+  currentSceneId?: string;
+  currentActionOrder: number;
+  scenesCompleted: number;
+  totalScenes: number;
+  quizCorrectCount: number;
+  quizTotalCount: number;
+  totalWatchSeconds: number;
+  startedAt?: string;
+  completedAt?: string;
+  lastAccessedAt?: string;
+}
+
+/** Quiz 提交请求 */
+export interface QuizSubmitRequest {
+  sceneId: string;
+  studentAnswer?: Record<string, any>;
+  selectedIndex?: number;
+  timeSpentSeconds?: number;
+}
+
+/** Quiz 提交响应 */
+export interface QuizSubmitResponse {
+  isCorrect: boolean;
+  correctAnswer: string;
+  explanation?: string;
+  aiFeedback?: string;
+  masteryDelta?: number;
+  bktUpdate?: Record<string, any>;
+  /** 关联的知识点名称 */
+  knowledgePointName?: string;
+}
+
+/** 课后练习题 DTO */
+export interface PracticeQuestionDto {
+  id: string;
+  questionContent: string;
+  options: string[];
+  correctIndex: number;
+  explanation: string;
+  knowledgePointId?: string;
+  knowledgePointName?: string;
+  relatedSceneId?: string;
+  relatedSceneTitle?: string;
+  difficulty: string;
+}
 // ================================================================
 
 // ─── 通用响应类型 ──────────────────────────────────────────
