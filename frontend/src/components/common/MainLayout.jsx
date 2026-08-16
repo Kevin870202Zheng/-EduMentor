@@ -14,10 +14,11 @@ const { Text } = Typography;
 
 const studentMenuItems = [
   { key: '/student/dashboard', icon: <DashboardOutlined />, label: '学情总览' },
+  { key: '/student/learning-path', icon: <NodeIndexOutlined />, label: '学习路径' },
+  { key: '/student/time-machine', icon: <CompassOutlined />, label: '成长时光机' },
   { key: '/student/learning', icon: <ReadOutlined />, label: '课程学习' },
   { key: '/student/stages', icon: <CompassOutlined />, label: '学段主题学习' },
-  { key: '/student/learning-path', icon: <NodeIndexOutlined />, label: '学习路径' },
-  { key: '/student/classrooms', icon: <ThunderboltOutlined />, label: '智慧课堂' },
+  { key: '/student/collab-classrooms', icon: <ThunderboltOutlined />, label: '合作课堂' },
   { key: '/student/qa', icon: <QuestionCircleOutlined />, label: '智能答疑' },
   { key: '/student/error-review', icon: <FileExclamationOutlined />, label: '错题复盘' },
   { key: '/student/courses', icon: <BookOutlined />, label: '我的课程' },
@@ -27,6 +28,7 @@ const studentMenuItems = [
 const teacherMenuItems = [
   { key: '/teacher/dashboard', icon: <DashboardOutlined />, label: '教学驾驶舱' },
   { key: '/teacher/classrooms', icon: <ThunderboltOutlined />, label: '课堂学情' },
+  { key: '/teacher/collab-classrooms', icon: <TeamOutlined />, label: '合作课堂' },
   { key: '/teacher/courses', icon: <FileTextOutlined />, label: '课程管理' },
 ];
 
@@ -139,18 +141,12 @@ export default function MainLayout({ role = 'student' }) {
           </div>
         )}
 
-        <Menu mode="inline" selectedKeys={[location.pathname.startsWith('/student/learning') ? '/student/learning' : location.pathname]} items={menuItems}
+        <Menu mode="inline" selectedKeys={[location.pathname.startsWith('/student/learning/') ? '/student/learning' : location.pathname]} items={menuItems}
           onClick={({ key }) => {
             if (key === '/student/learning') {
               const code = currentCourse?.courseCode;
               if (code) navigate(`/student/learning/${code}`);
               else message.warning('请先选择一门课程');
-            } else if (key === '/student/classrooms') {
-              if (!selectedCourseId) {
-                message.warning('请先选择一门课程');
-              } else {
-                navigate(key);
-              }
             } else if (key === '/teacher/courses') {
               navigate(key);
             } else {

@@ -120,15 +120,14 @@ export const knowledgeApi = {
   },
 
   /**
-   * 知识点树形结构
-   * GET /api/knowledge/points/tree?courseId={courseId}
+   * 知识点树形结构（扁平列表，含 level/hasChild）
+   * GET /api/knowledge/courses/{courseId}/points/tree
    */
   async getKnowledgePointTree(
     courseId: string,
   ): Promise<KnowledgePointTreeItem[]> {
     return apiClient.get<unknown, KnowledgePointTreeItem[]>(
-      '/knowledge/points/tree',
-      { params: { courseId } },
+      `/knowledge/courses/${courseId}/points/tree`,
     );
   },
 

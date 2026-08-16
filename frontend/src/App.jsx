@@ -17,6 +17,7 @@ const StudentCourses = lazy(() => import('./pages/StudentCourses'));
 const StudentStageThemes = lazy(() => import('./pages/StudentStageThemes'));
 const StudentProfileEdit = lazy(() => import('./pages/StudentProfileEdit'));
 const StudentLearning = lazy(() => import('./pages/StudentLearning'));
+const TimeMachine = lazy(() => import('./pages/TimeMachine'));
 const TeacherDashboard = lazy(() => import('./pages/TeacherDashboard'));
 const TeacherCourseManage = lazy(() => import('./pages/TeacherCourseManage'));
 const TeacherCourseList = lazy(() => import('./pages/TeacherCourseList'));
@@ -24,9 +25,7 @@ const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const AdminTeachers = lazy(() => import('./pages/AdminTeachers'));
 const AdminStudents = lazy(() => import('./pages/AdminStudents'));
 const ClassroomPlayback = lazy(() => import('./pages/classroom/ClassroomPlayback'));
-const ClassroomList = lazy(() => import('./pages/classroom/ClassroomList'));
 const TeacherClassrooms = lazy(() => import('./pages/classroom/TeacherClassrooms'));
-const ClassroomGenerator = lazy(() => import('./pages/classroom/ClassroomGenerator'));
 const KnowledgePointPicker = lazy(() => import('./pages/classroom/KnowledgePointPicker'));
 const TeacherCollabClassrooms = lazy(() => import('./pages/classroom/TeacherCollabClassrooms'));
 const StudentCollabClassrooms = lazy(() => import('./pages/classroom/StudentCollabClassrooms'));
@@ -83,9 +82,11 @@ function App() {
                 <Route path="courses" element={<StudentCourses />} />
                 <Route path="stages" element={<StudentStageThemes />} />
                 <Route path="learning/:courseCode" element={<StudentLearning />} />
-                <Route path="classrooms" element={<ClassroomList />} />
-                <Route path="classroom-generator" element={<ClassroomGenerator />} />
-                <Route path="classroom-generator/select" element={<KnowledgePointPicker />} />
+                <Route path="time-machine" element={<TimeMachine />} />
+                {/* 旧路由兼容：智慧课堂 → 合作课堂；生成器入口并入课程学习 Tab（M3） */}
+                <Route path="classrooms" element={<Navigate to="collab-classrooms" replace />} />
+                <Route path="classroom-generator" element={<Navigate to="collab-classrooms" replace />} />
+                <Route path="classroom-generator/select" element={<Navigate to="collab-classrooms" replace />} />
                 <Route path="collab-classrooms" element={<StudentCollabClassrooms />} />
                 <Route path="collab-classrooms/:id" element={<CollabWorkbench />} />
                 <Route path="classroom/:classroomId" element={<ClassroomPlayback />} />
@@ -108,7 +109,7 @@ function App() {
                 <Route path="courses" element={<TeacherCourseList />} />
                 <Route path="courses/:courseCode/manage" element={<TeacherCourseManage />} />
                 <Route path="classrooms" element={<TeacherClassrooms />} />
-                <Route path="classroom-generator" element={<ClassroomGenerator />} />
+                <Route path="classroom-generator" element={<Navigate to="collab-classrooms" replace />} />
                 <Route path="classroom-generator/select" element={<KnowledgePointPicker />} />
                 <Route path="collab-classrooms" element={<TeacherCollabClassrooms />} />
                 <Route path="collab-classrooms/:id" element={<CollabWorkbench />} />

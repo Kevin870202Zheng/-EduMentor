@@ -195,8 +195,8 @@ const TeacherClassrooms: React.FC = () => {
           </Title>
         </Space>
         <Space>
-          <Button icon={<ExperimentOutlined />} onClick={() => navigate('/teacher/classroom-generator')}>
-            课堂生成器
+          <Button icon={<ExperimentOutlined />} onClick={() => navigate('/teacher/classroom-generator/select')}>
+            勾选生成
           </Button>
           <Button icon={<TeamOutlined />} onClick={() => navigate('/teacher/collab-classrooms')}>
             学段协作

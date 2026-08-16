@@ -15,8 +15,44 @@ import { useAuth } from '../../context/AuthContext';
 
 const { Title, Text } = Typography;
 
-/** 知识树 → antd Tree 数据 */
+/** 知识树 → antd Tree 数据
+ * 兼容两种结构：
+ *  - 嵌套结构 [{id, name, type, childrenCount, children}]
+ *  - 扁平列表（后端 /courses/{courseId}/points/tree）[{knowledgePoint, level, hasChild}]
+ */
 function toTreeData(nodes) {
+  // 扁平列表 → 按 parentKpId 分组递归构建嵌套树
+  if (Array.isArray(nodes) && nodes.length > 0 && nodes[0]?.knowledgePoint) {
+    const childrenMap = {};
+    nodes.forEach(n => {
+      const pid = n.knowledgePoint.parentKpId || 'root';
+      if (!childrenMap[pid]) childrenMap[pid] = [];
+      childrenMap[pid].push(n);
+    });
+    const build = (parentId) => {
+      const items = childrenMap[parentId] || [];
+      return items
+        .sort((a, b) => (a.knowledgePoint.orderIndex || 0) - (b.knowledgePoint.orderIndex || 0))
+        .map(n => {
+          const kp = n.knowledgePoint;
+          const childCount = (childrenMap[kp.id] || []).length;
+          return {
+            title: (
+              <span>
+                {kp.name}
+                {childCount > 0 ? (
+                  <Tag color="blue" style={{ marginLeft: 6, fontSize: 10 }}>{childCount}个知识点</Tag>
+                ) : null}
+              </span>
+            ),
+            key: kp.id,
+            children: build(kp.id),
+          };
+        });
+    };
+    return build('root');
+  }
+  // 嵌套结构
   return (nodes || []).map(n => ({
     title: (
       <span>
@@ -31,10 +67,11 @@ function toTreeData(nodes) {
   }));
 }
 
-/** 收集树中 {id → name} 映射 */
+/** 收集树中 {id → name} 映射（兼容扁平列表与嵌套结构） */
 function collectNames(nodes, map = {}) {
   (nodes || []).forEach(n => {
-    map[n.id] = n.name;
+    const kp = n.knowledgePoint || n;
+    map[kp.id] = kp.name;
     if (n.children?.length) collectNames(n.children, map);
   });
   return map;
@@ -43,17 +80,22 @@ function collectNames(nodes, map = {}) {
 const AGGREGATE_LIMIT = 10;
 
 /**
- * 🎓 场景一：知识点/章节勾选生成课堂（课堂生成器）
+ * 🎓 场景一：知识点/章节勾选生成课堂
  * 从课程知识树勾选知识点或章节 → 聚合为一堂课（默认）或每知识点一课（批量）。
+ *
+ * 双模式：
+ *  - 受控模式（传入 courseId）：课程学习中心 Tab3 使用，固定当前课程
+ *  - 非受控模式：教师端独立页面使用，带课程下拉
  */
-export default function KnowledgePointPicker() {
+export default function KnowledgePointPicker({ courseId: fixedCourseId, courseName: fixedCourseName, onBack }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
   const { selectedCourseId, studentCourses } = useOutletContext() || {};
   const isTeacher = user?.role === 'teacher' || user?.role === 'admin';
+  const isFixed = !!fixedCourseId; // 受控模式
 
-  const [courseId, setCourseId] = useState(selectedCourseId || '');
+  const [courseId, setCourseId] = useState(fixedCourseId || selectedCourseId || '');
   const [courseOptions, setCourseOptions] = useState([]);
   const [tree, setTree] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -67,10 +109,18 @@ export default function KnowledgePointPicker() {
   const [batchStatus, setBatchStatus] = useState(null);
 
   const nameMap = useMemo(() => collectNames(tree), [tree]);
-  const currentCourse = courseOptions.find(c => c.courseId === courseId);
+  const currentCourse = isFixed
+    ? { courseId: fixedCourseId, courseName: fixedCourseName }
+    : courseOptions.find(c => c.courseId === courseId);
 
-  // 课程数据源：学生用已选课程；教师用全量课程列表
+  // 受控模式下固定课程
   useEffect(() => {
+    if (fixedCourseId) setCourseId(fixedCourseId);
+  }, [fixedCourseId]);
+
+  // 课程数据源（仅非受控模式）：学生用已选课程；教师用全量课程列表
+  useEffect(() => {
+    if (isFixed) return;
     if (studentCourses?.length) {
       setCourseOptions(studentCourses.map(c => ({
         courseId: c.courseId,
@@ -89,7 +139,7 @@ export default function KnowledgePointPicker() {
         })));
       }).catch(() => setCourseOptions([]));
     }
-  }, [studentCourses, isTeacher]);
+  }, [studentCourses, isTeacher, isFixed]);
 
   useEffect(() => {
     if (selectedCourseId) setCourseId(selectedCourseId);
@@ -159,7 +209,8 @@ export default function KnowledgePointPicker() {
           clearInterval(timer);
           setGenerating(false);
           message.success('全部课堂已生成完成');
-          navigate('/student/classrooms');
+          if (onBack) onBack();
+          else navigate(isTeacher ? '/teacher/classrooms' : '/student/classrooms');
         } else if (res?.status === 'failed') {
           clearInterval(timer);
           setGenerating(false);
@@ -213,26 +264,28 @@ export default function KnowledgePointPicker() {
     <div style={{ maxWidth: 960, margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <Space>
-          <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/student/classrooms')}>返回</Button>
-          <Title level={4} style={{ margin: 0 }}>🎓 知识点选择生成</Title>
+          <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => onBack ? onBack() : navigate(isTeacher ? '/teacher/classrooms' : '/student/classrooms')}>返回</Button>
+          <Title level={4} style={{ margin: 0 }}>⚡ 课堂生成</Title>
         </Space>
       </div>
 
-      <Card size="small" style={{ marginBottom: 12 }}>
-        <Space wrap>
-          <Text strong>课程：</Text>
-          <Select
-            style={{ width: 320 }}
-            placeholder="选择课程"
-            value={courseId || undefined}
-            onChange={setCourseId}
-            options={courseOptions.map(c => ({ label: c.label, value: c.courseId }))}
-          />
-          {currentCourse?.courseName && (
-            <Text type="secondary">当前课程：{currentCourse.courseName}</Text>
-          )}
-        </Space>
-      </Card>
+      {!isFixed && (
+        <Card size="small" style={{ marginBottom: 12 }}>
+          <Space wrap>
+            <Text strong>课程：</Text>
+            <Select
+              style={{ width: 320 }}
+              placeholder="选择课程"
+              value={courseId || undefined}
+              onChange={setCourseId}
+              options={courseOptions.map(c => ({ label: c.label, value: c.courseId }))}
+            />
+            {currentCourse?.courseName && (
+              <Text type="secondary">当前课程：{currentCourse.courseName}</Text>
+            )}
+          </Space>
+        </Card>
+      )}
 
       {!courseId ? (
         <Empty description="请先选择一门课程" />

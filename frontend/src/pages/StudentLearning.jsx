@@ -4,6 +4,8 @@ import { Card, Typography, Button, Spin, Tag, Progress, Radio, Checkbox, Input, 
 import { CheckCircleOutlined, CloseCircleOutlined, ArrowLeftOutlined, ArrowRightOutlined, RobotOutlined, BookOutlined, FolderOutlined, FileTextOutlined, FormOutlined, TeamOutlined, PlusOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import { courseAPI, learningAPI, answerAPI, questionAnalysisAPI, knowledgePointAPI, peerQuizAPI } from '../services/api';
 import { classroomApi } from '../api/classroomApi';
+import ClassroomList from './classroom/ClassroomList';
+import KnowledgePointPicker from './classroom/KnowledgePointPicker';
 import { useAuth } from '../context/AuthContext';
 
 const { Title, Text, Paragraph } = Typography;
@@ -242,7 +244,6 @@ const QuestionCard = React.memo(({
 export default function StudentLearning() {
   const { courseCode } = useParams();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { selectedCourseId, studentCourses } = useOutletContext();
 
@@ -301,6 +302,16 @@ export default function StudentLearning() {
       setEnteringClassroom(false);
     }
   };
+  // ─── 课程学习中心 Tab（学习 / 智慧课堂 / 课堂生成）───
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get('tab') || 'learning';
+  const setTab = (key) => {
+    const next = new URLSearchParams(searchParams);
+    if (key === 'learning') next.delete('tab');
+    else next.set('tab', key);
+    setSearchParams(next, { replace: true });
+  };
+
   const [activeTab, setActiveTab] = useState('exercises');
   const [selectedQuizDetail, setSelectedQuizDetail] = useState(null);
   const [selectedQuizResults, setSelectedQuizResults] = useState(null);
@@ -710,7 +721,12 @@ export default function StudentLearning() {
         </Space>
       </div>
 
-      <div style={{ display: 'flex', gap: 16 }}>
+      <Tabs activeKey={tab} onChange={setTab} items={[
+        {
+          key: 'learning',
+          label: '📖 课程学习',
+          children: (
+            <div style={{ display: 'flex', gap: 16 }}>
         <Card size="small" style={{ width: 320, flexShrink: 0, maxHeight: '70vh', overflow: 'auto' }}>
           <Text strong style={{ display: 'block', marginBottom: 8 }}>📖 知识结构</Text>
           {treeData.length === 0 ? (
@@ -746,16 +762,15 @@ export default function StudentLearning() {
                   <Space>
                     <Button type="primary" ghost icon={<span>🎓</span>}
                       size="small"
-                      onClick={() => navigate('/student/classroom-generator/select', {
+                      onClick={() => navigate(`/student/learning/${courseCode}?tab=generator`, {
                         state: {
-                          courseId: courseInfo?.id,
                           presetKpIds: currentKp?.type === 'CHAPTER' ? [currentKp.id] : undefined,
                         },
                       })}
                     >
                       {currentKp?.type === 'CHAPTER'
                         ? `生成章级智慧课堂${currentKp?.childrenCount ? `（${currentKp.childrenCount}个知识点）` : ''}`
-                        : '去生成器创建课堂'}
+                        : '去课堂生成'}
                     </Button>
                     <Progress type="circle" percent={currentKp ? Math.round((masteryMap[currentKp.id] || 0) * 100) : 0}
                       size={48} strokeColor={(() => {
@@ -874,8 +889,29 @@ export default function StudentLearning() {
           ) : (
             <Card><Empty description="该课程暂无知识点内容" /></Card>
           )}
-        </div>
-      </div>
+            </div>
+          </div>
+          ),
+        },
+        {
+          key: 'classrooms',
+          label: '🎓 智慧课堂',
+          children: (
+            <ClassroomList courseId={courseInfo.id} courseName={courseInfo.name} onGoGenerate={() => setTab('generator')} />
+          ),
+        },
+        {
+          key: 'generator',
+          label: '⚡ 课堂生成',
+          children: (
+            <KnowledgePointPicker
+              courseId={courseInfo.id}
+              courseName={courseInfo.name}
+              onBack={() => setTab('classrooms')}
+            />
+          ),
+        },
+      ]} />
 
       {/* ─── 出题考核弹窗 ─── */}
       <Modal title="📝 出题考核" open={showCreateQuiz}

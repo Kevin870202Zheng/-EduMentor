@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduMentor v2.0 版本规划 — 信息架构重构 + 缺陷修复 + 成长时光机</title>
+<style>
+  :root {
+    --primary: #1677ff; --success: #52c41a; --warning: #faad14; --danger: #ff4d4f;
+    --bg: #f5f7fa; --card: #fff; --text: #1f2937; --muted: #6b7280;
+    --border: #e5e7eb;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+  .container { max-width: 1080px; margin: 0 auto; padding: 32px 24px 80px; }
+  header { text-align: center; padding: 32px 0 24px; border-bottom: 2px solid var(--primary); margin-bottom: 32px; }
+  header h1 { font-size: 26px; }
+  header .sub { color: var(--muted); margin-top: 8px; font-size: 14px; }
+  .meta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
+  .tag { padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .tag.blue { background: #e6f4ff; color: #0958d9; }
+  .tag.green { background: #f6ffed; color: #237804; }
+  .tag.orange { background: #fff7e6; color: #ad4e00; }
+  .tag.red { background: #fff1f0; color: #a8071a; }
+  .tag.gray { background: #f0f0f0; color: #595959; }
+  section { background: var(--card); border-radius: 12px; padding: 24px 28px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  h2 { font-size: 20px; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+  h2 .icon { margin-right: 8px; }
+  h3 { font-size: 16px; margin: 20px 0 10px; color: #111827; }
+  h4 { font-size: 14px; margin: 14px 0 8px; color: #374151; }
+  p { margin-bottom: 10px; }
+  ul, ol { padding-left: 22px; margin-bottom: 12px; }
+  li { margin-bottom: 4px; }
+  code { background: #f3f4f6; border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-size: 13px; font-family: 'SF Mono', Consolas, monospace; }
+  pre { background: #1f2937; color: #e5e7eb; border-radius: 8px; padding: 16px; overflow-x: auto; margin: 12px 0; font-size: 13px; line-height: 1.6; }
+  pre code { background: transparent; border: none; color: inherit; padding: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; vertical-align: top; }
+  th { background: #f9fafb; font-weight: 600; white-space: nowrap; }
+  .callout { border-left: 4px solid var(--primary); background: #f0f7ff; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 12px 0; }
+  .callout.warn { border-left-color: var(--warning); background: #fffbe6; }
+  .callout.danger { border-left-color: var(--danger); background: #fff1f0; }
+  .callout.success { border-left-color: var(--success); background: #f6ffed; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 12px 0; }
+  .card { border: 1px solid var(--border); border-radius: 8px; padding: 14px; background: #fff; }
+  .card .title { font-weight: 600; margin-bottom: 6px; }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 4px; font-size: 12px; margin-right: 6px; }
+  .pill.p0 { background: #fff1f0; color: #a8071a; }
+  .pill.p1 { background: #fff7e6; color: #ad4e00; }
+  .pill.p2 { background: #f6ffed; color: #237804; }
+  .ascii { background: #fafafa; border: 1px solid var(--border); border-radius: 8px; padding: 16px; font-family: 'SF Mono', Consolas, monospace; font-size: 12.5px; line-height: 1.7; overflow-x: auto; white-space: pre; color: #374151; }
+  footer { text-align: center; color: var(--muted); font-size: 13px; padding-top: 16px; }
+  .status { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
+  .status.ok { background: #f6ffed; color: #237804; }
+  .status.bad { background: #fff1f0; color: #a8071a; }
+  .status.warn { background: #fff7e6; color: #ad4e00; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>📦 EduMentor v2.0 版本规划</h1>
+  <p class="sub">信息架构重构 · 缺陷修复 · 成长时光机（新功能）</p>
+  <div class="meta">
+    <span class="tag blue">版本：v2.0</span>
+    <span class="tag orange">状态：待评审</span>
+    <span class="tag gray">预估工时：约 7.5 人天</span>
+    <span class="tag green">来源：6 项用户验收反馈</span>
+  </div>
+</header>
+
+<!-- ==================== 0. 概述 ==================== -->
+<section>
+  <h2><span class="icon">🎯</span>0. 版本目标</h2>
+  <p>针对上一轮用户体验验收提出的 <b>6 项反馈</b>，本版本完成：</p>
+  <ul>
+    <li><b>P0 缺陷</b>：修复「课堂生成时知识树无法加载」的 404 根因。</li>
+    <li><b>P1 信息架构重构</b>：学习路径入口迁移、智慧课堂拆分并入课程学习、智慧课堂更名合作课堂、模拟法庭入口隐藏。</li>
+    <li><b>P2 新功能</b>：落地 PRD「场景 F 成长时光机」——跨学段自我对话与成长记录。</li>
+  </ul>
+  <div class="callout">
+    <b>⚠️ 重要说明</b>：经代码核查，反馈中提到的「时光机功能」在现有代码库与 plans 目录中<b>没有独立实现</b>，仅在
+    <code>.youcoder/plans/multi-stage-legal-education-prd.html</code> 的「场景 F：成长时光机 — 跨学段自我对话与成长记录」中有产品场景描述。
+    本版本将以该场景为蓝本从零落地（此前朋友版本可能实现过，但本项目库未包含）。
+  </div>
+</section>
+
+<!-- ==================== 1. 现状核查 ==================== -->
+<section>
+  <h2><span class="icon">🔍</span>1. 六项反馈的现状核查结论</h2>
+  <table>
+    <tr>
+      <th>#</th><th>反馈</th><th>核查结论</th><th>根因 / 现状</th><th>优先级</th>
+    </tr>
+    <tr>
+      <td>1</td><td>学习路径入口改放学情总览下面</td>
+      <td><span class="status ok">明确</span></td>
+      <td>菜单顺序为「学情总览 → 课程学习 → 学段主题 → 学习路径」，需将学习路径上移至学情总览之下</td>
+      <td><span class="pill p1">P1</span></td>
+    </tr>
+    <tr>
+      <td>2</td><td>智慧课堂拆开，前两种来源放课程学习下二级页面</td>
+      <td><span class="status ok">明确</span></td>
+      <td>三种来源：①课程学习页章级生成 ②生成器知识树勾选 ③学段协作课堂。当前全部堆在「智慧课堂」模块，需将 ①② 并入课程学习模块</td>
+      <td><span class="pill p1">P1</span></td>
+    </tr>
+    <tr>
+      <td>3</td><td>智慧课堂改名合作课堂，只保留第三种</td>
+      <td><span class="status ok">明确</span></td>
+      <td>「智慧课堂」菜单项更名为「合作课堂」，只承载学段协作课堂（来源③）</td>
+      <td><span class="pill p1">P1</span></td>
+    </tr>
+    <tr>
+      <td>4</td><td>生成课堂时知识树无法加载</td>
+      <td><span class="status bad">已定位根因</span></td>
+      <td>见 §3.3：<code>knowledgeApi.ts</code> 请求 URL 与后端不匹配（query vs path），且返回结构不兼容</td>
+      <td><span class="pill p0">P0</span></td>
+    </tr>
+    <tr>
+      <td>5</td><td>时光机功能未实现</td>
+      <td><span class="status warn">场景存在</span></td>
+      <td>仅 PRD「场景 F」有产品描述，代码库无任何实现，需从零设计落地</td>
+      <td><span class="pill p2">P2</span></td>
+    </tr>
+    <tr>
+      <td>6</td><td>模拟法庭入口隐藏，暂不使用</td>
+      <td><span class="status ok">明确</span></td>
+      <td>课堂卡片上的「模拟法庭」按钮需移除；路由与后端保留（后续可启用）</td>
+      <td><span class="pill p1">P1</span></td>
+    </tr>
+  </table>
+</section>
+
+<!-- ==================== 2. 目标信息架构 ==================== -->
+<section>
+  <h2><span class="icon">🗺️</span>2. 目标信息架构（学生端）</h2>
+
+  <h3>2.1 侧边栏菜单（新顺序）</h3>
+  <div class="ascii">
+┌─────────────────────────────────────────────┐
+│  📘 智学导师 EduMentor                       │
+│  ┌─────────────────────────────┐             │
+│  │ 当前课程 ▾ [法学概论]       │             │
+│  └─────────────────────────────┘             │
+│  ① 📊 学情总览            /student/dashboard          │
+│  ② 🧭 学习路径            /student/learning-path      │  ← 从④上移
+│  ③ ⏳ 成长时光机          /student/time-machine       │  ← 新增
+│  ④ 📖 课程学习            /student/learning/:code     │  ← 内含课堂Tab
+│  ⑤ 🧭 学段主题学习        /student/stages              │
+│  ⑥ 🤝 合作课堂            /student/collab-classrooms   │  ← 智慧课堂更名
+│  ⑦ 💬 智能答疑            /student/qa                   │
+│  ⑧ 📝 错题复盘            /student/error-review         │
+│  ⑨ 📚 我的课程            /student/courses              │
+│  ⑩ 👤 个人信息            /student/profile              │
+└─────────────────────────────────────────────┘
+  </div>
+
+  <h3>2.2 路由变更对照</h3>
+  <table>
+    <tr><th>现状路由</th><th>目标路由</th><th>说明</th></tr>
+    <tr><td><code>/student/classrooms</code>（智慧课堂列表）</td><td><code>/student/learning/:courseCode/classrooms</code></td><td>并入课程学习模块，作为二级页</td></tr>
+    <tr><td><code>/student/classroom-generator</code>（生成器首页）</td><td>❌ 移除</td><td>入口逻辑并入课程学习 Tab / 合作课堂菜单</td></tr>
+    <tr><td><code>/student/classroom-generator/select</code>（知识树勾选）</td><td><code>/student/learning/:courseCode/generator</code></td><td>作为课程学习模块二级页（来源②）</td></tr>
+    <tr><td><code>/student/collab-classrooms</code></td><td><code>/student/collab-classrooms</code>（不变，改菜单名）</td><td>合作课堂（来源③）</td></tr>
+    <tr><td>—</td><td><code>/student/time-machine</code></td><td>新增：成长时光机</td></tr>
+    <tr><td><code>/student/learning/:courseCode</code></td><td>不变，增加 Tab 导航</td><td>课程学习页改造为「课程学习中心」</td></tr>
+    <tr><td><code>/student/classroom/:id/court</code> 等模拟法庭路由</td><td>保留代码，移除入口</td><td>无导航可达，后端 API 保留</td></tr>
+  </table>
+
+  <div class="callout warn">
+    <b>⚠️ 旧路由兼容</b>：为保证旧链接/旧入口不 404，<code>/student/classrooms</code> 与 <code>/student/classroom-generator*</code>
+    保留为重定向路由（redirect 到合作课堂或课程学习二级页），下版本清理。
+  </div>
+</section>
+
+<!-- ==================== 3. P1 信息架构重构 ==================== -->
+<section>
+  <h2><span class="icon">🏗️</span>3. P1 信息架构重构设计</h2>
+
+  <h3>3.1 反馈① 学习路径入口迁移</h3>
+  <table>
+    <tr><th>项</th><th>方案</th></tr>
+    <tr><td>改动点</td><td><code>MainLayout.jsx</code> 中 <code>studentMenuItems</code> 顺序调整</td></tr>
+    <tr><td>目标顺序</td><td>学情总览 → <b>学习路径</b> → 成长时光机 → 课程学习 → …</td></tr>
+    <tr><td>页面本体</td><td><code>LearningPath.jsx</code> 内容不变（模板/AI/自定义/我的路径四入口）</td></tr>
+  </table>
+
+  <h3>3.2 反馈②③ 智慧课堂拆分 + 更名合作课堂</h3>
+
+  <h4>3.2.1 拆分模型</h4>
+  <div class="ascii">
+旧「智慧课堂」模块                               新结构
+┌───────────────────────┐        ┌──────────────────────────────────────────┐
+│ 智慧课堂（菜单）        │        │ ④ 课程学习（菜单）→ 课程学习中心          │
+│ ├ 课堂列表             │  ───►  │   ├ Tab1 📖 课程学习（现有左树右内容）      │
+│ ├ 课堂生成器           │        │   ├ Tab2 🎓 智慧课堂（课堂列表，二级页）     │
+│ │ ├ 场景一 知识树勾选  │        │   ├ Tab3 ⚡ 课堂生成（知识树勾选，二级页）    │
+│ │ └ 场景二 学段协作    │        │                                          │
+│ └ 模拟法庭入口         │  ───►  │ ⑥ 合作课堂（菜单）= 场景二 学段协作课堂     │
+└───────────────────────┘        └──────────────────────────────────────────┘
+  </div>
+
+  <h4>3.2.2 课程学习中心 UI 交互（重点）</h4>
+  <div class="callout">
+    <b>交互原则</b>：课程学习页保持「左侧知识树 + 右侧内容」主结构，二级内容以 <b>Tabs 切换</b>承载，
+    避免跳页割裂；知识树选中态在 Tab2/Tab3 中复用（Tab2 显示当前知识点对应的课堂，Tab3 勾选知识树生成课堂）。
+  </div>
+  <div class="ascii">
+┌────────────────────────────────────────────────────────────────────┐
+│ 📚 法学概论  [🎓大学学段]  进度 ▓▓▓▓░░ 45%                          │
+│ ┌──────────────────────┐  ┌─────────────────────────────────────┐  │
+│ │ 📖 知识结构           │  │ Tab1 课程学习 │ Tab2 智慧课堂 │ Tab3 课堂生成 │  │
+│ │ ├─ 第一编 总论        │  │─────────────────────────────────────│  │
+│ │ │ ├─ 第一章 法的概念  │  │  [Tab2 内容]                        │  │
+│ │ │ │  ├ 法的定义       │  │   按当前课程列出课堂卡片            │  │
+│ │ │ │  └ 法的特征       │  │   [进入学习][模拟法庭-隐藏]          │  │
+│ │ └─ 第二编 …           │  │  [Tab3 内容]                        │  │
+│ │                       │  │   知识树勾选 → 聚合/批量生成课堂     │  │
+│ └──────────────────────┘  └─────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────────────┘
+  </div>
+  <ul>
+    <li><b>Tab 切换方式</b>：使用 <code>useSearchParams</code> 的 <code>?tab=</code> 参数（而非三级路由），保证刷新/分享状态不丢失，且菜单高亮统一归「课程学习」。</li>
+    <li><b>Tab2 智慧课堂</b>：将 <code>ClassroomList.tsx</code> 改为接收 <code>courseId</code> 的受控组件（去掉课程选择器，直接用当前课程），列表卡片保留原交互，移除「模拟法庭」按钮。</li>
+    <li><b>Tab3 课堂生成</b>：将 <code>KnowledgePointPicker.jsx</code> 改为固定课程版本（去掉课程下拉，直接用当前课程的知识树），保留聚合/批量模式与顺序调整。</li>
+    <li><b>知识树共享</b>：Tab2/Tab3 共用左侧知识树选中态（通过 <code>context</code> 或状态提升），Tab3 勾选面板独立于左侧导航树。</li>
+  </ul>
+
+  <h4>3.2.3 合作课堂（来源③）</h4>
+  <table>
+    <tr><th>项</th><th>方案</th></tr>
+    <tr><td>菜单</td><td>「智慧课堂」→「合作课堂」，key 改为 <code>/student/collab-classrooms</code></td></tr>
+    <tr><td>页面</td><td><code>StudentCollabClassrooms.jsx</code> 作为主页面；标题统一为「🤝 合作课堂」；保留协作任务列表 + 已生成协作课堂列表两块</td></tr>
+    <tr><td>教师端</td><td>菜单新增「合作课堂」→ <code>/teacher/collab-classrooms</code>；「课堂学情」页中「课堂生成器」按钮改为指向课程学习二级页对应入口</td></tr>
+    <tr><td>空状态</td><td>无协作课堂时引导文案：由教师发起协作项目，学生在「合作课堂」中参与</td></tr>
+  </table>
+
+  <h3>3.3 反馈⑥ 模拟法庭入口隐藏</h3>
+  <ul>
+    <li><code>ClassroomList.tsx</code> 卡片 <code>actions</code> 移除「模拟法庭」按钮（<code>AuditOutlined</code>）。</li>
+    <li>路由 <code>/classroom/:id/court</code>、<code>/classroom/:id/court/report</code> 与后端 <code>MootCourtController</code> 全部保留（不删代码），仅无前端入口。</li>
+    <li>若后续启用，只需恢复入口按钮。</li>
+  </ul>
+</section>
+
+<!-- ==================== 4. P0 缺陷修复 ==================== -->
+<section>
+  <h2><span class="icon">🐛</span>4. P0 缺陷修复：知识树加载失败</h2>
+
+  <h3>4.1 根因（已确认）</h3>
+  <table>
+    <tr><th>环节</th><th>内容</th><th>结论</th></tr>
+    <tr>
+      <td>后端端点</td>
+      <td><code>GET /api/knowledge/courses/{courseId}/points/tree</code>（<code>KnowledgeController</code> L212）</td>
+      <td><span class="status ok">存在</span></td>
+    </tr>
+    <tr>
+      <td>前端调用（KnowledgePointPicker）</td>
+      <td><code>knowledgeApi.getKnowledgePointTree(courseId)</code> → 请求 <code>GET /api/knowledge/points/tree?courseId=xxx</code></td>
+      <td><span class="status bad">404</span></td>
+    </tr>
+    <tr>
+      <td>对照：课程学习页可用</td>
+      <td><code>knowledgePointAPI.getTree(courseId)</code> → 请求 <code>GET /api/knowledge/courses/{courseId}/points/tree</code>（services/api.jsx L345）</td>
+      <td><span class="status ok">正常</span></td>
+    </tr>
+    <tr>
+      <td>返回结构</td>
+      <td>后端返回<b>扁平列表</b> <code>[{knowledgePoint, level, hasChild}]</code>，前端 <code>toTreeData</code> 期望<b>嵌套 children</b></td>
+      <td><span class="status warn">结构不兼容</span></td>
+    </tr>
+  </table>
+
+  <h3>4.2 修复方案</h3>
+  <ol>
+    <li><b>修正 URL</b>：<code>knowledgeApi.ts</code> 的 <code>getKnowledgePointTree</code> 改为路径参数
+      <code>/knowledge/courses/${courseId}/points/tree</code>（与 services/api.jsx 对齐，消除双封装差异）。</li>
+    <li><b>修正树构建</b>：<code>KnowledgePointPicker.jsx</code> 的 <code>toTreeData</code> 改为支持扁平列表
+      <code>（含 knowledgePoint.parentKpId / hasChild）</code>，复用 <code>StudentLearning.jsx</code> L565-663 的
+      <code>childrenMap + 递归 buildChildren</code> 逻辑（或抽取为公共工具函数）。</li>
+    <li><b>统一封装</b>：建议将「课程知识树」收敛到单一 API 来源，避免 <code>api/knowledgeApi.ts</code> 与
+      <code>services/api.jsx</code> 两套并存（下版本可合并，本版仅修 URL）。</li>
+    <li><b>回归验证</b>：学生端 + 教师端各跑一次「知识树勾选 → 聚合生成课堂」全链路。</li>
+  </ol>
+
+  <div class="callout success">
+    <b>影响面</b>：此缺陷同时影响学生端与教师端的场景一（知识树勾选生成），修复后可解锁「课程学习中心 Tab3 课堂生成」。
+  </div>
+</section>
+
+<!-- ==================== 5. P2 成长时光机 ==================== -->
+<section>
+  <h2><span class="icon">⏳</span>5. P2 新功能：成长时光机</h2>
+
+  <h3>5.1 需求来源（PRD 场景 F 原文）</h3>
+  <div class="callout">
+    <i>「小红刚升入初中，系统自动弹出她在小学阶段的学习报告——法律与规则掌握度 92%，宪法精神 78%，但公民权利仅 65%。
+    系统建议她优先复习再学新课。接着，她打开了一封"来自过去"的信：小学三年级的自己曾问"法律为什么能管住所有人？"
+    她笑着打字回答。系统将这一切收录进她的"法治素养成长档案"，生成了一张从小学到初中的认知深度跃迁曲线图。」</i>
+  </div>
+
+  <h3>5.2 功能拆解</h3>
+  <div class="grid">
+    <div class="card">
+      <div class="title">⏳ 认知深度跃迁曲线</div>
+      <p>跨学段、跨时间维度的主题掌握度 / 认知深度变化折线图（echarts）。</p>
+    </div>
+    <div class="card">
+      <div class="title">📂 法治素养成长档案</div>
+      <p>按学段归档的学习记录：各主题掌握度、答题统计、完成课堂数、薄弱点演变。</p>
+    </div>
+    <div class="card">
+      <div class="title">✉️ 来自过去的信</div>
+      <p>学生创建"寄给未来/来自过去"的信件：AI 基于历史薄弱点生成提问，学生回答，存档。</p>
+    </div>
+    <div class="card">
+      <div class="title">🎓 学段晋升报告</div>
+      <p>检测学段身份变更时，自动生成「上一学段学习报告 + 下一学段学习建议」。</p>
+    </div>
+  </div>
+
+  <h3>5.3 数据模型（V23 迁移）</h3>
+  <pre><code>-- 成长时光机：信件表
+CREATE TABLE time_machine_letters (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id  UUID NOT NULL REFERENCES users(id),
+    stage       VARCHAR(20) NOT NULL,              -- 写信人所在学段（过去的自己）
+    course_id   UUID REFERENCES courses(id),
+    direction   VARCHAR(10) NOT NULL DEFAULT 'PAST_TO_NOW', -- 过去→现在 / 现在→未来
+    question    TEXT NOT NULL,                     -- 来自过去的提问（AI 生成或手写）
+    answer      TEXT,                              -- 现在的回答
+    ai_generated BOOLEAN DEFAULT TRUE,
+    answered_at TIMESTAMP,
+    created_at  TIMESTAMP DEFAULT now(),
+    updated_at  TIMESTAMP DEFAULT now()
+);
+
+-- 成长档案快照（晋升/学期末自动归档）
+CREATE TABLE growth_archive_snapshots (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id  UUID NOT NULL REFERENCES users(id),
+    stage       VARCHAR(20) NOT NULL,              -- 归档时所在学段
+    course_id   UUID,
+    summary     JSONB NOT NULL,                    -- {themeMastery:{}, totalQuestions, accuracy, weakKps:[], depthStats:{}}
+    created_at  TIMESTAMP DEFAULT now()
+);</code></pre>
+
+  <h3>5.4 后端 API</h3>
+  <table>
+    <tr><th>方法</th><th>端点</th><th>说明</th></tr>
+    <tr><td>GET</td><td><code>/api/time-machine/overview?studentId=</code></td><td>总览：跃迁曲线数据 + 各学段档案摘要</td></tr>
+    <tr><td>GET</td><td><code>/api/time-machine/archives?studentId=</code></td><td>成长档案列表（按学段）</td></tr>
+    <tr><td>GET</td><td><code>/api/time-machine/letters?studentId=</code></td><td>信件列表（含已答/待答）</td></tr>
+    <tr><td>POST</td><td><code>/api/time-machine/letters</code></td><td>创建信件（可携带学段；question 留空则 AI 生成）</td></tr>
+    <tr><td>POST</td><td><code>/api/time-machine/letters/{id}/answer</code></td><td>回答信件</td></tr>
+    <tr><td>POST</td><td><code>/api/time-machine/archive</code></td><td>手动归档快照（晋升时自动调用）</td></tr>
+    <tr><td>GET</td><td><code>/api/time-machine/stage-report?studentId=&stage=</code></td><td>指定学段学习报告（AI 生成复习建议）</td></tr>
+  </table>
+  <ul>
+    <li><b>曲线数据来源</b>：聚合 <code>diagnosis</code>（知识掌握）、<code>student_profiles.stage</code>（学段）、
+      <code>growth_archive_snapshots</code>（归档快照），无需额外埋点。</li>
+    <li><b>AI 提问生成</b>：复用 <code>LLMService</code>，prompt 基于该学段历史薄弱知识点 + 该学段典型认知问题生成提问。</li>
+    <li><b>晋升检测</b>：修改 <code>StudentProfileService.updateStage</code>，学段变化时自动生成归档快照 + 晋升报告草稿。</li>
+  </ul>
+
+  <h3>5.5 前端页面（/student/time-machine）</h3>
+  <div class="ascii">
+┌─────────────────────────────────────────────────────────────┐
+│ ⏳ 成长时光机                       [学生01 · 🎓大学学段]      │
+│                                                             │
+│ ┌─ 认知深度跃迁曲线 ──────────────────────────────┐          │
+│ │  掌握度 ▁▂▃▅▇ 小学→初中→高中→大学  (echarts)   │          │
+│ └─────────────────────────────────────────────────┘          │
+│ ┌─ 成长档案 ──┐  ┌─ 来自过去的信 ─────────────────────┐      │
+│ │ 🏫小学:92%  │  │ ✉️ "法律为什么能管住所有人？"       │      │
+│ │ 📖初中:78%  │  │    ——小学三年级的我           [回信]│      │
+│ │ 🟢高中:65%  │  │ ✉️ "合同违约要怎么维权？"           │      │
+│ │ 🎓大学:88%  │  │    ——初中二年级的我            [已答]│      │
+│ └─────────────┘  │ [+ 写一封信给未来的自己]             │      │
+│                  └───────────────────────────────────────┘      │
+└─────────────────────────────────────────────────────────────┘
+  </div>
+
+  <h3>5.6 边界与空状态</h3>
+  <ul>
+    <li><b>跨学段数据缺失</b>：当前学生均只有大学学段数据。第一期真实数据仅显示现有学段曲线；
+      提供 <code>scripts/seed-time-machine.sql</code> 造一套小学→初中→高中→大学的演示档案，便于验收。</li>
+    <li><b>AI 不可用时降级</b>：提问生成失败 → 允许学生手写提问。</li>
+    <li><b>权限</b>：仅学生本人可见自己的时光机数据（按 studentId 隔离）。</li>
+  </ul>
+</section>
+
+<!-- ==================== 6. 实施计划 ==================== -->
+<section>
+  <h2><span class="icon">🗓️</span>6. 实施计划（约 7.5 人天）</h2>
+  <table>
+    <tr><th>里程碑</th><th>内容</th><th>涉及文件</th><th>工时</th></tr>
+    <tr>
+      <td><b>M1</b> P0 知识树修复</td>
+      <td>修正 getKnowledgePointTree URL；KnowledgePointPicker 嵌套树构建；回归验证</td>
+      <td>api/knowledgeApi.ts、KnowledgePointPicker.jsx</td>
+      <td>0.5 天</td>
+    </tr>
+    <tr>
+      <td><b>M2</b> 菜单与入口重构</td>
+      <td>菜单顺序调整（学习路径上移）；智慧课堂→合作课堂更名；模拟法庭入口隐藏；旧路由重定向</td>
+      <td>MainLayout.jsx、App.jsx、ClassroomList.tsx、StudentCollabClassrooms.jsx、TeacherClassrooms.tsx</td>
+      <td>1 天</td>
+    </tr>
+    <tr>
+      <td><b>M3</b> 课程学习中心</td>
+      <td>StudentLearning 增加 Tab 导航（学习/智慧课堂/课堂生成）；ClassroomList、KnowledgePointPicker 改造为受控组件并接入</td>
+      <td>StudentLearning.jsx、ClassroomList.tsx、KnowledgePointPicker.jsx、App.jsx</td>
+      <td>2 天</td>
+    </tr>
+    <tr>
+      <td><b>M4</b> 成长时光机</td>
+      <td>V23 迁移 + 实体/Repository/Service/Controller + LLM 提问生成 + 晋升归档；前端时光机页面 + 种子数据</td>
+      <td>V23 SQL、TimeMachine* 后端、time-machine 前端、seed 脚本</td>
+      <td>3 天</td>
+    </tr>
+    <tr>
+      <td><b>M5</b> 集成验证</td>
+      <td>全链路回归（登录/学习/生成课堂/合作课堂/时光机）、vite build、mvn compile、浏览器验证</td>
+      <td>—</td>
+      <td>1 天</td>
+    </tr>
+  </table>
+  <div class="callout">
+    <b>执行顺序</b>：M1（先解锁生成功能）→ M2（菜单层，低风险）→ M3（页面层改造）→ M4（新功能）→ M5（验证）。
+    M1~M3 完成后即可让用户先验收导航重构，M4 作为独立新功能随后验收。
+  </div>
+</section>
+
+<!-- ==================== 7. 验收标准 ==================== -->
+<section>
+  <h2><span class="icon">✅</span>7. 验收标准（对照六项反馈）</h2>
+  <table>
+    <tr><th>反馈</th><th>验收动作</th><th>预期</th></tr>
+    <tr>
+      <td>① 学习路径位置</td>
+      <td>登录学生端查看侧边栏</td>
+      <td>「学习路径」紧邻「学情总览」之下，点击正常进入路径页</td>
+    </tr>
+    <tr>
+      <td>② 智慧课堂拆开</td>
+      <td>进入任一课程 → 课程学习页</td>
+      <td>页面顶部出现「课程学习 / 智慧课堂 / 课堂生成」Tabs；Tab2 显示该课程课堂列表；Tab3 可勾选知识树并生成课堂</td>
+    </tr>
+    <tr>
+      <td>③ 改名合作课堂</td>
+      <td>查看侧边栏并进入</td>
+      <td>菜单显示「合作课堂」；页面仅含学段协作课堂相关内容，协作课堂正常创建/参与</td>
+    </tr>
+    <tr>
+      <td>④ 知识树加载</td>
+      <td>Tab3 课堂生成 → 勾选</td>
+      <td>知识树正常加载并显示层级（编→章→节→知识点），勾选后可聚合/批量生成</td>
+    </tr>
+    <tr>
+      <td>⑤ 成长时光机</td>
+      <td>侧边栏进入时光机页</td>
+      <td>跃迁曲线 / 成长档案 / 来自过去的信 三模块可交互；AI 提问、回信、晋升归档全链路可用（含种子数据演示）</td>
+    </tr>
+    <tr>
+      <td>⑥ 模拟法庭隐藏</td>
+      <td>查看课堂卡片</td>
+      <td>课堂卡片无「模拟法庭」按钮；历史法庭页面直链仍可打开（保留），全站无新入口</td>
+    </tr>
+  </table>
+</section>
+
+<!-- ==================== 8. 风险与待确认 ==================== -->
+<section>
+  <h2><span class="icon">⚠️</span>8. 风险与待确认</h2>
+  <h3>8.1 风险</h3>
+  <table>
+    <tr><th>风险</th><th>等级</th><th>缓解</th></tr>
+    <tr><td>StudentLearning.jsx 998 行单文件改造（Tabs 化）改动面大，易引入回归</td><td>中</td><td>仅加 Tab 外壳与路由参数，内容区组件不动；M3 完成后先回归课程学习主流程</td></tr>
+    <tr><td>生成器拆开后旧引用未清理（多处 navigate 到 /student/classroom-generator）</td><td>中</td><td>M2 增加旧路由重定向兜底；grep 全量排查 navigate 调用</td></tr>
+    <tr><td>时光机跨学段数据缺失，演示效果受限</td><td>中</td><td>提供 seed-time-machine.sql 种子数据；空状态友好引导</td></tr>
+    <tr><td>模拟法庭入口隐藏后测试数据无法通过 UI 复验</td><td>低</td><td>保留直链与后端 API；验收时用直链回归</td></tr>
+  </table>
+
+  <h3>8.2 待确认事项</h3>
+  <ol>
+    <li><b>课程学习 Tabs 布局</b>：推荐「左侧知识树保留 + 右侧 Tabs 切换」；是否接受？还是希望 Tab 页全屏替换（隐藏知识树）？</li>
+    <li><b>合作课堂学生端</b>：当前 <code>StudentCollabClassrooms.jsx</code> 是「协作任务列表」视角，是否需要增加「已生成的协作课堂」浏览入口？</li>
+    <li><b>时光机入口</b>：侧边栏独立菜单（推荐）+ 学情总览页内快捷卡片，还是只做其一？</li>
+    <li><b>时光机「来自过去的信」</b>：AI 提问生成是否首期就做？还是先做学生手写提问/回答（AI 二期）？</li>
+    <li><b>教师端同步范围</b>：教师端「课堂生成器」入口是否同步改为课程管理内嵌？建议同步，但若只验学生端可延后。</li>
+  </ol>
+</section>
+
+<footer>
+  EduMentor v2.0 版本规划 · 生成于 2026-08-16 · 待确认后进入实现阶段
+</footer>
+
+</div>
+</body>
+</html>

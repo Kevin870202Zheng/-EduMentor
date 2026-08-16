@@ -63,14 +63,23 @@ export default function StudentCollabClassrooms() {
         </Space>
       );
     }},
-    { title: '操作', key: 'action', width: 130, render: (_, r) => {
+    { title: '操作', key: 'action', width: 180, render: (_, r) => {
       const role = myRole(r);
       const task = (r.tasks || []).find(t => t.assignedUserId === user?.id);
+      const published = r.status === 'PUBLISHED' && r.classroomId;
       return (
-        <Button type="primary" size="small" icon={<RightOutlined />}
-          onClick={() => navigate(`/student/collab-classrooms/${r.id}`)}>
-          {task?.status === 'COMPLETED' || task?.status === 'REVIEWED' ? '查看进度' : '去完成'}
-        </Button>
+        <Space>
+          {published && (
+            <Button type="primary" size="small"
+              onClick={() => navigate(`/student/classroom/${r.classroomId}`)}>
+              进入课堂
+            </Button>
+          )}
+          <Button size="small" icon={<RightOutlined />}
+            onClick={() => navigate(`/student/collab-classrooms/${r.id}`)}>
+            {task?.status === 'COMPLETED' || task?.status === 'REVIEWED' ? '查看进度' : '去完成'}
+          </Button>
+        </Space>
       );
     }},
   ];
@@ -78,10 +87,11 @@ export default function StudentCollabClassrooms() {
   return (
     <div style={{ maxWidth: 960, margin: '0 auto' }}>
       <Title level={4} style={{ marginTop: 0 }}>
-        <TeamOutlined /> 学段协作课堂
+        <TeamOutlined /> 合作课堂
       </Title>
       <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-        由教师发起、跨学段同学协作共创的智慧课堂。完成你的角色任务（小学选故事 / 初中角色 / 高中台词 / 大学法律映射）。
+        跨学段同学协作共创的智慧课堂。完成你的角色任务（小学选故事 / 初中角色 / 高中台词 / 大学法律映射），
+        教师审阅后由 AI 生成课堂。
       </Text>
 
       <Card size="small">

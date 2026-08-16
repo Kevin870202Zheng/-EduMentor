@@ -4,6 +4,7 @@ import com.edumentor.common.exception.ResourceNotFoundException;
 import com.edumentor.student.dto.StudentProfileUpdateRequest;
 import com.edumentor.student.entity.StudentProfile;
 import com.edumentor.diagnosis.repository.StudentProfileRepository;
+import com.edumentor.timemachine.service.TimeMachineService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -19,9 +20,12 @@ public class StudentProfileService {
     private static final Logger log = LoggerFactory.getLogger(StudentProfileService.class);
 
     private final StudentProfileRepository studentProfileRepository;
+    private final TimeMachineService timeMachineService;
 
-    public StudentProfileService(StudentProfileRepository studentProfileRepository) {
+    public StudentProfileService(StudentProfileRepository studentProfileRepository,
+                                 TimeMachineService timeMachineService) {
         this.studentProfileRepository = studentProfileRepository;
+        this.timeMachineService = timeMachineService;
     }
 
     @Transactional(readOnly = true)
@@ -46,7 +50,16 @@ public class StudentProfileService {
         StudentProfile profile = studentProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("学生画像", userId));
 
-        if (request.getStage() != null) profile.setStage(request.getStage());
+        // 学段变更 → 自动归档上一学段成长档案（成长时光机）
+        if (request.getStage() != null && !request.getStage().equals(profile.getStage())) {
+            String oldStage = profile.getStage();
+            profile.setStage(request.getStage());
+            if (oldStage != null && !oldStage.isBlank()) {
+                timeMachineService.archiveOnPromotion(userId, oldStage, request.getStage());
+            }
+        } else if (request.getStage() != null) {
+            profile.setStage(request.getStage());
+        }
         if (request.getGrade() != null) profile.setGrade(request.getGrade());
         if (request.getClassName() != null) profile.setClassName(request.getClassName());
         if (request.getMajor() != null) profile.setMajor(request.getMajor());
