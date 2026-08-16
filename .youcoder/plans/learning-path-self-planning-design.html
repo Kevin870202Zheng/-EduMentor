@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>学习路径自规划 + AI 共创 — 设计方案</title>
+<style>
+  :root {
+    --primary: #1a73e8; --primary-light: #e8f0fe; --primary-dark: #1557b0;
+    --success: #34a853; --warning: #fbbc04; --danger: #ea4335;
+    --text: #202124; --text-secondary: #5f6368; --border: #dadce0;
+    --bg: #f8f9fa; --white: #ffffff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif; color: var(--text); background: var(--bg); line-height: 1.7; }
+  .container { max-width: 1000px; margin: 0 auto; padding: 0 24px; }
+  .header { background: linear-gradient(135deg, #1a73e8 0%, #1557b0 100%); color: white; padding: 40px 0 32px; }
+  .header h1 { font-size: 28px; margin-bottom: 8px; }
+  .header .meta { font-size: 14px; opacity: 0.85; }
+  section { margin-bottom: 40px; }
+  .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 2px solid var(--primary); }
+  .section-header .icon { width: 34px; height: 34px; border-radius: 8px; background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 17px; }
+  .section-header h2 { font-size: 20px; }
+  .section-header .tag { margin-left: auto; font-size: 12px; padding: 2px 10px; border-radius: 10px; background: var(--primary-light); color: var(--primary); }
+  .card { background: var(--white); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+  .card h3 { font-size: 15px; margin-bottom: 10px; }
+  .card p, .card li { font-size: 14px; color: var(--text-secondary); margin-bottom: 6px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { background: var(--bg); font-weight: 600; }
+  .highlight { padding: 14px 16px; border-radius: 8px; margin: 12px 0; border-left: 4px solid var(--primary); background: var(--primary-light); }
+  .highlight-warning { border-left-color: var(--warning); background: #fef7e0; }
+  .highlight-success { border-left-color: var(--success); background: #e6f4ea; }
+  code { background: var(--bg); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+  pre { background: var(--bg); padding: 14px; border-radius: 6px; font-size: 12.5px; line-height: 1.6; overflow-x: auto; }
+  .tag-template { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 12px; font-weight: 500; }
+  .t-exam { background: #e8f0fe; color: #1a73e8; }
+  .t-litigation { background: #fce8e6; color: #d93025; }
+  .t-interest { background: #e6f4ea; color: #137333; }
+  .t-teaching { background: #f3e5f5; color: #6a1b9a; }
+  .flow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+  .flow-box { padding: 8px 14px; border: 2px solid var(--border); border-radius: 6px; background: var(--white); font-size: 13px; }
+  .flow-arrow { color: var(--text-secondary); font-size: 16px; }
+  .footer { text-align: center; padding: 28px 0; color: var(--text-secondary); font-size: 13px; border-top: 1px solid var(--border); margin-top: 40px; }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="container">
+    <h1>🧭 学习路径自规划 + AI 共创 · 设计方案</h1>
+    <div class="meta">EduMentor 智学导师 · 学生端学习路径升级 · 预设模板 + 自主规划 + AI 对话共创</div>
+  </div>
+</header>
+
+<div class="container">
+
+<!-- ====== 1. 目标 ====== -->
+<section>
+  <div class="section-header"><div class="icon">🎯</div><h2>目标与用户价值</h2></div>
+  <div class="card">
+    <p>把学习路径从「系统自动规划的单一结果」升级为<strong>「学生拥有完整自主权的路径创作平台」</strong>：</p>
+    <ol>
+      <li><strong>快速起步</strong>：为「法学概论」预置 4 条<strong>推荐路径模板</strong>（课程考试 / 纠纷解决 / 兴趣拓展 / 师范生备课），学生一键生成自己的路径</li>
+      <li><strong>个性共创</strong>：学生不被模板束缚，可通过<strong>与 AI 对话</strong>（"我想重点学行政法为考研做准备"），由 AI 结合课程知识库与 RAG 检索，生成<strong>属于学生自己的独特路径</strong></li>
+      <li><strong>自由调整</strong>：生成后的路径支持增删节点、调整顺序、切换策略，学生始终拥有最终控制权</li>
+    </ol>
+    <div class="highlight">
+      <strong>产品理念</strong>：路径模板是"脚手架"而非"牢笼"。AI 是"规划助手"而非"规划者"。学生可以一键采纳推荐，也可以完全自定义——所有路径最终都是"我的路径"。
+    </div>
+  </div>
+</section>
+
+<!-- ====== 2. 现状 ====== -->
+<section>
+  <div class="section-header"><div class="icon">🔍</div><h2>现状分析（可复用资产）</h2></div>
+  <div class="card">
+    <h3>已有能力</h3>
+    <table>
+      <tr><th>模块</th><th>现状</th><th>复用方式</th></tr>
+      <tr><td>路径数据模型</td><td><code>learning_paths</code>（学生路径实例）+ <code>learning_path_nodes</code>（节点含知识点/顺序/状态/预估时长）</td><td>✅ 直接复用，新增 source/template_id 字段</td></tr>
+      <tr><td>自动规划算法</td><td><code>PathService.planPath</code>：Kahn 拓扑排序 + 难度递进 + 掌握度（错题）加权</td><td>✅ 保留为「系统自动」来源</td></tr>
+      <tr><td>路径状态机</td><td>DRAFT/ACTIVE/COMPLETED/PAUSED + 节点 PENDING/IN_PROGRESS/COMPLETED/SKIPPED + 智能适配（REORDER/SHORTEN/FOCUS_WEAK/EXPAND）</td><td>✅ 直接复用</td></tr>
+      <tr><td>LLM 能力</td><td><code>LLMService.chat</code>（多轮）、<code>askStructured</code>（结构化 JSON 输出）、流式对话</td><td>✅ AI 对话规划的核心引擎</td></tr>
+      <tr><td>RAG 检索</td><td><code>VectorRAGEngine.retrieveByCourse</code>（向量余弦相似度 + LRU 缓存）</td><td>✅ 规划时检索知识点内容供 LLM 参考</td></tr>
+      <tr><td>学段/主题</td><td>V17：education_stages（4 学段）、subject_themes（8 主题）、knowledge_points.stage/depth/theme_id</td><td>✅ 师范生备课模板按学段过滤的原料</td></tr>
+      <tr><td>前端路径页</td><td><code>LearningPath.jsx</code>（自动规划 + 策略切换，Steps 纵向步骤条）</td><td>✅ 重构扩展为"模板+AI+自定义"三入口</td></tr>
+    </table>
+    <h3>缺失能力（本次新增）</h3>
+    <ol>
+      <li><strong>路径模板</strong>：无 <code>path_templates</code> / <code>path_template_nodes</code> 表，无模板概念</li>
+      <li><strong>学生自定义</strong>：<code>PathPlanRequest</code> 只接受参数，不能传自定义节点序列</li>
+      <li><strong>AI 对话规划</strong>：无自然语言→路径的生成链路</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ====== 3. 总体设计 ====== -->
+<section>
+  <div class="section-header"><div class="icon">🏗️</div><h2>总体设计：路径的四个来源</h2></div>
+  <div class="card">
+    <p>一条学生学习路径（仍落在 <code>learning_paths</code>）可以来自四种来源，前端统一展示、统一状态流转：</p>
+    <table>
+      <tr><th>来源</th><th>入口</th><th>说明</th><th>source 值</th></tr>
+      <tr><td><span class="tag-template t-exam">📋 预设模板</span></td><td>推荐路径卡片「一键生成」</td><td>从 <code>path_templates</code> 生成（含节点快照）</td><td><code>TEMPLATE</code></td></tr>
+      <tr><td><span class="tag-template t-litigation">🤖 AI 对话</span></td><td>「🤖 AI 帮我规划」对话界面</td><td>RAG 检索 + LLM 多轮对话生成自定义节点序</td><td><code>AI</code></td></tr>
+      <tr><td><span class="tag-template t-interest">🛠️ 手动自定义</span></td><td>「新建空白路径」编辑器</td><td>学生自选知识点、自排顺序（进阶能力）</td><td><code>CUSTOM</code></td></tr>
+      <tr><td><span class="tag-template t-teaching">⚙️ 系统自动</span></td><td>现有「智能规划」按钮</td><td>保留现有拓扑排序+掌握度算法</td><td><code>AUTO</code></td></tr>
+    </table>
+    <div class="flow">
+      <div class="flow-box">模板/AI/自定义/自动</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">生成 DRAFT 路径<br><small>(learning_paths)</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">预览/调整<br><small>(增删节点/换序)</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">激活 ACTIVE</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">按节点学习<br><small>(进度/掌握度)</small></div>
+    </div>
+    <div class="highlight-warning">
+      <strong>边界约定</strong>：一个学生同一课程可同时存在多条路径（考试路径 + 纠纷路径并行），但同一时刻仅一条 <code>ACTIVE</code>；激活新路径时旧路径自动置 <code>PAUSED</code>（沿用现有状态机语义）。
+    </div>
+  </div>
+</section>
+
+<!-- ====== 4. 数据模型 ====== -->
+<section>
+  <div class="section-header"><div class="icon">🗄️</div><h2>数据模型（V19 迁移）</h2></div>
+  <div class="card">
+    <h3>① 新增：path_templates（路径模板定义）</h3>
+    <pre>
+CREATE TABLE path_templates (
+    id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    course_id      UUID NOT NULL REFERENCES courses(id),
+    code           VARCHAR(32) NOT NULL,   -- EXAM / LITIGATION / INTEREST / TEACHING
+    name           VARCHAR(128) NOT NULL,  -- 课程考试 / 纠纷解决 / 兴趣拓展 / 师范生备课
+    description    TEXT,
+    icon           VARCHAR(32),
+    total_minutes  INT,                    -- 总课时（分钟）；INTEREST 为 NULL=不设限
+    node_count     INT DEFAULT 0,          -- 节点数（静态模板冗余统计）
+    is_visible     BOOLEAN DEFAULT TRUE,   -- 是否展示在推荐卡片区
+    template_type  VARCHAR(16) DEFAULT 'STATIC',  -- STATIC / RULE_BY_STAGE（师范生备课=动态规则）
+    sort_order     INT DEFAULT 0,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (course_id, code)
+);</pre>
+    <h3>② 新增：path_template_nodes（模板节点，静态模板用）</h3>
+    <pre>
+CREATE TABLE path_template_nodes (
+    id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    template_id           UUID NOT NULL REFERENCES path_templates(id) ON DELETE CASCADE,
+    knowledge_point_id    UUID NOT NULL REFERENCES knowledge_points(id),
+    knowledge_point_name  VARCHAR(255) NOT NULL,  -- 名称快照
+    order_index           INT DEFAULT 0,
+    estimated_minutes     INT DEFAULT 30,          -- 单节点预估时长
+    UNIQUE (template_id, knowledge_point_id)
+);</pre>
+    <h3>③ 修改：learning_paths（学生路径加来源标记）</h3>
+    <pre>
+ALTER TABLE learning_paths
+    ADD COLUMN IF NOT EXISTS source VARCHAR(16) DEFAULT 'AUTO',  -- AUTO/TEMPLATE/AI/CUSTOM
+    ADD COLUMN IF NOT EXISTS template_id UUID REFERENCES path_templates(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_lp_source ON learning_paths (source);</pre>
+    <div class="highlight-success">
+      <strong>设计说明</strong>：模板节点是<strong>静态快照</strong>（存 knowledge_point_name），生成学生路径时复制到 <code>learning_path_nodes</code>，之后模板改动不影响已生成的路径——保证学生路径稳定。
+    </div>
+  </div>
+</section>
+
+<!-- ====== 5. 预设模板 ====== -->
+<section>
+  <div class="section-header"><div class="icon">📋</div><h2>「法学概论」4 个预设模板</h2></div>
+  <div class="card">
+    <table>
+      <tr>
+        <th>模板</th><th>代码</th><th>定位</th><th>课时</th><th>节点生成规则</th><th>展示</th>
+      </tr>
+      <tr>
+        <td><span class="tag-template t-exam">课程考试</span></td>
+        <td><code>EXAM</code></td>
+        <td>应试导向、课时最少</td>
+        <td><strong>48 课时</strong>（2880 分钟）</td>
+        <td><strong>首先展示高频考点</strong>：解析 course_materials 中法学概论试卷（A/B 卷）→ 题目文本匹配知识点 → 按试卷出现频次降序选取，直至 ≈48 课时（AI 生成 + 人工抽检后落库）</td>
+        <td>✅ 推荐卡片</td>
+      </tr>
+      <tr>
+        <td><span class="tag-template t-litigation">纠纷解决</span></td>
+        <td><code>LITIGATION</code></td>
+        <td>司法程序与证据实务</td>
+        <td><strong>64 课时</strong>（3840 分钟）</td>
+        <td>关键词规则 + AI 复核：诉讼/程序/证据/司法/审判/仲裁/调解/民事/刑事/行政 相关知识点（含 V17 主题 ORDER_SAFETY/CIVIL_LAW/GOVERNANCE 归类）</td>
+        <td>✅ 推荐卡片</td>
+      </tr>
+      <tr>
+        <td><span class="tag-template t-interest">兴趣拓展</span></td>
+        <td><code>INTEREST</code></td>
+        <td>完整课程知识库</td>
+        <td><strong>不显示课时上限</strong>（total_minutes=NULL，卡片显示"完整知识库"）</td>
+        <td>该课程全部 LEAF 知识点，全量覆盖</td>
+        <td>✅ 推荐卡片</td>
+      </tr>
+      <tr>
+        <td><span class="tag-template t-teaching">师范生备课</span></td>
+        <td><code>TEACHING</code></td>
+        <td>为备课目标学段而学</td>
+        <td><strong>一课 = 4 课时（240 分钟）</strong>，一课由几个相关知识点组成</td>
+        <td><strong>动态规则</strong>（template_type=RULE_BY_STAGE）：<strong>每次由学生选择目标学段</strong>（小学/初中/高中/大学）→ 按 <code>stage</code> + 主题过滤 LEAF 知识点 → <strong>按主题聚类分课</strong>（几个相关知识点 = 一课 = 240 分钟，深度备课）</td>
+        <td>✅ 推荐卡片（点击后先选学段）</td>
+      </tr>
+    </table>
+    <div class="highlight-success">
+      <strong>已确认（v1.1）</strong>：① 兴趣拓展 = 不显示课时上限，卡片显示"完整知识库"；② 课程考试 = 按试卷高频考点优先选取；③ 师范生备课 = 目标学段每次由学生选择，一课（4 课时/240 分钟）由几个相关知识点组成（非每知识点 4 课时）；④ AI 规划不限制课程（跨全部课程知识库检索，当前仅法学概论一门）；⑤ 手动勾选编辑器（CUSTOM）与本轮一并实现。
+    </div>
+  </div>
+</section>
+
+<!-- ====== 6. API 设计 ====== -->
+<section>
+  <div class="section-header"><div class="icon">🔌</div><h2>API 设计</h2></div>
+  <div class="card">
+    <h3>新增端点（PathController 扩展）</h3>
+    <table>
+      <tr><th>方法</th><th>路径</th><th>说明</th></tr>
+      <tr><td>GET</td><td><code>/api/paths/templates?courseId=</code></td><td>课程可用模板列表（is_visible=true，含节点数/课时/类型）</td></tr>
+      <tr><td>GET</td><td><code>/api/paths/templates/{id}/preview?stage=&themeIds=</code></td><td>模板节点预览（TEACHING 按学段/主题动态计算并分课；静态模板直接返回）</td></tr>
+      <tr><td>POST</td><td><code>/api/paths/from-template</code></td><td>从模板生成学生路径 <code>{studentId, courseId, templateId, stage?, themeIds?}</code> → 复制节点到 learning_path_nodes，source=TEMPLATE</td></tr>
+      <tr><td>POST</td><td><code>/api/paths/custom</code></td><td>手动勾选创建路径 <code>{studentId, courseId, name, nodeIds: [knowledgePointId...]}</code> → source=CUSTOM（知识树勾选编辑器）</td></tr>
+      <tr><td>POST</td><td><code>/api/paths/ai-plan/start</code></td><td>开启 AI 规划会话 <code>{studentId, courseId?, goal}</code> → 返回首轮 LLM 追问/建议 + sessionId（存 chat_history；courseId 可选=跨全部课程知识库）</td></tr>
+      <tr><td>POST</td><td><code>/api/paths/ai-plan/chat</code></td><td>多轮对话 <code>{sessionId, message}</code> → RAG 检索（不限课程）+ LLM chat；用户确认规划时 LLM 输出结构化 JSON，落库 DRAFT 路径</td></tr>
+      <tr><td>POST</td><td><code>/api/paths/{id}/nodes</code></td><td>自定义：追加节点（知识点 + 顺序），source 置 CUSTOM</td></tr>
+      <tr><td>DELETE</td><td><code>/api/paths/{id}/nodes/{nodeId}</code></td><td>自定义：移除节点</td></tr>
+      <tr><td>PUT</td><td><code>/api/paths/{id}/nodes/reorder</code></td><td>自定义：调整节点顺序</td></tr>
+    </table>
+    <h3>复用现有端点</h3>
+    <p><code>POST /plan</code>（系统自动）、<code>GET /</code>、<code>GET /{id}</code>、<code>GET /active</code>、<code>POST /{id}/activate|pause|complete</code>、<code>PUT /node/progress</code>、<code>POST /adapt</code>、<code>GET /knowledge-graph/{courseId}</code> —— 全部保留。</p>
+  </div>
+</section>
+
+<!-- ====== 7. AI 对话式规划 ====== -->
+<section>
+  <div class="section-header"><div class="icon">🤖</div><h2>AI 对话式规划流程</h2></div>
+  <div class="card">
+    <div class="flow">
+      <div class="flow-box">① 学生描述目标<br><small>"我想重点学行政法，为考研做准备"</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">② RAG 检索课程知识库<br><small>VectorRAGEngine.retrieveByCourse</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">③ LLM 多轮对话<br><small>LLMService.chat 追问/澄清</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">④ 结构化输出路径<br><small>askStructured → JSON</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">⑤ 落库 DRAFT<br><small>learning_paths + nodes</small></div>
+    </div>
+    <table>
+      <tr><th>环节</th><th>要点</th></tr>
+      <tr><td>① 目标理解</td><td>首轮 <code>ai-plan/start</code>：解析目标关键词 → 检索相关知识点（<strong>不限课程</strong>，当前仅法学概论；未来多课程时跨全部课程知识库）→ 返回给 LLM 作为候选池；LLM 判断信息是否足够，不足则追问（目标/时间预算/偏好主题/考试日期）</td></tr>
+      <tr><td>③ 多轮对话</td><td>会话存 <code>chat_history</code>（sessionId），支持"更侧重实务/去掉太难的点/每天1小时"等自然语言调整；courseId 仅作候选池筛选（可选），路径 course_id 允许为空（跨课程）</td></tr>
+      <tr><td>④ 结构化输出</td><td>LLM 输出 <code>{name, description, estimatedMinutes, nodes: [{knowledgePointId, orderIndex, estimatedMinutes, reason}]}</code>；后端校验 knowledgePointId 存在；对无效 ID 回退提示 LLM 重新选择</td></tr>
+      <tr><td>⑤ 落库</td><td>source=<code>AI</code>；节点按 LLM 顺序写入 learning_path_nodes（status=PENDING）；前端立即展示预览</td></tr>
+      <tr><td>调整</td><td>学生可继续对话微调（重新生成部分节点）或手动编辑（增删/换序）</td></tr>
+    </table>
+    <div class="highlight">
+      <strong>质量保障</strong>：① 候选池限制在课程知识点内（courseId 强约束，LLM 不能编造课程外内容）；② <code>askStructured</code> 低温度 0.3 + JSON Schema 校验；③ 节点 reason 字段记录 AI 选择理由，学生对每条理由可提出异议并继续对话。
+    </div>
+  </div>
+</section>
+
+<!-- ====== 8. 前端设计 ====== -->
+<section>
+  <div class="section-header"><div class="icon">🎨</div><h2>前端设计（LearningPath.jsx 重构）</h2></div>
+  <div class="card">
+    <h3>页面结构</h3>
+    <pre>
+┌────────────────────────────────────────────────────────────┐
+│  🧭 学习路径            [当前课程: 法学概论 ▾]              │
+│                                                            │
+│  ─── ① 推荐路径（模板）───────────────────────────────── │
+│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────┐│
+│  │ 📝 课程考试   │ │ ⚖️ 纠纷解决  │ │ 📚 兴趣拓展   │ │ 🍎  ││
+│  │ 48课时·应试  │ │ 64课时·程序  │ │ 完整知识库    │ │师范生││
+│  │ [一键生成]   │ │ [一键生成]   │ │ [一键生成]   │ │备课  ││
+│  └──────────────┘ └──────────────┘ └──────────────┘ └──────┘│
+│  （师范生备课 → 先选目标学段：小学/初中/高中/大学）        │
+│                                                            │
+│  ─── ② AI 共创 ──────────────────────────────────────────  │
+│  🤖 描述你的学习目标，AI 帮你规划专属路径                   │
+│  [输入框: 我想重点学行政法，为考研做准备]  [💬 开始对话]    │
+│  （对话面板：追问 → 生成路径 → 预览/调整 → 确认激活）       │
+│                                                            │
+│  ─── ③ 我的路径 ──────────────────────────────────────────  │
+│  [课程考试·进行中 48%] [AI 定制·草稿] [系统自动·已暂停]      │
+│  （点开 → Steps 纵向步骤条 + 节点操作 + 策略切换）           │
+└────────────────────────────────────────────────────────────┘</pre>
+    <h3>关键交互</h3>
+    <ul>
+      <li><strong>一键生成</strong>：调 from-template → 生成 DRAFT → 弹出"路径已生成"预览（节点数/总课时/第一个节点）→ 确认后 activate</li>
+      <li><strong>师范生备课</strong>：点卡片 → 弹出学段选择（4 Tab）→ 调 preview 显示动态节点数/分课预览 → 确认生成</li>
+      <li><strong>AI 对话面板</strong>：右侧 Drawer/独立组件，多轮对话 + "生成路径"按钮（LLM 确认后展示节点清单，可逐条勾选）</li>
+      <li><strong>手动勾选编辑器（CUSTOM）</strong>："新建路径" → 知识树勾选（复用课程知识点树，Checkbox 多选，可搜索/按主题筛选）→ 已选列表实时预览 → 命名保存</li>
+      <li><strong>路径详情</strong>：现有 Steps 步骤条 + 新增 source 来源 Tag（模板/AI/自定义/自动）+ 节点操作（跳过/删除/前移后移）</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ====== 9. 里程碑 ====== -->
+<section>
+  <div class="section-header"><div class="icon">🏗️</div><h2>里程碑与工作量</h2></div>
+  <div class="card">
+    <table>
+      <tr><th>阶段</th><th>内容</th><th>估算</th></tr>
+      <tr><td>M1 数据底座</td><td>V19 迁移（path_templates/path_template_nodes/learning_paths 加字段）+ 实体/DTO/Repository</td><td>0.5 人天</td></tr>
+      <tr><td>M2 模板路径</td><td>模板 CRUD 端点 + from-template 生成 + preview（含 RULE_BY_STAGE 动态规则）+ 4 模板数据脚本（EXAM/LITIGATION 节点由 AI+规则生成）</td><td>1.5 人天</td></tr>
+      <tr><td>M3 AI 对话规划</td><td>ai-plan/start + chat（RAG 检索 + LLM 多轮 + askStructured 落库）+ 会话持久化</td><td>2 人天</td></tr>
+      <tr><td>M4 前端重构</td><td>LearningPath.jsx：模板卡片区 + AI 对话面板 + 我的路径列表 + 节点编辑（增删/换序）<strong>+ 知识树勾选编辑器（CUSTOM）</strong></td><td>2.5 人天</td></tr>
+      <tr><td>M5 数据与验证</td><td>EXAM/LITIGATION 模板节点落库（AI 生成+抽检）、师范生备课按学段分课验证、AI 对话端到端验证、CUSTOM 勾选验证</td><td>1 人天</td></tr>
+    </table>
+    <p><strong>合计约 7.5 人天</strong>（不含 LLM 生成模板节点的等待时间）。</p>
+  </div>
+</section>
+
+<!-- ====== 10. 待确认 ====== -->
+<section>
+  <div class="section-header"><div class="icon">✅</div><h2>已确认决策（v1.1）</h2></div>
+  <div class="card">
+    <table>
+      <tr><th>问题</th><th>决策</th></tr>
+      <tr><td>兴趣拓展·不设置显示</td><td>不显示课时上限，卡片显示"完整知识库"</td></tr>
+      <tr><td>课程考试模板节点来源</td><td>首先展示高频考点（按试卷 A/B 卷题目频次）</td></tr>
+      <tr><td>师范生备课</td><td>目标学段每次由学生选择；一课=4 课时（240 分钟）由几个相关知识点组成（按主题聚类分课）</td></tr>
+      <tr><td>AI 规划范围</td><td>不限制课程，检索全部课程知识库（当前仅法学概论；每课程有自己的知识库）</td></tr>
+      <tr><td>手动编辑器</td><td>AI 生成后手动调整 + 知识树勾选自建路径（CUSTOM）两种方式一起做</td></tr>
+    </table>
+  </div>
+</section>
+
+<footer class="footer">
+  EduMentor 智学导师 · 学习路径自规划 + AI 共创设计方案 · v1.1（已确认）
+</footer>
+
+</div>
+</body>
+</html>

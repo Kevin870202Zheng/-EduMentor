@@ -3,14 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   Card, Typography, Button, Upload, Table, Tag, Spin, Alert,
   Space, Descriptions, Divider, Modal, message, Empty, Steps,
-  Tabs, Select, Popconfirm,
+  Tabs, Select, Popconfirm, Form, Input,
 } from 'antd';
 import {
   UploadOutlined, RobotOutlined, CheckCircleOutlined,
   FileTextOutlined, ArrowLeftOutlined, SendOutlined,
-  UserOutlined, PlusOutlined, DeleteOutlined,
+  UserOutlined, PlusOutlined, DeleteOutlined, EditOutlined,
 } from '@ant-design/icons';
-import { courseContentAPI, courseTeacherAPI } from '../services/api';
+import { courseContentAPI, courseTeacherAPI, courseAPI } from '../services/api';
 import TeacherCourseContent from './TeacherCourseContent';
 
 const { Title, Text, Paragraph } = Typography;
@@ -28,6 +28,16 @@ const ROLE_MAP = {
   tutor: { label: '辅导教师', color: 'green' },
   assistant: { label: '助教', color: 'orange' },
 };
+
+// 学段选项（PRD v4.0 §5，课程教育阶段定位）
+const STAGE_OPTIONS = [
+  { label: '🏫 小学', value: 'PRIMARY' },
+  { label: '📖 初中', value: 'JUNIOR' },
+  { label: '🟢 高中', value: 'SENIOR' },
+  { label: '🎓 大学', value: 'UNIVERSITY' },
+];
+const STAGE_NAMES = { PRIMARY: '小学', JUNIOR: '初中', SENIOR: '高中', UNIVERSITY: '大学' };
+const STAGE_COLORS = { PRIMARY: 'blue', JUNIOR: 'orange', SENIOR: 'green', UNIVERSITY: 'purple' };
 
 export default function TeacherCourseManage() {
   const { courseCode } = useParams();
@@ -48,6 +58,11 @@ export default function TeacherCourseManage() {
   const [assigning, setAssigning] = useState(false);
   const [uploading, setUploading] = useState(0);
   const uploadCount = useRef(0);
+
+  // 课程信息编辑（含学段修改）
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [savingCourse, setSavingCourse] = useState(false);
+  const [courseForm] = Form.useForm();
 
   useEffect(() => {
     loadData();
@@ -225,6 +240,32 @@ export default function TeacherCourseManage() {
     }
   };
 
+  // ========== 课程信息编辑（含学段修改，PRD v4.0 §19） ==========
+  const openEditCourse = () => {
+    courseForm.setFieldsValue({
+      name: courseInfo?.name,
+      description: courseInfo?.description,
+      subject: courseInfo?.subject,
+      gradeLevel: courseInfo?.gradeLevel,
+      stage: courseInfo?.stage,
+    });
+    setEditModalOpen(true);
+  };
+
+  const handleSaveCourse = async (values) => {
+    if (!courseInfo?.id) return;
+    setSavingCourse(true);
+    try {
+      await courseAPI.update(courseInfo.id, values);
+      message.success('课程信息已更新');
+      setEditModalOpen(false);
+      await loadData();
+    } catch (err) {
+      message.error('保存失败: ' + (err.response?.data?.message || err.message || '未知错误'));
+    }
+    setSavingCourse(false);
+  };
+
   const teacherColumns = [
     {
       title: '教师姓名', dataIndex: 'teacherName', key: 'teacherName', width: 150,
@@ -268,9 +309,16 @@ export default function TeacherCourseManage() {
             {' · '}学科: {courseInfo.subject}
             {' · '}年级: {courseInfo.gradeLevel || '通用'}
             {' · '}
+            {courseInfo.stage ? (
+              <Tag color={STAGE_COLORS[courseInfo.stage] || 'blue'}>{STAGE_NAMES[courseInfo.stage] || courseInfo.stage}学段</Tag>
+            ) : (
+              <Tag color="orange">未设置学段</Tag>
+            )}
+            {' '}
             {courseInfo.isPublished ? <Tag color="green" size="small">已发布</Tag> : <Tag color="orange" size="small">未发布</Tag>}
           </Text>
         </div>
+        <Button icon={<EditOutlined />} onClick={openEditCourse}>编辑课程</Button>
       </div>
       {courseInfo.description && (
         <Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0 }}>{courseInfo.description}</Paragraph>
@@ -366,6 +414,37 @@ export default function TeacherCourseManage() {
       </Button>
 
       {courseHeader}
+
+      {/* 课程信息编辑弹窗（含学段修改） */}
+      <Modal title="✏️ 编辑课程信息" open={editModalOpen} onCancel={() => setEditModalOpen(false)}
+        onOk={() => courseForm.submit()} confirmLoading={savingCourse} okText="保存" cancelText="取消">
+        <Form form={courseForm} layout="vertical" onFinish={handleSaveCourse} style={{ marginTop: 16 }}>
+          <Form.Item label="课程名称" name="name" rules={[{ required: true, message: '请输入课程名称' }]}>
+            <Input placeholder="课程名称" />
+          </Form.Item>
+          <Form.Item label="学科" name="subject">
+            <Select placeholder="请选择学科" allowClear options={[
+              { label: '法律', value: '法律' },
+              { label: '数学', value: '数学' },
+              { label: '计算机', value: '计算机' },
+              { label: '物理', value: '物理' },
+              { label: '英语', value: '英语' },
+              { label: '化学', value: '化学' },
+              { label: '生物', value: '生物' },
+              { label: '其他', value: '其他' },
+            ]} />
+          </Form.Item>
+          <Form.Item label="学段" name="stage" tooltip="课程教育阶段定位，决定课程出现在哪个学段">
+            <Select options={STAGE_OPTIONS} placeholder="选择学段" allowClear />
+          </Form.Item>
+          <Form.Item label="适用年级" name="gradeLevel">
+            <Input placeholder="如：大一" />
+          </Form.Item>
+          <Form.Item label="课程描述" name="description">
+            <Input.TextArea rows={3} placeholder="课程简介" />
+          </Form.Item>
+        </Form>
+      </Modal>
 
       <Tabs defaultActiveKey="materials" onChange={onTabChange} items={[
         { key: 'materials', label: '📄 资料管理', children: materialsTab },

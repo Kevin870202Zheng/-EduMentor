@@ -19,6 +19,7 @@ export { alertApi } from './alertApi';
 export { dashboardApi } from './dashboardApi';
 export { knowledgeApi } from './knowledgeApi';
 export { classroomApi } from './classroomApi';
+export { courtApi } from './courtApi';
 
 export { wsClient, WebSocketClient } from './websocketClient';
 export type { WsClientMessage, WsServerMessage, WsMessageHandler } from './websocketClient';

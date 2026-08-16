@@ -303,6 +303,8 @@ export const courseAPI = {
   publish: (id, published) => api.put(`/knowledge/courses/${id}/publish`, null, { params: { published } }),
   listByTeacher: (teacherId) => api.get(`/knowledge/courses/teacher/${teacherId}`),
   getByCode: (courseCode) => api.get(`/courses/${courseCode}`),
+  // 一键标注学段：将课程学段批量回填到未标注的知识点（教师端内容管理，PRD v4.0 §10.4）
+  backfillStage: (courseId) => api.post(`/knowledge/courses/${courseId}/backfill-stage`),
 };
 
 // ============ 模块八：选课管理 ============
@@ -380,7 +382,22 @@ export const adminAPI = {
   resetPassword: (id, newPassword) => api.put(`/admin/users/${id}/reset-password`, { newPassword }),
 };
 
-// export default api;
+// // ============ 模块十七：学段管理（多学段法律课程体系 · PRD v4.0） ============
+export const stageAPI = {
+  // 获取所有学段定义（小学/初中/高中/大学）
+  getAll: () => api.get('/stages'),
+};
+
+// ============ 模块十八：跨学段主题（多学段法律课程体系 · PRD v4.0） ============
+export const themeAPI = {
+  // 获取主题列表，支持按学段过滤（附知识点计数）
+  getAll: (stage) => api.get('/themes', { params: { stage } }),
+  // 获取主题下的知识阶梯（按深度分层），支持按学段过滤
+  getKpsByStageAndTheme: (themeId, stage) =>
+    api.get(`/themes/${themeId}/kps`, { params: { stage } }),
+};
+
+export default api;
 
 // ============ 模块十六：学生互出题考核 ============
 export const peerQuizAPI = {
@@ -396,5 +413,3 @@ export const peerQuizAPI = {
     api.get(`/v1/peer-quizzes/${quizId}/questions/${questionId}/results`),
   getCourseMates: (courseId) => api.get(`/v1/peer-quizzes/students`, { params: { courseId } }),
 };
-
-export default api;

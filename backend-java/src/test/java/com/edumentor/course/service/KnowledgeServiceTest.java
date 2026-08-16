@@ -236,10 +236,10 @@ class KnowledgeServiceTest {
             Pageable pageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
             Page<Course> coursePage = new PageImpl<>(List.of(mockCourse));
 
-            when(courseRepository.findByNameContainingIgnoreCase(eq("数学"), any(Pageable.class)))
+            when(courseRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(Pageable.class)))
                     .thenReturn(coursePage);
 
-            Page<CourseDto> result = knowledgeService.listCourses(1, 10, null, "数学", false);
+            Page<CourseDto> result = knowledgeService.listCourses(1, 10, null, "数学", false, null);
 
             assertThat(result.getContent()).hasSize(1);
             assertThat(result.getContent().get(0).name()).isEqualTo("高中数学");
@@ -254,7 +254,7 @@ class KnowledgeServiceTest {
             when(courseRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(Pageable.class)))
                     .thenReturn(coursePage);
 
-            Page<CourseDto> result = knowledgeService.listCourses(1, 10, "数学", null, true);
+            Page<CourseDto> result = knowledgeService.listCourses(1, 10, "数学", null, true, null);
 
             assertThat(result.getContent()).hasSize(1);
         }

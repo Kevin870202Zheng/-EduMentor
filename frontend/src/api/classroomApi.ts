@@ -36,6 +36,22 @@ export const classroomApi = {
     return apiClient.get(`/v2/classrooms/generate/${jobId}/status`);
   },
 
+  /**
+   * 基于勾选知识点/章节生成课堂（场景一）
+   * POST /api/v2/classrooms/generate-from-selection
+   * mode: aggregated（同步生成一个聚合课堂）| batch（异步批量，每知识点一课）
+   */
+  async generateFromSelection(request: {
+    courseId: string;
+    knowledgePointIds: string[];
+    mode?: 'aggregated' | 'batch';
+    title?: string;
+    difficulty?: number;
+    courseName?: string;
+  }): Promise<any> {
+    return apiClient.post('/v2/classrooms/generate-from-selection', request);
+  },
+
   // ── 课堂查询 ──────────────────────────────────────────────
 
   /**

@@ -7,8 +7,12 @@ import com.edumentor.learningpath.entity.LearningPath;
 import com.edumentor.learningpath.entity.LearningPathNode;
 import com.edumentor.learningpath.entity.PathNodeStatus;
 import com.edumentor.learningpath.entity.PathStatus;
+import com.edumentor.learningpath.entity.PathTemplate;
+import com.edumentor.learningpath.entity.PathTemplateNode;
 import com.edumentor.learningpath.repository.LearningPathNodeRepository;
 import com.edumentor.learningpath.repository.LearningPathRepository;
+import com.edumentor.learningpath.repository.PathTemplateNodeRepository;
+import com.edumentor.learningpath.repository.PathTemplateRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 import org.slf4j.Logger;
@@ -45,15 +49,24 @@ public class PathService {
 
     private static final Logger log = LoggerFactory.getLogger(PathService.class);
 
+    /** 一课时长（分钟）= 4 课时，用于师范生备课模板分课 */
+    private static final int LESSON_MINUTES = 240;
+
     private final LearningPathRepository learningPathRepository;
     private final LearningPathNodeRepository learningPathNodeRepository;
+    private final PathTemplateRepository pathTemplateRepository;
+    private final PathTemplateNodeRepository pathTemplateNodeRepository;
     private final EntityManager entityManager;
 
     public PathService(LearningPathRepository learningPathRepository,
                        LearningPathNodeRepository learningPathNodeRepository,
+                       PathTemplateRepository pathTemplateRepository,
+                       PathTemplateNodeRepository pathTemplateNodeRepository,
                        EntityManager entityManager) {
         this.learningPathRepository = learningPathRepository;
         this.learningPathNodeRepository = learningPathNodeRepository;
+        this.pathTemplateRepository = pathTemplateRepository;
+        this.pathTemplateNodeRepository = pathTemplateNodeRepository;
         this.entityManager = entityManager;
     }
 
@@ -187,6 +200,368 @@ public class PathService {
 
         log.info("学习路径创建完成: pathId={}, 节点数量={}", savedPath.getId(), savedNodes.size());
         return LearningPathDto.fromEntity(savedPath);
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    //  模板路径
+    // ══════════════════════════════════════════════════════════════
+
+    /**
+     * 获取课程下可见的路径模板列表（推荐卡片）。
+     *
+     * @param courseId 课程 ID
+     * @return 模板列表
+     */
+    public List<PathTemplateDto> getTemplates(UUID courseId) {
+        return pathTemplateRepository.findByCourseIdAndIsVisibleTrueOrderBySortOrderAsc(courseId)
+                .stream()
+                .map(PathTemplateDto::fromEntity)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 预览模板节点内容。
+     * <p>
+     * 静态模板（STATIC）直接读取节点快照；
+     * 师范生备课模板（RULE_BY_STAGE）按目标学段/主题动态计算并按"课"分组。
+     * </p>
+     *
+     * @param templateId 模板 ID
+     * @param stage      目标学段（TEACHING 模板必填）
+     * @param themeIds   主题过滤（可选）
+     * @return 模板预览
+     */
+    public PathTemplatePreviewDto previewTemplate(UUID templateId, String stage, List<UUID> themeIds) {
+        PathTemplate template = pathTemplateRepository.findById(templateId)
+                .orElseThrow(() -> new ResourceNotFoundException("路径模板", templateId));
+
+        PathTemplatePreviewDto preview = new PathTemplatePreviewDto();
+        preview.setTemplateId(template.getId());
+        preview.setCode(template.getCode());
+        preview.setName(template.getName());
+        preview.setDescription(template.getDescription());
+        preview.setIcon(template.getIcon());
+        preview.setTemplateType(template.getTemplateType());
+        preview.setTotalMinutes(template.getTotalMinutes());
+
+        // 动态模板：按学段/主题计算并分课
+        if ("RULE_BY_STAGE".equals(template.getTemplateType())) {
+            if (stage == null || stage.isBlank()) {
+                throw new ValidationException("师范生备课模板必须指定目标学段 stage（PRIMARY/JUNIOR/SENIOR/UNIVERSITY）");
+            }
+            List<PathTemplateNodeDto> nodes = computeStageNodes(template.getCourseId(), stage, themeIds);
+            preview.setNodeCount(nodes.size());
+            preview.setTotalMinutes(nodes.stream().mapToInt(PathTemplateNodeDto::getEstimatedMinutes).sum());
+
+            // 按 lessonIndex 分组为课程
+            Map<Integer, List<PathTemplateNodeDto>> byLesson = nodes.stream()
+                    .collect(Collectors.groupingBy(PathTemplateNodeDto::getLessonIndex,
+                            LinkedHashMap::new, Collectors.toList()));
+            List<PathTemplatePreviewDto.LessonGroup> lessons = new ArrayList<>();
+            for (Map.Entry<Integer, List<PathTemplateNodeDto>> entry : byLesson.entrySet()) {
+                PathTemplatePreviewDto.LessonGroup group = new PathTemplatePreviewDto.LessonGroup();
+                group.setLessonIndex(entry.getKey());
+                group.setTitle(entry.getValue().get(0).getLessonTitle());
+                group.setEstimatedMinutes(entry.getValue().stream()
+                        .mapToInt(PathTemplateNodeDto::getEstimatedMinutes).sum());
+                group.setNodes(entry.getValue());
+                lessons.add(group);
+            }
+            preview.setLessonCount(lessons.size());
+            preview.setLessons(lessons);
+            preview.setNodes(nodes);
+            return preview;
+        }
+
+        // 静态模板：直接返回节点快照
+        List<PathTemplateNode> templateNodes = pathTemplateNodeRepository
+                .findByTemplateIdOrderByOrderIndexAsc(templateId);
+        List<PathTemplateNodeDto> nodeDtos = templateNodes.stream()
+                .map(PathTemplateNodeDto::fromEntity)
+                .collect(Collectors.toList());
+        preview.setNodeCount(nodeDtos.size());
+        preview.setNodes(nodeDtos);
+        return preview;
+    }
+
+    /**
+     * 从模板生成学生路径（source=TEMPLATE）。
+     * <p>
+     * 静态模板复制 path_template_nodes 节点快照；
+     * 师范生备课模板按学段动态计算节点（分课排序）。
+     * 生成后按 skipMastered 跳过已掌握知识点。
+     * </p>
+     *
+     * @param request 生成请求
+     * @return 生成的 DRAFT 路径
+     */
+    @Transactional
+    public LearningPathDto createPathFromTemplate(FromTemplateRequest request) {
+        PathTemplate template = pathTemplateRepository.findById(request.getTemplateId())
+                .orElseThrow(() -> new ResourceNotFoundException("路径模板", request.getTemplateId()));
+
+        // 1. 计算节点序列（静态复制 / 动态计算）
+        List<PathTemplateNodeDto> nodes;
+        if ("RULE_BY_STAGE".equals(template.getTemplateType())) {
+            if (request.getStage() == null || request.getStage().isBlank()) {
+                throw new ValidationException("师范生备课模板必须指定目标学段 stage");
+            }
+            nodes = computeStageNodes(request.getCourseId(), request.getStage(), request.getThemeIds());
+        } else {
+            nodes = pathTemplateNodeRepository.findByTemplateIdOrderByOrderIndexAsc(request.getTemplateId())
+                    .stream()
+                    .map(PathTemplateNodeDto::fromEntity)
+                    .collect(Collectors.toList());
+        }
+        if (nodes.isEmpty()) {
+            throw new ValidationException("模板无可用的知识点节点，请检查课程知识库");
+        }
+
+        // 2. 跳过已掌握知识点（默认开启）
+        Set<UUID> masteredIds = Boolean.TRUE.equals(request.getSkipMastered())
+                ? findMasteredKnowledgePointIds(request.getStudentId())
+                : Collections.emptySet();
+        List<PathTemplateNodeDto> filtered = nodes.stream()
+                .filter(n -> !masteredIds.contains(n.getKnowledgePointId()))
+                .collect(Collectors.toList());
+        log.info("从模板 {} 生成路径: 原始节点={}, 跳过已掌握后={}",
+                template.getCode(), nodes.size(), filtered.size());
+
+        // 3. 创建路径实体
+        LearningPath path = new LearningPath();
+        path.setStudentId(request.getStudentId());
+        path.setCourseId(request.getCourseId());
+        path.setCreatedBy(request.getStudentId());
+        path.setName(template.getName());
+        path.setDescription(template.getDescription());
+        path.setStatus(PathStatus.DRAFT);
+        path.setAdaptStrategy("REORDER");
+        path.setSource("TEMPLATE");
+        path.setTemplateId(template.getId());
+        path = learningPathRepository.save(path);
+        final LearningPath savedPath = path;
+
+        // 4. 创建路径节点
+        List<LearningPathNode> pathNodes = new ArrayList<>();
+        int orderIndex = 0;
+        for (PathTemplateNodeDto dto : filtered) {
+            LearningPathNode node = new LearningPathNode();
+            node.setLearningPath(savedPath);
+            node.setKnowledgePointId(dto.getKnowledgePointId());
+            node.setKnowledgePointName(dto.getKnowledgePointName());
+            node.setOrderIndex(orderIndex++);
+            node.setStatus(PathNodeStatus.PENDING);
+            node.setIsRecommended(true);
+            node.setEstimatedMinutes(dto.getEstimatedMinutes() != null
+                    ? dto.getEstimatedMinutes() : estimateMinutesByDifficulty(3));
+            pathNodes.add(node);
+        }
+        List<LearningPathNode> savedNodes = learningPathNodeRepository.saveAll(pathNodes);
+        savedPath.setTotalNodes(savedNodes.size());
+        savedPath.setCompletedNodes(0);
+        savedPath.setProgress(0);
+        savedPath.getNodes().addAll(savedNodes);
+        learningPathRepository.save(savedPath);
+
+        log.info("模板路径生成完成: pathId={}, 模板={}, 节点数量={}",
+                savedPath.getId(), template.getCode(), savedNodes.size());
+        return LearningPathDto.fromEntity(savedPath);
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    //  手动自定义路径（CUSTOM）
+    // ══════════════════════════════════════════════════════════════
+
+    /**
+     * 手动勾选创建路径（source=CUSTOM）。
+     * <p>
+     * nodeIds 为有序知识点列表，按给定顺序生成节点；允许为空（后续追加）。
+     * </p>
+     *
+     * @param request 创建请求
+     * @return 创建的 DRAFT 路径
+     */
+    @Transactional
+    public LearningPathDto createCustomPath(CustomPathRequest request) {
+        LearningPath path = new LearningPath();
+        path.setStudentId(request.getStudentId());
+        path.setCourseId(request.getCourseId());
+        path.setCreatedBy(request.getStudentId());
+        path.setName(request.getName());
+        path.setDescription(request.getDescription());
+        path.setStatus(PathStatus.DRAFT);
+        path.setAdaptStrategy("REORDER");
+        path.setSource("CUSTOM");
+        if (request.getDailyMinutes() != null) {
+            path.setDailyMinutes(request.getDailyMinutes());
+        }
+        path = learningPathRepository.save(path);
+        final LearningPath savedPath = path;
+
+        List<LearningPathNode> pathNodes = new ArrayList<>();
+        if (request.getNodeIds() != null) {
+            int orderIndex = 0;
+            for (UUID kpId : request.getNodeIds()) {
+                pathNodes.add(buildNode(savedPath, kpId, orderIndex++));
+            }
+        }
+        List<LearningPathNode> savedNodes = learningPathNodeRepository.saveAll(pathNodes);
+        savedPath.setTotalNodes(savedNodes.size());
+        savedPath.setCompletedNodes(0);
+        savedPath.setProgress(0);
+        savedPath.getNodes().addAll(savedNodes);
+        learningPathRepository.save(savedPath);
+
+        log.info("自定义路径创建完成: pathId={}, 节点数量={}", savedPath.getId(), savedNodes.size());
+        return LearningPathDto.fromEntity(savedPath);
+    }
+
+    /**
+     * 向路径追加节点（手动编辑后 source 置 CUSTOM）。
+     * <p>
+     * orderIndex 缺省时追加到末尾；指定时插入并后移后续节点。
+     * 同一知识点在路径中不允许重复添加。
+     * </p>
+     *
+     * @param pathId  路径 ID
+     * @param request 追加请求
+     * @return 更新后的路径
+     */
+    @Transactional
+    public LearningPathDto addPathNode(UUID pathId, AddPathNodeRequest request) {
+        LearningPath path = getPathEntity(pathId);
+        List<LearningPathNode> nodes = new ArrayList<>(path.getNodes());
+
+        boolean exists = nodes.stream()
+                .anyMatch(n -> n.getKnowledgePointId().equals(request.getKnowledgePointId()));
+        if (exists) {
+            throw new ValidationException("该知识点已在路径中，无需重复添加");
+        }
+
+        LearningPathNode newNode = buildNode(path, request.getKnowledgePointId(), nodes.size());
+        Integer targetIndex = request.getOrderIndex();
+        if (targetIndex != null) {
+            if (targetIndex < 0) {
+                throw new ValidationException("orderIndex 不能为负数");
+            }
+            nodes.add(Math.min(targetIndex, nodes.size()), newNode);
+        } else {
+            nodes.add(newNode);
+        }
+        // 统一重排 orderIndex
+        for (int i = 0; i < nodes.size(); i++) {
+            nodes.get(i).setOrderIndex(i);
+        }
+        path.getNodes().clear();
+        path.getNodes().addAll(nodes);
+
+        path.setSource("CUSTOM");
+        path.recalculateProgress();
+        path = learningPathRepository.save(path);
+        log.info("路径节点已追加: pathId={}, kpId={}", pathId, request.getKnowledgePointId());
+        return LearningPathDto.fromEntity(path);
+    }
+
+    /**
+     * 从路径移除节点（手动编辑后 source 置 CUSTOM）。
+     *
+     * @param pathId 路径 ID
+     * @param nodeId 路径节点 ID
+     * @return 更新后的路径
+     */
+    @Transactional
+    public LearningPathDto removePathNode(UUID pathId, UUID nodeId) {
+        LearningPath path = getPathEntity(pathId);
+
+        // 从集合移除（orphanRemoval=true 自动执行 DELETE）
+        LearningPathNode node = path.getNodes().stream()
+                .filter(n -> n.getId().equals(nodeId))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("路径节点", nodeId));
+        path.getNodes().remove(node);
+
+        // 重排剩余节点顺序
+        List<LearningPathNode> remaining = new ArrayList<>(path.getNodes());
+        remaining.sort(Comparator.comparingInt(LearningPathNode::getOrderIndex));
+        for (int i = 0; i < remaining.size(); i++) {
+            remaining.get(i).setOrderIndex(i);
+        }
+
+        path.setSource("CUSTOM");
+        path.recalculateProgress();
+        path = learningPathRepository.save(path);
+        log.info("路径节点已移除: pathId={}, nodeId={}", pathId, nodeId);
+        return LearningPathDto.fromEntity(path);
+    }
+
+    /**
+     * 重排路径节点顺序（手动编辑后 source 置 CUSTOM）。
+     *
+     * @param pathId  路径 ID
+     * @param request 新顺序（须包含路径全部节点 ID）
+     * @return 更新后的路径
+     */
+    @Transactional
+    public LearningPathDto reorderPathNodes(UUID pathId, ReorderNodesRequest request) {
+        LearningPath path = getPathEntity(pathId);
+        List<LearningPathNode> nodes = new ArrayList<>(path.getNodes());
+
+        Set<UUID> existingIds = nodes.stream().map(LearningPathNode::getId).collect(Collectors.toSet());
+        Set<UUID> requestedIds = new HashSet<>(request.getNodeIds());
+        if (!existingIds.equals(requestedIds)) {
+            throw new ValidationException("节点顺序列表必须包含路径的全部节点");
+        }
+
+        // 按请求顺序重排
+        Map<UUID, LearningPathNode> nodeMap = nodes.stream()
+                .collect(Collectors.toMap(LearningPathNode::getId, n -> n));
+        List<LearningPathNode> reordered = new ArrayList<>();
+        for (UUID nodeId : request.getNodeIds()) {
+            LearningPathNode node = nodeMap.get(nodeId);
+            if (node != null) {
+                reordered.add(node);
+            }
+        }
+        for (int i = 0; i < reordered.size(); i++) {
+            reordered.get(i).setOrderIndex(i);
+        }
+        path.getNodes().clear();
+        path.getNodes().addAll(reordered);
+
+        path.setSource("CUSTOM");
+        path.recalculateProgress();
+        path = learningPathRepository.save(path);
+        log.info("路径节点已重排: pathId={}, 节点数={}", pathId, nodes.size());
+        return LearningPathDto.fromEntity(path);
+    }
+
+    /**
+     * 构建单个路径节点（查询知识点名称与难度）。
+     */
+    private LearningPathNode buildNode(LearningPath path, UUID kpId, int orderIndex) {
+        String name = findKpNameById(kpId);
+        if (name == null) {
+            throw new ResourceNotFoundException("知识点", kpId);
+        }
+        LearningPathNode node = new LearningPathNode();
+        node.setLearningPath(path);
+        node.setKnowledgePointId(kpId);
+        node.setKnowledgePointName(name);
+        node.setOrderIndex(orderIndex);
+        node.setStatus(PathNodeStatus.PENDING);
+        node.setIsRecommended(true);
+        node.setEstimatedMinutes(estimateMinutesByDifficulty(getKnowledgePointDifficulty(kpId)));
+        return node;
+    }
+
+    /**
+     * 查询路径实体并初始化节点集合（避免懒加载异常）。
+     */
+    private LearningPath getPathEntity(UUID pathId) {
+        LearningPath path = learningPathRepository.findById(pathId)
+                .orElseThrow(() -> new ResourceNotFoundException("学习路径", pathId));
+        path.getNodes().size();
+        return path;
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -599,6 +974,134 @@ public class PathService {
     // ══════════════════════════════════════════════════════════════
     //  私有辅助方法 — EntityManager 跨模块查询
     // ══════════════════════════════════════════════════════════════
+
+    /**
+     * 动态计算师范生备课模板的节点序列。
+     * <p>
+     * 按目标学段 + 主题过滤 LEAF 知识点，再按主题聚类分课：
+     * 一课 = 4 课时（240 分钟），由同一主题下的几个相关知识点组成。
+     * </p>
+     *
+     * @param courseId 课程 ID
+     * @param stage    目标学段
+     * @param themeIds 主题过滤（可选）
+     * @return 平铺节点（含 lessonIndex/lessonTitle，按课分组顺序）
+     */
+    @SuppressWarnings("unchecked")
+    private List<PathTemplateNodeDto> computeStageNodes(UUID courseId, String stage, List<UUID> themeIds) {
+        // 1. 查询目标学段的 LEAF 知识点 [id, name, difficulty, themeId]
+        TypedQuery<Object[]> query = entityManager.createQuery(
+                "SELECT kp.id, kp.name, kp.difficulty, kp.themeId FROM KnowledgePoint kp " +
+                "WHERE kp.courseId = :courseId AND kp.type = 'LEAF' AND kp.stage = :stage " +
+                "ORDER BY kp.orderIndex ASC", Object[].class);
+        query.setParameter("courseId", courseId);
+        query.setParameter("stage", stage);
+
+        List<Object[]> rows = query.getResultList();
+        if (themeIds != null && !themeIds.isEmpty()) {
+            Set<UUID> themeSet = new HashSet<>(themeIds);
+            rows = rows.stream()
+                    .filter(r -> r[3] != null && themeSet.contains(r[3]))
+                    .collect(Collectors.toList());
+        }
+        if (rows.isEmpty()) {
+            throw new ValidationException("该学段下无可用知识点: stage=" + stage);
+        }
+
+        // 2. 按主题分组（保持主题出现顺序；无主题的归入综合素养）
+        Map<UUID, List<Object[]>> byTheme = new LinkedHashMap<>();
+        List<Object[]> noThemeRows = new ArrayList<>();
+        for (Object[] row : rows) {
+            UUID themeId = (UUID) row[3];
+            if (themeId == null) {
+                noThemeRows.add(row);
+            } else {
+                byTheme.computeIfAbsent(themeId, k -> new ArrayList<>()).add(row);
+            }
+        }
+
+        // 3. 主题名称映射
+        Map<UUID, String> themeNames = findThemeNames(byTheme.keySet());
+
+        // 4. 贪心分课：一课 240 分钟，生成平铺节点
+        List<PathTemplateNodeDto> result = new ArrayList<>();
+        int lessonCounter = 0;
+        for (Map.Entry<UUID, List<Object[]>> entry : byTheme.entrySet()) {
+            lessonCounter = appendLessons(result, entry.getValue(),
+                    themeNames.getOrDefault(entry.getKey(), "主题学习"), lessonCounter);
+        }
+        if (!noThemeRows.isEmpty()) {
+            lessonCounter = appendLessons(result, noThemeRows, "综合素养", lessonCounter);
+        }
+        log.info("师范生备课节点计算完成: courseId={}, stage={}, 节点={}, 课={}",
+                courseId, stage, result.size(), lessonCounter);
+        return result;
+    }
+
+    /**
+     * 将一个主题下的知识点按 240 分钟/课贪心切分并追加到结果列表。
+     *
+     * @return 当前已生成的课数
+     */
+    private int appendLessons(List<PathTemplateNodeDto> result, List<Object[]> groupRows,
+                              String themeName, int lessonCounter) {
+        List<List<Object[]>> lessons = splitIntoLessons(groupRows, LESSON_MINUTES);
+        boolean multiple = lessons.size() > 1;
+        for (int li = 0; li < lessons.size(); li++) {
+            lessonCounter++;
+            String lessonTitle = multiple ? themeName + " · 第" + (li + 1) + "课" : themeName;
+            for (Object[] row : lessons.get(li)) {
+                PathTemplateNodeDto dto = PathTemplateNodeDto.of(
+                        (UUID) row[0], (String) row[1], result.size(),
+                        estimateMinutesByDifficulty(((Number) row[2]).intValue()));
+                dto.setLessonIndex(lessonCounter);
+                dto.setLessonTitle(lessonTitle);
+                result.add(dto);
+            }
+        }
+        return lessonCounter;
+    }
+
+    /**
+     * 按累计分钟切分一课（每课最多 {@link #LESSON_MINUTES} 分钟），组内保持知识点顺序。
+     */
+    private List<List<Object[]>> splitIntoLessons(List<Object[]> rows, int lessonMinutes) {
+        List<List<Object[]>> lessons = new ArrayList<>();
+        List<Object[]> current = new ArrayList<>();
+        int acc = 0;
+        for (Object[] row : rows) {
+            int minutes = estimateMinutesByDifficulty(((Number) row[2]).intValue());
+            if (!current.isEmpty() && acc + minutes > lessonMinutes) {
+                lessons.add(current);
+                current = new ArrayList<>();
+                acc = 0;
+            }
+            current.add(row);
+            acc += minutes;
+        }
+        if (!current.isEmpty()) {
+            lessons.add(current);
+        }
+        return lessons;
+    }
+
+    /**
+     * 查询主题名称映射（跨模块 EntityManager）。
+     */
+    @SuppressWarnings("unchecked")
+    private Map<UUID, String> findThemeNames(Set<UUID> themeIds) {
+        if (themeIds == null || themeIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        TypedQuery<Object[]> query = entityManager.createQuery(
+                "SELECT st.id, st.name FROM SubjectTheme st WHERE st.id IN :ids", Object[].class);
+        query.setParameter("ids", themeIds);
+        Map<UUID, String> result = new HashMap<>();
+        for (Object[] row : query.getResultList()) {
+            result.put((UUID) row[0], (String) row[1]);
+        }
+        return result;
+    }
 
     /**
      * 查询课程下的所有知识点（跨模块，使用 EntityManager）。

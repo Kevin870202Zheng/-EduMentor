@@ -7,6 +7,16 @@ import { useAuth } from '../context/AuthContext';
 
 const { Title, Text } = Typography;
 
+// 学段选项（PRD v4.0 §5）
+const STAGE_OPTIONS = [
+  { label: '🏫 小学', value: 'PRIMARY' },
+  { label: '📖 初中', value: 'JUNIOR' },
+  { label: '🟢 高中', value: 'SENIOR' },
+  { label: '🎓 大学', value: 'UNIVERSITY' },
+];
+const STAGE_NAMES = { PRIMARY: '小学', JUNIOR: '初中', SENIOR: '高中', UNIVERSITY: '大学' };
+const STAGE_COLORS = { PRIMARY: 'blue', JUNIOR: 'orange', SENIOR: 'green', UNIVERSITY: 'purple' };
+
 export default function TeacherCourseList() {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -75,6 +85,15 @@ export default function TeacherCourseList() {
           <BookOutlined style={{ marginRight: 6 }} />{name}
         </a>
       ),
+    },
+    {
+      title: '学段',
+      dataIndex: 'stage',
+      key: 'stage',
+      width: 90,
+      render: (v) => v
+        ? <Tag color={STAGE_COLORS[v] || 'default'}>{STAGE_NAMES[v] || v}</Tag>
+        : <Tag color="default">未设置</Tag>,
     },
     {
       title: '学科',
@@ -182,6 +201,7 @@ export default function TeacherCourseList() {
             rules={[{ required: true, message: '请选择学科' }]}
           >
             <Select placeholder="请选择学科">
+              <Select.Option value="法律">法律</Select.Option>
               <Select.Option value="数学">数学</Select.Option>
               <Select.Option value="计算机">计算机</Select.Option>
               <Select.Option value="物理">物理</Select.Option>
@@ -190,6 +210,9 @@ export default function TeacherCourseList() {
               <Select.Option value="生物">生物</Select.Option>
               <Select.Option value="其他">其他</Select.Option>
             </Select>
+          </Form.Item>
+          <Form.Item name="stage" label="学段" tooltip="课程所属学段，创建后可在内容管理中一键标注知识点学段">
+            <Select options={STAGE_OPTIONS} placeholder="选择学段（如：大学）" allowClear />
           </Form.Item>
           <Form.Item name="gradeLevel" label="适用年级">
             <Input placeholder="例如：大一" />

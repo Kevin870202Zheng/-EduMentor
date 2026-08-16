@@ -6,6 +6,14 @@ import { useAuth } from '../context/AuthContext';
 
 const { Title, Text } = Typography;
 
+// 学段身份选项（PRD v4.0 §19：学生学段身份与学生账号绑定）
+const STAGE_OPTIONS = [
+  { label: '🏫 小学', value: 'PRIMARY' },
+  { label: '📖 初中', value: 'JUNIOR' },
+  { label: '🟢 高中', value: 'SENIOR' },
+  { label: '🎓 大学', value: 'UNIVERSITY' },
+];
+
 export default function StudentProfileEdit() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -52,6 +60,9 @@ export default function StudentProfileEdit() {
       <Card>
         <Form form={form} layout="vertical" onFinish={handleSave}>
           <Title level={5}>基本资料</Title>
+          <Form.Item label="学段身份" name="stage" tooltip="你的教育阶段，决定学段主题学习中默认展示的内容">
+            <Select options={STAGE_OPTIONS} placeholder="选择学段（如：大学）" />
+          </Form.Item>
           <Form.Item label="年级" name="grade">
             <Input placeholder="如：大一" />
           </Form.Item>

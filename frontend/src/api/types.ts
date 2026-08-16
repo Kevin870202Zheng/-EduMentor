@@ -327,49 +327,172 @@ export interface DiagnosisOverviewDto {
 
 // ─── 学习路径模块 ──────────────────────────────────────────
 
+/** 路径来源: AUTO(系统自动) / TEMPLATE(预设模板) / AI(AI 对话) / CUSTOM(手动自定义) */
+export type PathSource = 'AUTO' | 'TEMPLATE' | 'AI' | 'CUSTOM';
+
 export interface PathPlanRequest {
   studentId: string;
   courseId: string;
-  goal?: string;
-  preferredDifficulty?: number;
-  maxNodes?: number;
+  name: string;
+  description?: string;
+  skipMastered?: boolean;
+  dailyMinutes?: number;
+  focusKpId?: string;
+  examDaysLeft?: number;
+  adaptStrategy?: 'REORDER' | 'SHORTEN' | 'FOCUS_WEAK' | 'EXPAND';
 }
 
 export interface PathAdaptRequest {
   pathId: string;
-  studentId: string;
-  reason?: string;
+  adaptStrategy?: 'REORDER' | 'SHORTEN' | 'FOCUS_WEAK' | 'EXPAND';
+  newKpIds?: string[];
 }
 
 export interface PathProgressUpdateRequest {
   pathId: string;
   nodeId: string;
-  status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'SKIPPED';
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'SKIPPED';
   score?: number;
   timeSpentMinutes?: number;
 }
 
 export interface LearningPathNodeDto {
   id: string;
+  learningPathId?: string;
   knowledgePointId: string;
   knowledgePointName: string;
   orderIndex: number;
   status: string;
+  isRecommended?: boolean;
   estimatedMinutes: number;
-  masteryThreshold: number;
-  completedAt?: string;
+  actualMinutes?: number;
+  masteryThreshold?: number;
+  aiReason?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface LearningPathDto {
   id: string;
   studentId: string;
-  courseId: string;
-  title: string;
+  courseId?: string;
+  createdBy?: string;
+  name: string;
+  description?: string;
   status: string;
-  nodes: LearningPathNodeDto[];
   progress: number;
-  createdAt: string;
-  updatedAt: string;
+  totalNodes?: number;
+  completedNodes?: number;
+  dailyMinutes?: number;
+  adaptStrategy?: string;
+  source?: PathSource;
+  templateId?: string;
+  nodes?: LearningPathNodeDto[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/** 路径模板（推荐卡片） */
+export interface PathTemplateDto {
+  id: string;
+  courseId: string;
+  code: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  totalMinutes?: number;
+  nodeCount?: number;
+  isVisible?: boolean;
+  templateType: 'STATIC' | 'RULE_BY_STAGE';
+  sortOrder?: number;
+}
+
+/** 模板节点 */
+export interface PathTemplateNodeDto {
+  id?: string;
+  templateId?: string;
+  knowledgePointId: string;
+  knowledgePointName: string;
+  orderIndex: number;
+  estimatedMinutes: number;
+  /** 动态模板（师范生备课）分课信息 */
+  lessonIndex?: number;
+  lessonTitle?: string;
+}
+
+/** 模板预览 */
+export interface PathTemplatePreviewDto {
+  templateId: string;
+  code: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  templateType: string;
+  totalMinutes?: number;
+  nodeCount: number;
+  lessonCount?: number;
+  nodes: PathTemplateNodeDto[];
+  lessons?: Array<{
+    lessonIndex: number;
+    title: string;
+    estimatedMinutes: number;
+    nodes: PathTemplateNodeDto[];
+  }>;
+}
+
+/** 从模板生成路径请求 */
+export interface FromTemplateRequest {
+  studentId: string;
+  courseId: string;
+  templateId: string;
+  stage?: string;
+  themeIds?: string[];
+  skipMastered?: boolean;
+}
+
+/** 手动勾选创建路径请求（CUSTOM） */
+export interface CustomPathRequest {
+  studentId: string;
+  courseId: string;
+  name: string;
+  description?: string;
+  nodeIds: string[];
+  dailyMinutes?: number;
+}
+
+/** 追加路径节点请求 */
+export interface AddPathNodeRequest {
+  knowledgePointId: string;
+  orderIndex?: number;
+}
+
+/** 重排路径节点请求 */
+export interface ReorderNodesRequest {
+  nodeIds: string[];
+}
+
+/** AI 规划开启请求 */
+export interface AiPlanStartRequest {
+  studentId: string;
+  courseId?: string;
+  goal: string;
+}
+
+/** AI 规划对话请求 */
+export interface AiPlanChatRequest {
+  studentId: string;
+  sessionId: string;
+  message: string;
+  generatePath?: boolean;
+  courseId?: string;
+}
+
+/** AI 规划会话响应 */
+export interface AiPlanResponse {
+  sessionId: string;
+  reply: string;
+  path?: LearningPathDto;
+  candidates?: PathTemplateNodeDto[];
 }
 
 // ─── 智能答疑模块 ──────────────────────────────────────────

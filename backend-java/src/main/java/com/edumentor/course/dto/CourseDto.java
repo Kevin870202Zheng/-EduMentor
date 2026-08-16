@@ -17,6 +17,7 @@ import java.util.UUID;
  * @param description 课程描述
  * @param subject     学科分类
  * @param gradeLevel  适用年级
+ * @param stage       所属学段（PRIMARY/JUNIOR/SENIOR/UNIVERSITY）
  * @param coverUrl    封面图片 URL
  * @param isPublished 是否已发布
  * @param createdBy   创建人 ID
@@ -33,6 +34,7 @@ public record CourseDto(
         String description,
         String subject,
         String gradeLevel,
+        String stage,
         String coverUrl,
         boolean isPublished,
         UUID createdBy,
@@ -53,6 +55,7 @@ public record CourseDto(
                 entity.getDescription(),
                 entity.getSubject(),
                 entity.getGradeLevel(),
+                entity.getStage(),
                 entity.getCoverUrl(),
                 Boolean.TRUE.equals(entity.getIsPublished()),
                 entity.getCreatedBy(),

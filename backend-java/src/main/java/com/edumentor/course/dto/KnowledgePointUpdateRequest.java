@@ -26,4 +26,16 @@ public class KnowledgePointUpdateRequest {
     private Integer orderIndex;
     private UUID parentKpId;
     private String type;
+
+    /** 所属学段（PRIMARY/JUNIOR/SENIOR/UNIVERSITY），可选 */
+    private String stage;
+
+    /** 认知深度（1-5），可选 */
+    private Integer depthLevel;
+
+    /** 所属跨学段主题 ID，可选 */
+    private UUID themeId;
+
+    /** 学段内排序，可选 */
+    private Integer stageOrder;
 }

@@ -2,6 +2,7 @@ package com.edumentor.learningpath.controller;
 
 import com.edumentor.common.response.ApiResponse;
 import com.edumentor.learningpath.dto.*;
+import com.edumentor.learningpath.service.AiPlanService;
 import com.edumentor.learningpath.service.PathService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -29,9 +30,11 @@ public class PathController {
     private static final Logger log = LoggerFactory.getLogger(PathController.class);
 
     private final PathService pathService;
+    private final AiPlanService aiPlanService;
 
-    public PathController(PathService pathService) {
+    public PathController(PathService pathService, AiPlanService aiPlanService) {
         this.pathService = pathService;
+        this.aiPlanService = aiPlanService;
     }
 
     /**
@@ -51,6 +54,139 @@ public class PathController {
                 request.getStudentId(), request.getCourseId(), request.getName());
         LearningPathDto result = pathService.planPath(request);
         return ApiResponse.success(result, "学习路径规划成功");
+    }
+
+    /**
+     * GET /api/paths/templates — 获取课程可用的预设路径模板列表。
+     *
+     * @param courseId 课程 ID
+     * @return 模板列表（推荐卡片）
+     */
+    @GetMapping("/templates")
+    @Operation(summary = "获取路径模板列表", description = "获取课程下可见的预设路径模板（课程考试/纠纷解决/兴趣拓展/师范生备课）")
+    public ApiResponse<List<PathTemplateDto>> getTemplates(@RequestParam UUID courseId) {
+        List<PathTemplateDto> result = pathService.getTemplates(courseId);
+        return ApiResponse.success(result);
+    }
+
+    /**
+     * GET /api/paths/templates/{id}/preview — 预览模板节点内容。
+     * <p>
+     * 师范生备课（TEACHING）模板需传 stage（目标学段），返回按"课"分组的预览。
+     * </p>
+     *
+     * @param id       模板 ID
+     * @param stage    目标学段（可选，TEACHING 必填）
+     * @param themeIds 主题过滤（可选）
+     * @return 模板预览
+     */
+    @GetMapping("/templates/{id}/preview")
+    @Operation(summary = "预览路径模板", description = "预览模板节点内容；师范生备课模板按学段/主题动态计算并分课")
+    public ApiResponse<PathTemplatePreviewDto> previewTemplate(
+            @PathVariable UUID id,
+            @RequestParam(required = false) String stage,
+            @RequestParam(required = false) List<UUID> themeIds) {
+        PathTemplatePreviewDto result = pathService.previewTemplate(id, stage, themeIds);
+        return ApiResponse.success(result);
+    }
+
+    /**
+     * POST /api/paths/from-template — 从模板生成学生路径（source=TEMPLATE）。
+     *
+     * @param request 生成请求（含 studentId/courseId/templateId/stage）
+     * @return 生成的 DRAFT 路径
+     */
+    @PostMapping("/from-template")
+    @Operation(summary = "从模板生成路径", description = "复制模板节点生成学生 DRAFT 路径，模板改动不影响已生成路径")
+    public ApiResponse<LearningPathDto> createPathFromTemplate(@Valid @RequestBody FromTemplateRequest request) {
+        LearningPathDto result = pathService.createPathFromTemplate(request);
+        return ApiResponse.success(result, "模板路径生成成功");
+    }
+
+    /**
+     * POST /api/paths/custom — 手动勾选创建路径（source=CUSTOM）。
+     *
+     * @param request 创建请求（含有序知识点 ID 列表）
+     * @return 创建的 DRAFT 路径
+     */
+    @PostMapping("/custom")
+    @Operation(summary = "手动勾选创建路径", description = "按学生勾选的知识点顺序生成自定义路径（CUSTOM）")
+    public ApiResponse<LearningPathDto> createCustomPath(@Valid @RequestBody CustomPathRequest request) {
+        LearningPathDto result = pathService.createCustomPath(request);
+        return ApiResponse.success(result, "自定义路径创建成功");
+    }
+
+    /**
+     * POST /api/paths/{id}/nodes — 向路径追加节点（手动编辑，source 置 CUSTOM）。
+     *
+     * @param id      路径 ID
+     * @param request 追加请求
+     * @return 更新后的路径
+     */
+    @PostMapping("/{id}/nodes")
+    @Operation(summary = "追加路径节点", description = "向路径追加知识点节点，可指定插入位置")
+    public ApiResponse<LearningPathDto> addPathNode(@PathVariable UUID id,
+                                                    @Valid @RequestBody AddPathNodeRequest request) {
+        LearningPathDto result = pathService.addPathNode(id, request);
+        return ApiResponse.success(result, "节点已追加");
+    }
+
+    /**
+     * DELETE /api/paths/{id}/nodes/{nodeId} — 移除路径节点。
+     *
+     * @param id     路径 ID
+     * @param nodeId 路径节点 ID
+     * @return 更新后的路径
+     */
+    @DeleteMapping("/{id}/nodes/{nodeId}")
+    @Operation(summary = "移除路径节点", description = "从路径中删除指定节点并重排顺序")
+    public ApiResponse<LearningPathDto> removePathNode(@PathVariable UUID id, @PathVariable UUID nodeId) {
+        LearningPathDto result = pathService.removePathNode(id, nodeId);
+        return ApiResponse.success(result, "节点已移除");
+    }
+
+    /**
+     * PUT /api/paths/{id}/nodes/reorder — 调整路径节点顺序。
+     *
+     * @param id      路径 ID
+     * @param request 新顺序（节点 ID 完整列表）
+     * @return 更新后的路径
+     */
+    @PutMapping("/{id}/nodes/reorder")
+    @Operation(summary = "调整路径节点顺序", description = "按给定节点 ID 顺序重排路径节点")
+    public ApiResponse<LearningPathDto> reorderPathNodes(@PathVariable UUID id,
+                                                         @Valid @RequestBody ReorderNodesRequest request) {
+        LearningPathDto result = pathService.reorderPathNodes(id, request);
+        return ApiResponse.success(result, "节点顺序已调整");
+    }
+
+    /**
+     * POST /api/paths/ai-plan/start — 开启 AI 对话规划会话。
+     *
+     * @param request 开启请求（含学习目标）
+     * @return 会话响应（sessionId + 首轮回复 + 候选知识点）
+     */
+    @PostMapping("/ai-plan/start")
+    @Operation(summary = "开启 AI 规划会话", description = "RAG 检索候选知识点 + LLM 首轮追问/建议，返回 sessionId")
+    public ApiResponse<AiPlanResponse> startAiPlan(@Valid @RequestBody AiPlanStartRequest request) {
+        AiPlanResponse result = aiPlanService.start(request);
+        return ApiResponse.success(result, "AI 规划会话已开启");
+    }
+
+    /**
+     * POST /api/paths/ai-plan/chat — AI 规划多轮对话。
+     * <p>
+     * generatePath=true 时 LLM 输出结构化路径 JSON 并落库 DRAFT 路径。
+     * </p>
+     *
+     * @param request 对话请求
+     * @return 会话响应（回复文本 + 可选生成的路径）
+     */
+    @PostMapping("/ai-plan/chat")
+    @Operation(summary = "AI 规划对话", description = "多轮对话澄清需求；确认后生成结构化路径并落库 DRAFT")
+    public ApiResponse<AiPlanResponse> chatAiPlan(@Valid @RequestBody AiPlanChatRequest request) {
+        AiPlanResponse result = aiPlanService.chat(request);
+        return ApiResponse.success(result);
     }
 
     /**

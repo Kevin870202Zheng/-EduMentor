@@ -28,6 +28,7 @@ public class LearningPathNodeDto {
     private Integer estimatedMinutes;
     private Integer actualMinutes;
     private Double masteryThreshold;
+    private String aiReason;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -52,6 +53,7 @@ public class LearningPathNodeDto {
         dto.setEstimatedMinutes(entity.getEstimatedMinutes());
         dto.setActualMinutes(entity.getActualMinutes());
         dto.setMasteryThreshold(entity.getMasteryThreshold());
+        dto.setAiReason(entity.getAiReason());
         dto.setCreatedAt(entity.getCreatedAt());
         dto.setUpdatedAt(entity.getUpdatedAt());
         return dto;

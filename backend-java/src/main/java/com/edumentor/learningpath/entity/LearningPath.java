@@ -52,6 +52,14 @@ public class LearningPath extends BaseEntity {
     @Column(name = "adapt_strategy", nullable = false, length = 16)
     private String adaptStrategy = "REORDER";
 
+    /** 路径来源: AUTO(系统自动) / TEMPLATE(预设模板) / AI(AI 对话) / CUSTOM(手动自定义) */
+    @Column(nullable = false, length = 16)
+    private String source = "AUTO";
+
+    /** 来源模板 ID（source=TEMPLATE 时有效） */
+    @Column(name = "template_id")
+    private UUID templateId;
+
     @OneToMany(mappedBy = "learningPath", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @OrderBy("orderIndex ASC")
     private List<LearningPathNode> nodes = new ArrayList<>();
@@ -87,6 +95,8 @@ public class LearningPath extends BaseEntity {
         dto.put("completedNodes", completedNodes);
         dto.put("dailyMinutes", dailyMinutes);
         dto.put("adaptStrategy", adaptStrategy);
+        dto.put("source", source);
+        dto.put("templateId", templateId);
         dto.put("createdBy", createdBy);
         dto.put("createdAt", getCreatedAt());
         dto.put("updatedAt", getUpdatedAt());

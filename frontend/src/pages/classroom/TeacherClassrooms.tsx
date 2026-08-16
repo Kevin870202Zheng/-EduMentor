@@ -19,6 +19,8 @@ import {
   CheckCircleOutlined,
   BarChartOutlined,
   ArrowLeftOutlined,
+  ExperimentOutlined,
+  TeamOutlined,
 } from '@ant-design/icons';
 import { courseAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -192,16 +194,24 @@ const TeacherClassrooms: React.FC = () => {
             🎓 课堂学情
           </Title>
         </Space>
-        <Select
-          style={{ width: 280 }}
-          placeholder="选择课程"
-          value={selectedCourseId}
-          onChange={setSelectedCourseId}
-          options={courses.map((c: any) => ({
-            label: `[${c.courseCode || ''}] ${c.name || c.title}`,
-            value: c.id,
-          }))}
-        />
+        <Space>
+          <Button icon={<ExperimentOutlined />} onClick={() => navigate('/teacher/classroom-generator')}>
+            课堂生成器
+          </Button>
+          <Button icon={<TeamOutlined />} onClick={() => navigate('/teacher/collab-classrooms')}>
+            学段协作
+          </Button>
+          <Select
+            style={{ width: 280 }}
+            placeholder="选择课程"
+            value={selectedCourseId}
+            onChange={setSelectedCourseId}
+            options={courses.map((c: any) => ({
+              label: `[${c.courseCode || ''}] ${c.name || c.title}`,
+              value: c.id,
+            }))}
+          />
+        </Space>
       </div>
 
       {/* 统计卡片 */}

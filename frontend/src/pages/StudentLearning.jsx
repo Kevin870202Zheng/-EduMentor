@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
+import { useParams, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom';
 import { Card, Typography, Button, Spin, Tag, Progress, Radio, Checkbox, Input, Space, Alert, Empty, List, Tree, message, Collapse, Select, Form, Tabs, Modal, Table } from 'antd';
 import { CheckCircleOutlined, CloseCircleOutlined, ArrowLeftOutlined, ArrowRightOutlined, RobotOutlined, BookOutlined, FolderOutlined, FileTextOutlined, FormOutlined, TeamOutlined, PlusOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import { courseAPI, learningAPI, answerAPI, questionAnalysisAPI, knowledgePointAPI, peerQuizAPI } from '../services/api';
@@ -9,6 +9,10 @@ import { useAuth } from '../context/AuthContext';
 const { Title, Text, Paragraph } = Typography;
 
 const DIFFICULTY_COLORS = { 1: 'green', 2: 'cyan', 3: 'blue', 4: 'orange', 5: 'red' };
+
+// 学段标识（PRD v4.0 §11.5）
+const STAGE_NAMES = { PRIMARY: '小学', JUNIOR: '初中', SENIOR: '高中', UNIVERSITY: '大学' };
+const STAGE_COLORS = { PRIMARY: 'blue', JUNIOR: 'orange', SENIOR: 'green', UNIVERSITY: 'purple' };
 
 // ============================================================
 // 纯工具函数
@@ -238,6 +242,7 @@ const QuestionCard = React.memo(({
 export default function StudentLearning() {
   const { courseCode } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { selectedCourseId, studentCourses } = useOutletContext();
 
@@ -515,7 +520,15 @@ export default function StudentLearning() {
           });
           setMasteryMap(map);
         }
-        if (kps.length > 0) loadQuestions(kps[0].id);
+        // kpId 定位（从学段主题知识阶梯跳转进入，PRD v4.0 §11.5）
+        const targetKpId = searchParams.get('kpId');
+        const startIdx = targetKpId ? kps.findIndex(k => k.id === targetKpId) : -1;
+        if (startIdx >= 0) {
+          setCurrentKpIndex(startIdx);
+          loadQuestions(kps[startIdx].id);
+        } else if (kps.length > 0) {
+          loadQuestions(kps[0].id);
+        }
       }
     } catch (err) {
       console.error('Failed to load learning data:', err);
@@ -685,6 +698,11 @@ export default function StudentLearning() {
           <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/student/dashboard')}>返回</Button>
           <Title level={4} style={{ margin: 0 }}>📚 {courseInfo.name}</Title>
           <Text type="secondary">编号: {courseInfo.courseCode}</Text>
+          {courseInfo.stage && (
+            <Tag color={STAGE_COLORS[courseInfo.stage] || 'blue'}>
+              {STAGE_NAMES[courseInfo.stage] || courseInfo.stage}学段
+            </Tag>
+          )}
         </Space>
         <Space>
           <Text>进度:</Text>
@@ -726,23 +744,19 @@ export default function StudentLearning() {
                     </Space>
                   </div>
                   <Space>
-                    {currentKp?.type === 'CHAPTER' ? (
-                      <Button type="primary" ghost icon={<span>🎓</span>}
-                        loading={enteringClassroom}
-                        onClick={() => handleEnterClassroom(currentKp)}
-                        size="small"
-                      >
-                        生成章级智慧课堂
-                        {currentKp?.childrenCount ? `（${currentKp.childrenCount}个知识点）` : ''}
-                      </Button>
-                    ) : (
-                      <Button type="default" ghost disabled icon={<span>🎓</span>}
-                        size="small"
-                        title="请在章层级创建沉浸课堂"
-                      >
-                        沉浸课堂（需在章层级使用）
-                      </Button>
-                    )}
+                    <Button type="primary" ghost icon={<span>🎓</span>}
+                      size="small"
+                      onClick={() => navigate('/student/classroom-generator/select', {
+                        state: {
+                          courseId: courseInfo?.id,
+                          presetKpIds: currentKp?.type === 'CHAPTER' ? [currentKp.id] : undefined,
+                        },
+                      })}
+                    >
+                      {currentKp?.type === 'CHAPTER'
+                        ? `生成章级智慧课堂${currentKp?.childrenCount ? `（${currentKp.childrenCount}个知识点）` : ''}`
+                        : '去生成器创建课堂'}
+                    </Button>
                     <Progress type="circle" percent={currentKp ? Math.round((masteryMap[currentKp.id] || 0) * 100) : 0}
                       size={48} strokeColor={(() => {
                         const val = currentKp ? masteryMap[currentKp.id] : 0;

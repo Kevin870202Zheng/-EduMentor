@@ -21,6 +21,10 @@ public class StudentProfile extends BaseEntity {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
+    /** 所属学段：PRIMARY/JUNIOR/SENIOR/UNIVERSITY（PRD v4.0 §19，与学生账号绑定） */
+    @Column(length = 16)
+    private String stage;
+
     @Column(length = 32)
     private String grade;
 
@@ -75,6 +79,7 @@ public class StudentProfile extends BaseEntity {
         Map<String, Object> dto = new HashMap<>();
         dto.put("id", getId());
         dto.put("userId", userId);
+        dto.put("stage", stage);
         dto.put("grade", grade);
         dto.put("school", school);
         dto.put("targetSchool", targetSchool);

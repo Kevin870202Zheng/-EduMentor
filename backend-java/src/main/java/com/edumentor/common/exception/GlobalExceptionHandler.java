@@ -150,6 +150,14 @@ public class GlobalExceptionHandler {
             .body(ApiResponse.error(ex.getCode(), ex.getMessage()));
     }
 
+    /** 参数/业务校验异常（IllegalArgumentException）→ 400，携带具体原因 */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiResponse<Void>> handleIllegalArgument(IllegalArgumentException ex) {
+        log.warn("参数/业务校验失败: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(ApiResponse.error(400, ex.getMessage()));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleAll(Exception ex) {
         log.error("系统异常", ex);

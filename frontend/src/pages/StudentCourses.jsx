@@ -1,9 +1,10 @@
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Card, Table, Button, Modal, List, Tag, Typography, Spin, message, Empty, Space, Popconfirm, Tabs } from 'antd';
-import { PlusOutlined, BookOutlined, DeleteOutlined, RollbackOutlined } from '@ant-design/icons';
+import { PlusOutlined, BookOutlined, DeleteOutlined, RollbackOutlined, CompassOutlined } from '@ant-design/icons';
 import { enrollmentAPI, courseAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import StudentStageThemes from './StudentStageThemes';
 
 const { Title, Text } = Typography;
 
@@ -194,6 +195,20 @@ export default function StudentCourses() {
     },
   ];
 
+  // 视图切换：我的课程 / 学段主题学习（PRD v4.0 §11）
+  const viewItems = [
+    {
+      key: 'mine',
+      label: <span><BookOutlined /> 我的课程</span>,
+      children: <Tabs items={tabItems} />,
+    },
+    {
+      key: 'stages',
+      label: <span><CompassOutlined /> 学段主题学习</span>,
+      children: <StudentStageThemes />,
+    },
+  ];
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -203,7 +218,7 @@ export default function StudentCourses() {
         </Button>
       </div>
 
-      <Tabs items={tabItems} />
+      <Tabs items={viewItems} defaultActiveKey="mine" />
 
       {/* 选课 Modal */}
       <Modal

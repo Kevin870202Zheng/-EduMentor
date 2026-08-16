@@ -77,8 +77,8 @@ public class ClassroomService {
 
         return ClassroomDetailDto.builder()
                 .id(classroom.getId().toString())
-                .courseId(classroom.getCourseId().toString())
-                .knowledgePointId(classroom.getKnowledgePointId().toString())
+                .courseId(classroom.getCourseId() != null ? classroom.getCourseId().toString() : null)
+                .knowledgePointId(classroom.getKnowledgePointId() != null ? classroom.getKnowledgePointId().toString() : null)
                 .title(classroom.getTitle())
                 .description(classroom.getDescription())
                 .difficulty(classroom.getDifficulty())

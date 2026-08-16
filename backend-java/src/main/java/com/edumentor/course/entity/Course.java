@@ -30,6 +30,10 @@ public class Course extends BaseEntity {
     @Column(name = "grade_level", length = 32)
     private String gradeLevel;
 
+    /** 所属学段：PRIMARY / JUNIOR / SENIOR / UNIVERSITY（PRD v4.0 §15） */
+    @Column(length = 16)
+    private String stage;
+
     @Column(name = "cover_url", length = 512)
     private String coverUrl;
 
@@ -51,6 +55,7 @@ public class Course extends BaseEntity {
         dto.put("description", description);
         dto.put("subject", subject);
         dto.put("gradeLevel", gradeLevel);
+        dto.put("stage", stage);
         dto.put("coverUrl", coverUrl);
         dto.put("isPublished", isPublished);
         dto.put("createdBy", createdBy);

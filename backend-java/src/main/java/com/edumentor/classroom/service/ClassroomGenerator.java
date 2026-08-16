@@ -13,6 +13,7 @@ import com.edumentor.course.entity.KnowledgePoint;
 import com.edumentor.course.repository.CourseRepository;
 import com.edumentor.course.repository.KnowledgePointRepository;
 import com.edumentor.classroom.dto.AggregatedContent;
+import com.edumentor.classroom.dto.ClassroomMaterial;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -104,6 +105,7 @@ public class ClassroomGenerator {
 
     /**
      * 生成单个知识点的课堂（全量）。
+     * 内部包装为单知识点 ClassroomMaterial 后走统一生成管线。
      */
     @Transactional
     public Classroom generateClassroom(UUID courseId, UUID knowledgePointId, int difficulty) {
@@ -135,29 +137,78 @@ public class ClassroomGenerator {
         String referenceQuestions = questionProvider.getReferenceQuestions(knowledgePointId);
         extraContext.put("referenceQuestions", referenceQuestions);
 
+        String aggregatedText = extraContext.getOrDefault("aggregatedContent", "");
+        ClassroomMaterial material = ClassroomMaterial.builder()
+                .courseId(courseId)
+                .courseName(courseName)
+                .title(kp.getName() + " — AI智慧课堂")
+                .description("基于知识点「" + kp.getName() + "」自动生成的AI教学课堂，难度等级" + difficulty)
+                .knowledgeContext(aggregatedText != null && !aggregatedText.isEmpty()
+                        ? aggregatedText : (kp.getContent() != null ? kp.getContent() : ""))
+                .textbookExcerpt(textbookExcerpt)
+                .referenceQuestions(referenceQuestions)
+                .knowledgePointIds(List.of(knowledgePointId))
+                .source("knowledge")
+                .difficulty(difficulty)
+                .build();
+
+        return generateFromMaterial(material);
+    }
+
+    /**
+     * 基于课堂素材生成课堂（统一生成管线入口，设计文档 §4.3）。
+     * 支持：单知识点 / 多知识点聚合 / 学段协作素材。
+     *
+     * @param material 课堂素材
+     * @return 生成的课堂
+     */
+    @Transactional
+    public Classroom generateFromMaterial(ClassroomMaterial material) {
+        log.info("Generating classroom from material: title={}, kps={}, source={}",
+                material.getTitle(),
+                material.getKnowledgePointIds() != null ? material.getKnowledgePointIds().size() : 0,
+                material.getSource());
+
         // 阶段1: 生成场景大纲
-        log.info("Generating outlines for KP: {} ({}) with enhanced context", kp.getName(), knowledgePointId);
-        List<SceneOutline> outlines = outlineGenerator.generate(kp, difficulty, extraContext);
+        List<SceneOutline> outlines = outlineGenerator.generate(material, material.getDifficulty());
 
         // 创建课堂主记录
         Classroom classroom = new Classroom();
-        classroom.setCourseId(courseId);
-        classroom.setKnowledgePointId(knowledgePointId);
-        classroom.setTitle(kp.getName() + " — AI智慧课堂");
-        classroom.setDescription("基于知识点「" + kp.getName() + "」自动生成的AI教学课堂，难度等级" + difficulty);
-        classroom.setDifficulty(difficulty);
+        classroom.setCourseId(material.getCourseId());
+        // 单知识点课堂保留 knowledgePointId 绑定（兼容 resolve 查询）；聚合/协作课堂置空
+        if (material.getKnowledgePointIds() != null && material.getKnowledgePointIds().size() == 1
+                && "knowledge".equals(material.getSource())) {
+            classroom.setKnowledgePointId(material.getKnowledgePointIds().get(0));
+        }
+        classroom.setSource(material.getSource() != null ? material.getSource() : "knowledge");
+        classroom.setTitle(material.getTitle());
+        classroom.setDescription(material.getDescription());
+        classroom.setDifficulty(material.getDifficulty());
         classroom.setStatus(ClassroomStatus.published);
         classroom.setSceneCount(outlines.size());
+        if (material.getMetadata() != null && !material.getMetadata().isEmpty()) {
+            classroom.setMetadata(material.getMetadata());
+        } else if (material.getKnowledgePointIds() != null && !material.getKnowledgePointIds().isEmpty()) {
+            // 聚合课堂：metadata 记录关联知识点
+            classroom.setMetadata(toJson(Map.of("knowledgePointIds",
+                    material.getKnowledgePointIds().stream().map(UUID::toString).toList())));
+        }
         classroom = classroomRepository.save(classroom);
 
         int totalDuration = 0;
+
+        // 场景内容生成的增强上下文
+        Map<String, String> contentExtra = new HashMap<>();
+        contentExtra.put("courseName", material.getCourseName() != null ? material.getCourseName() : "");
+        contentExtra.put("knowledgePointContent", material.getKnowledgeContext() != null ? material.getKnowledgeContext() : "");
+        contentExtra.put("aggregatedContent", "");
 
         // 阶段2: 逐场景生成内容
         for (int i = 0; i < outlines.size(); i++) {
             SceneOutline outline = outlines.get(i);
             log.info("Generating content for scene {}/{}: {}", i + 1, outlines.size(), outline.getTitle());
 
-            SceneContent content = contentGenerator.generate(outline, difficulty, kp.getName(), extraContext);
+            SceneContent content = contentGenerator.generate(outline, material.getDifficulty(), material.getTitle(), contentExtra);
 
             // 保存场景
             Scene scene = new Scene();
@@ -210,10 +261,105 @@ public class ClassroomGenerator {
         classroom.setTotalDurationSeconds(totalDuration);
         classroomRepository.save(classroom);
 
-        log.info("Classroom generated: id={}, title={}, scenes={}, duration={}s",
-                classroom.getId(), classroom.getTitle(), outlines.size(), totalDuration);
+        log.info("Classroom generated: id={}, title={}, scenes={}, duration={}s, source={}",
+                classroom.getId(), classroom.getTitle(), outlines.size(), totalDuration, classroom.getSource());
 
         return classroom;
+    }
+
+    /**
+     * 基于勾选知识点/章节生成聚合课堂（场景一，设计文档 §4）。
+     * 章节自动展开为叶子知识点；所有叶子知识点聚合为一个课堂。
+     *
+     * @param courseId   所属课程
+     * @param kpIds      勾选的知识点/章节 ID（可混合）
+     * @param title      课堂标题（可空，自动生成）
+     * @param difficulty 难度 1-5
+     * @param courseName 课程名称（可空，自动查询）
+     * @return 生成的聚合课堂
+     */
+    @Transactional
+    public Classroom generateFromSelection(UUID courseId, List<UUID> kpIds, String title, int difficulty, String courseName) {
+        List<UUID> leafIds = expandToLeaves(kpIds);
+        if (leafIds.isEmpty()) {
+            throw new IllegalArgumentException("未选择任何知识点或章节");
+        }
+        List<KnowledgePoint> kps = loadOrderedBy(leafIds);
+        String context = buildAggregatedContext(kps);
+
+        String resolvedCourseName = (courseName != null && !courseName.isEmpty())
+                ? courseName : textbookProvider.getCourseName(courseId);
+        String resolvedTitle = (title != null && !title.isEmpty())
+                ? title : "「" + kps.get(0).getName() + "」等 " + kps.size() + " 个知识点 · 聚合课堂";
+        String kpNames = kps.stream().map(KnowledgePoint::getName).limit(3).collect(Collectors.joining("、"));
+
+        ClassroomMaterial material = ClassroomMaterial.builder()
+                .courseId(courseId)
+                .courseName(resolvedCourseName)
+                .title(resolvedTitle)
+                .description("基于 " + kps.size() + " 个知识点聚合生成的AI智慧课堂，覆盖 " + kpNames + " 等")
+                .knowledgeContext(context)
+                .knowledgePointIds(leafIds)
+                .source("multi_knowledge")
+                .difficulty(difficulty)
+                .build();
+
+        return generateFromMaterial(material);
+    }
+
+    /** 章节/小节展开为叶子知识点（保持勾选顺序） */
+    private List<UUID> expandToLeaves(List<UUID> kpIds) {
+        Set<UUID> leaves = new LinkedHashSet<>();
+        for (UUID id : kpIds) {
+            KnowledgePoint kp = knowledgePointRepository.findById(id).orElse(null);
+            if (kp == null) continue;
+            if ("LEAF".equals(kp.getType())) {
+                leaves.add(id);
+            } else {
+                collectLeaves(id, leaves);
+            }
+        }
+        return new ArrayList<>(leaves);
+    }
+
+    private void collectLeaves(UUID parentId, Set<UUID> leaves) {
+        List<KnowledgePoint> children = knowledgePointRepository.findByParentKpId(parentId);
+        for (KnowledgePoint c : children) {
+            if ("LEAF".equals(c.getType())) {
+                leaves.add(c.getId());
+            } else {
+                collectLeaves(c.getId(), leaves);
+            }
+        }
+    }
+
+    /** 按传入 ID 顺序加载知识点实体 */
+    private List<KnowledgePoint> loadOrderedBy(List<UUID> ids) {
+        Map<UUID, KnowledgePoint> byId = knowledgePointRepository.findByIdIn(ids).stream()
+                .collect(Collectors.toMap(KnowledgePoint::getId, kp -> kp));
+        List<KnowledgePoint> ordered = new ArrayList<>();
+        for (UUID id : ids) {
+            KnowledgePoint kp = byId.get(id);
+            if (kp != null) ordered.add(kp);
+        }
+        return ordered;
+    }
+
+    /** 聚合多个知识点为课堂素材文本 */
+    private String buildAggregatedContext(List<KnowledgePoint> kps) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < kps.size(); i++) {
+            KnowledgePoint kp = kps.get(i);
+            sb.append("【知识点").append(i + 1).append("】").append(kp.getName()).append("\n");
+            if (kp.getDescription() != null && !kp.getDescription().isBlank()) {
+                sb.append("描述：").append(kp.getDescription()).append("\n");
+            }
+            if (kp.getContent() != null && !kp.getContent().isBlank()) {
+                sb.append("内容：").append(kp.getContent()).append("\n");
+            }
+            sb.append("\n");
+        }
+        return sb.toString();
     }
 
     /**

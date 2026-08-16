@@ -22,6 +22,8 @@ public class CourseUpdateRequest {
     private String description;
     private String subject;
     private String gradeLevel;
+    /** 所属学段（PRIMARY/JUNIOR/SENIOR/UNIVERSITY），可选 */
+    private String stage;
     private String coverUrl;
     private Boolean isPublished;
 }

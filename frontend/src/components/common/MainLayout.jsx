@@ -4,7 +4,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   DashboardOutlined, NodeIndexOutlined, QuestionCircleOutlined,
   FileExclamationOutlined, UserOutlined, BookOutlined,
-  LogoutOutlined, SwapOutlined, FileTextOutlined, ReadOutlined, TeamOutlined, ThunderboltOutlined,
+  LogoutOutlined, SwapOutlined, FileTextOutlined, ReadOutlined, TeamOutlined, ThunderboltOutlined, CompassOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../../context/AuthContext';
 import { enrollmentAPI } from '../../services/api';
@@ -15,6 +15,7 @@ const { Text } = Typography;
 const studentMenuItems = [
   { key: '/student/dashboard', icon: <DashboardOutlined />, label: '学情总览' },
   { key: '/student/learning', icon: <ReadOutlined />, label: '课程学习' },
+  { key: '/student/stages', icon: <CompassOutlined />, label: '学段主题学习' },
   { key: '/student/learning-path', icon: <NodeIndexOutlined />, label: '学习路径' },
   { key: '/student/classrooms', icon: <ThunderboltOutlined />, label: '智慧课堂' },
   { key: '/student/qa', icon: <QuestionCircleOutlined />, label: '智能答疑' },

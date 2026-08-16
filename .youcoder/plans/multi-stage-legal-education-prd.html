@@ -1,0 +1,1998 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>多学段法律课程体系 — 产品需求文档（v4.0 修订稿）</title>
+<style>
+  :root {
+    --primary: #1a73e8;
+    --primary-light: #e8f0fe;
+    --primary-dark: #1557b0;
+    --success: #34a853;
+    --warning: #fbbc04;
+    --danger: #ea4335;
+    --text: #202124;
+    --text-secondary: #5f6368;
+    --border: #dadce0;
+    --bg: #f8f9fa;
+    --white: #ffffff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    line-height: 1.7;
+  }
+  .container { max-width: 1000px; margin: 0 auto; padding: 0 24px; }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, #1a73e8 0%, #1557b0 100%);
+    color: white;
+    padding: 48px 0 40px;
+  }
+  .header h1 { font-size: 32px; font-weight: 700; margin-bottom: 8px; }
+  .header .subtitle { font-size: 16px; opacity: 0.9; }
+  .header .meta { margin-top: 16px; font-size: 14px; opacity: 0.8; display: flex; gap: 24px; flex-wrap: wrap; }
+
+  /* Status bar */
+  .status-bar {
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 0;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .status-bar .container { display: flex; gap: 32px; flex-wrap: wrap; }
+  .status-item { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .status-dot {
+    width: 10px; height: 10px; border-radius: 50%; display: inline-block;
+  }
+  .dot-draft { background: #fbbc04; }
+  .dot-review { background: #1a73e8; }
+  .dot-done { background: #34a853; }
+  .status-label { color: var(--text-secondary); }
+
+  /* TOC */
+  .toc {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 32px;
+    margin: 32px 0;
+  }
+  .toc h2 { font-size: 18px; margin-bottom: 16px; }
+  .toc ol { padding-left: 20px; }
+  .toc li { margin-bottom: 6px; }
+  .toc a { color: var(--primary); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  .toc .tag-new { color: var(--danger); font-size: 12px; margin-left: 6px; }
+
+  /* Sections */
+  section { margin-bottom: 48px; }
+  .section-header {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 20px; padding-bottom: 12px;
+    border-bottom: 2px solid var(--primary);
+  }
+  .section-header .icon {
+    width: 36px; height: 36px; border-radius: 8px;
+    background: var(--primary-light); color: var(--primary);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+  }
+  .section-header h2 { font-size: 22px; font-weight: 600; }
+  .section-header .tag {
+    font-size: 12px; padding: 2px 10px; border-radius: 10px;
+    background: var(--primary-light); color: var(--primary);
+    font-weight: 500; margin-left: auto;
+  }
+  .section-header .tag.new { background: #fce8e6; color: var(--danger); }
+  .section-header .tag.rev { background: #fef7e0; color: #ea8600; }
+
+  .card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .card h3 { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
+  .card h4 { font-size: 14px; font-weight: 600; margin: 16px 0 8px; color: var(--text-secondary); }
+  .card p, .card li { font-size: 14px; color: var(--text-secondary); margin-bottom: 8px; }
+  .card ul, .card ol { padding-left: 20px; }
+  .card strong { color: var(--text); }
+
+  /* Tables */
+  table {
+    width: 100%; border-collapse: collapse; margin: 16px 0;
+    font-size: 13px;
+  }
+  th, td {
+    padding: 10px 12px; text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  th { background: var(--bg); font-weight: 600; color: var(--text-secondary); }
+  tr:hover td { background: var(--bg); }
+
+  /* Tag styles */
+  .tag-stage {
+    display: inline-block; padding: 2px 10px; border-radius: 10px;
+    font-size: 12px; font-weight: 500;
+  }
+  .tag-primary { background: #e8f0fe; color: #1a73e8; }
+  .tag-junior { background: #fce8e6; color: #d93025; }
+  .tag-senior { background: #e6f4ea; color: #137333; }
+  .tag-university { background: #f3e5f5; color: #6a1b9a; }
+  .tag-depth-1 { background: #fef7e0; color: #ea8600; }
+  .tag-depth-2 { background: #e8f5e9; color: #2e7d32; }
+  .tag-depth-3 { background: #e3f2fd; color: #1565c0; }
+  .tag-depth-4 { background: #f3e5f5; color: #7b1fa2; }
+  .tag-depth-5 { background: #ffebee; color: #c62828; }
+  .tag-status-ok { background: #e6f4ea; color: #137333; }
+  .tag-status-missing { background: #fce8e6; color: #d93025; }
+  .tag-status-partial { background: #fef7e0; color: #ea8600; }
+
+  /* Highlight boxes */
+  .highlight {
+    padding: 16px; border-radius: 8px; margin: 16px 0;
+    border-left: 4px solid var(--primary);
+    background: var(--primary-light);
+  }
+  .highlight-warning {
+    border-left-color: var(--warning);
+    background: #fef7e0;
+  }
+  .highlight-danger {
+    border-left-color: var(--danger);
+    background: #fce8e6;
+  }
+  .highlight-success {
+    border-left-color: var(--success);
+    background: #e6f4ea;
+  }
+  .highlight h4 { margin-bottom: 6px; color: var(--text); }
+
+  .schema-diagram {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 20px; margin: 16px 0;
+    background: var(--bg); border-radius: 8px;
+    font-size: 13px;
+  }
+  .schema-diagram .row { display: flex; gap: 16px; align-items: center; margin: 4px 0; flex-wrap: wrap; justify-content: center; }
+  .schema-box {
+    padding: 8px 16px; border: 2px solid var(--border); border-radius: 6px;
+    background: var(--white); text-align: center; min-width: 100px;
+  }
+  .schema-box.primary { border-color: var(--primary); background: var(--primary-light); }
+  .schema-box.warning { border-color: var(--warning); background: #fef7e0; }
+  .schema-box.success { border-color: var(--success); background: #e6f4ea; }
+  .schema-arrow { color: var(--text-secondary); font-size: 18px; }
+  .schema-label { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+
+  .footer {
+    text-align: center; padding: 32px 0;
+    color: var(--text-secondary); font-size: 13px;
+    border-top: 1px solid var(--border);
+    margin-top: 48px;
+  }
+
+  @media (max-width: 640px) {
+    .header h1 { font-size: 24px; }
+    .status-bar .container { gap: 16px; }
+    table { font-size: 12px; }
+    th, td { padding: 6px 8px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ====== HEADER ====== -->
+<header class="header">
+  <div class="container">
+    <h1>📚 多学段法律课程体系 · 产品需求文档</h1>
+    <div class="subtitle">覆盖小学·初中·高中·大学四学段，基于教育部课程标准与《思想道德与法治》统编教材的法治教育阶梯式课程体系</div>
+    <div class="meta">
+      <span>📅 版本：v4.0（修订稿）</span>
+      <span>🏷️ 状态：已评审 · 已采纳专家意见（方案B：先数据迁移，后前端 UI）</span>
+      <span>📂 项目：EduMentor 智学导师</span>
+    </div>
+  </div>
+</header>
+
+<!-- ====== STATUS BAR ====== -->
+<div class="status-bar">
+  <div class="container">
+    <div class="status-item"><span class="status-dot dot-review"></span> <span class="status-label">状态：</span> 修订稿 v4.0 · 待二次评审</div>
+    <div class="status-item"><span class="status-dot dot-done"></span> <span class="status-label">决策：</span> 落地路线 = 方案B（数据迁移优先）</div>
+    <div class="status-item"><span>📏</span> <span class="status-label">工作量估算：</span> 约 9-11 人周（含数据迁移 + 前端双维度导航）</div>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ====== TOC ====== -->
+<nav class="toc">
+  <h2>📖 目录</h2>
+  <ol>
+    <li><a href="#expert-review">专家评审意见与采纳说明</a> <span class="tag-new">🆕</span></li>
+    <li><a href="#background">背景与依据</a> <span class="tag-new">修订</span></li>
+    <li><a href="#goal">产品目标</a></li>
+    <li><a href="#users">用户角色与场景</a></li>
+    <li><a href="#stage-model">学段深度模型</a></li>
+    <li><a href="#theme-system">跨学段主题体系</a></li>
+    <li><a href="#knowledge-model">知识点学段关联模型</a></li>
+    <li><a href="#progression">跨学段进阶衔接</a></li>
+    <li><a href="#curriculum">课程体系设计</a></li>
+    <li><a href="#migration">落地路线：数据迁移方案（方案B）</a> <span class="tag-new">🆕</span></li>
+    <li><a href="#student-nav">学生端「学段×主题」双维度导航</a> <span class="tag-new">🆕</span></li>
+    <li><a href="#student-flow">学生学习流程</a></li>
+    <li><a href="#time-capsule">成长时光机：跨学段学习衔接与成长记录</a></li>
+    <li><a href="#teacher-flow">教师管理流程</a></li>
+    <li><a href="#data-model">数据模型变更</a> <span class="tag-new">修订</span></li>
+    <li><a href="#api">API 设计</a> <span class="tag-new">修订</span></li>
+    <li><a href="#ui">UI 示意</a></li>
+    <li><a href="#priority">优先级与里程碑</a> <span class="tag-new">修订</span></li>
+    <li><a href="#open-questions">待决策问题</a> <span class="tag-new">修订</span></li>
+    <li><a href="#risks">风险与假设</a> <span class="tag-new">🆕</span></li>
+  </ol>
+</nav>
+
+<!-- ====== 1. 专家评审意见与采纳说明 ====== -->
+<section id="expert-review">
+  <div class="section-header">
+    <div class="icon">🧑‍⚖️</div>
+    <h2>专家评审意见与采纳说明</h2>
+    <span class="tag new">NEW</span>
+  </div>
+
+  <div class="card">
+    <h3>评审结论摘要</h3>
+    <p>专家对本 PRD（v3.0）进行了技术评审，核心结论：<strong>多学段功能此前处于「半成品」状态，应优先补齐数据与前端链路，落地入口放在学生端「课程学习」页，采用「学段 × 主题」双维度导航。</strong></p>
+    <p>专家同时提出一个关键待确认问题——当前数据库只有「法学概论」一门课程、1,354 个知识点尚未标记学段（stage 字段为空），应如何落地学段切换？并给出三个候选方案：</p>
+    <table>
+      <tr><th>方案</th><th>做法</th><th>优点</th><th>缺点</th><th>结论</th></tr>
+      <tr>
+        <td><strong>方案A</strong></td>
+        <td>直接实现前端切换 UI，先用「按深度推断学段」的临时规则展示（深度1-2→小学，2-3→初中，3-5→高中，4-5→大学），后续再正式标注数据</td>
+        <td>最快出效果，无数据成本</td>
+        <td>展示的是「推断数据」而非真实学段数据，存在误导风险；临时规则下沉到 UI 层，后期返工</td>
+        <td>❌ 不采纳</td>
+      </tr>
+      <tr>
+        <td><strong>方案B</strong></td>
+        <td>先做数据迁移——按知识点深度自动标记学段字段，再实现前端切换 UI，保证展示真实学段数据</td>
+        <td>数据真实可靠，前端展示与数据一致，可长期演进</td>
+        <td>迁移工作需要一次性投入，依赖人工抽检保证质量</td>
+        <td>✅ <strong>采纳（用户已确认）</strong></td>
+      </tr>
+      <tr>
+        <td><strong>方案C</strong></td>
+        <td>先实现前端 UI 框架（学段 Tab + 主题卡片 + 知识阶梯），数据留空展示空状态，等运营填充学段数据</td>
+        <td>前端先行，运营可并行填充</td>
+        <td>上线初期页面大面积空态，用户体验差，且无法验收核心价值</td>
+        <td>❌ 不采纳</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>现状核查结果（评审期间对代码库的逐项验证）</h3>
+    <p>评审期间对当前代码库（<code>frontend/</code> + <code>backend-java/</code>）进行了逐项核查。<strong>专家对「前端组件缺失」的判断准确；但对「后端就绪、数据字段已建好」的描述与代码实况存在出入</strong>——多学段能力在数据库、后端、前端三个层面实际均未落地，属于「从零到一」，而非「只缺前端」：</p>
+    <table>
+      <tr>
+        <th>层级</th>
+        <th>评审时描述</th>
+        <th>代码实况</th>
+        <th>结论</th>
+      </tr>
+      <tr>
+        <td>🗄️ 数据库</td>
+        <td><code>courses.stage</code>、<code>knowledge_points.stage/depth/theme</code> 字段已建好</td>
+        <td><code>Course</code> / <code>KnowledgePoint</code> JPA 实体无这些字段；Flyway V1–V16 迁移脚本中无任何 stage / depth_level / theme_id 相关 SQL</td>
+        <td><span class="tag-status-missing">❌ 未落地</span></td>
+      </tr>
+      <tr>
+        <td>☕ 后端 API</td>
+        <td><code>/api/stages</code>、<code>/api/themes</code>、<code>/api/themes/kps</code>、<code>/api/knowledge/courses?stage=</code> 全部可用</td>
+        <td>代码库中不存在 <code>EducationStage</code> / <code>SubjectTheme</code> 相关 Controller / Service / Entity，未检索到上述端点实现；<code>RelationType</code> 枚举仅有 PREREQUISITE / PARENT_OF / RELATED，无 PROGRESSION</td>
+        <td><span class="tag-status-missing">❌ 未落地</span></td>
+      </tr>
+      <tr>
+        <td>🌐 前端 API 封装</td>
+        <td><code>stageApi</code>、<code>themeApi</code> 已写好</td>
+        <td><code>frontend/src/services/api.jsx</code> 中不存在 stageApi / themeApi 模块，现有模块为 authAPI、courseAPI、learningAPI 等 16 个</td>
+        <td><span class="tag-status-missing">❌ 未落地</span></td>
+      </tr>
+      <tr>
+        <td>🖥️ 前端 UI 组件</td>
+        <td>学段选择器、主题筛选、知识阶梯视图均未实现</td>
+        <td>无 StageSelector / ThemeGrid / KnowledgeLadder 组件，属实</td>
+        <td><span class="tag-status-ok">✅ 判断准确</span></td>
+      </tr>
+      <tr>
+        <td>🧭 路由与页面</td>
+        <td>无学段/主题相关学习页面路由</td>
+        <td>学生端仅有 /student/dashboard、/student/courses、/student/learning/:courseCode 等路由，无学段入口，属实</td>
+        <td><span class="tag-status-ok">✅ 判断准确</span></td>
+      </tr>
+      <tr>
+        <td>📄 课程学习页</td>
+        <td><code>StudentLearning.jsx</code> 只按 courseCode 渲染，无学段切换</td>
+        <td>属实：<code>useParams().courseCode</code> 驱动数据加载，无学段上下文</td>
+        <td><span class="tag-status-ok">✅ 判断准确</span></td>
+      </tr>
+      <tr>
+        <td>⏳ 成长时光机</td>
+        <td>只有 <code>GrowthTimeMachine.jsx</code> 用到 stageApi 做学段名称映射</td>
+        <td>前端不存在 <code>GrowthTimeMachine.jsx</code> 文件；该功能仍处于 PRD 规划阶段</td>
+        <td><span class="tag-status-missing">❌ 未落地</span></td>
+      </tr>
+    </table>
+    <div class="highlight-warning">
+      <h4>⚠️ 修订影响</h4>
+      <p>由于数据模型、后端 API、前端封装均需从零建设，<strong>「方案B」的实际工作量大于评审初判</strong>：它不仅包含「知识点学段回填」，还包含「数据模型落库（建表 + 加字段）」「后端 API 建设」「前端 API 封装」三个前置环节。本修订稿已将这一完整链路写入第 10 章「落地路线：数据迁移方案（方案B）」，并相应更新里程碑与工时估算。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>专家建议的前端实现方案（已采纳）</h3>
+    <p>专家建议把入口放在学生端「课程学习」页，升级为<strong>「学段 × 主题」双维度导航</strong>：</p>
+    <ol>
+      <li><strong>StageSelector</strong> — 4 学段 Tab 切换器（小学 / 初中 / 高中 / 大学）</li>
+      <li><strong>ThemeGrid</strong> — 展示当前学段可见的 8 个法律主题卡片</li>
+      <li><strong>KnowledgeLadder</strong> — 点开主题后，按 depth_level 分层的知识阶梯</li>
+      <li><strong>StudentCourses.jsx 改造</strong> — 课程列表页接入学段切换，显示当前学段课程</li>
+      <li><strong>新增路由</strong> — 学段主题学习入口（如 /student/stages）</li>
+      <li><strong>课程详情页</strong> — 按学段展示对应知识点内容</li>
+    </ol>
+    <p>完整组件规格与交互设计见第 11 章「学生端『学段×主题』双维度导航」。</p>
+  </div>
+
+  <div class="card">
+    <h3>本版（v4.0）修订要点总览</h3>
+    <table>
+      <tr><th>修订项</th><th>说明</th></tr>
+      <tr><td>新增 §1 专家评审章节</td><td>记录评审结论、现状核查对照、方案决策与采纳说明</td></tr>
+      <tr><td>修订 §2 现状分析</td><td>以代码核查结果为准，如实描述「三层均未落地」的现状</td></tr>
+      <tr><td>新增 §10 数据迁移方案（方案B）</td><td>V17 迁移脚本、课程级标注、知识点回填规则、theme 初标、校验与回滚</td></tr>
+      <tr><td>新增 §11 双维度导航</td><td>StageSelector / ThemeGrid / KnowledgeLadder 组件规格、路由设计、空状态兜底</td></tr>
+      <tr><td>修订 §15 数据模型 / §16 API</td><td>标注「待实现（V17）」与前端依赖清单</td></tr>
+      <tr><td>修订 §18 里程碑</td><td>新增 M1.5 数据迁移与 M2.5 前端导航，更新工时至 9-11 人周</td></tr>
+      <tr><td>修订 §19 待决策 / 新增 §20 风险</td><td>原「迁移策略」问题标记为已决策（方案B）；补充假设与风险清单</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ====== 2. 背景 ====== -->
+<section id="background">
+  <div class="section-header">
+    <div class="icon">📜</div>
+    <h2>背景与依据</h2>
+    <span class="tag rev">REVISED</span>
+  </div>
+
+  <div class="card">
+    <h3>政策依据</h3>
+    <p>根据教育部发布的课程标准文件与统编教材，法律教育在中国基础教育与高等教育阶段呈现明显的<strong>螺旋上升式</strong>结构：</p>
+    <table>
+      <tr>
+        <th>文件</th>
+        <th>覆盖学段</th>
+        <th>相关课程</th>
+        <th>法律教育定位</th>
+      </tr>
+      <tr>
+        <td><strong>义务教育课程方案和课程标准（2022年版）</strong><br><span style="font-size:12px;color:var(--text-secondary);">教材〔2022〕2号</span></td>
+        <td><span class="tag-stage tag-primary">小学（1-6年级）</span><br><span class="tag-stage tag-junior">初中（7-9年级）</span></td>
+        <td>《道德与法治》</td>
+        <td>小学：法治意识启蒙<br>初中：法治知识系统学习</td>
+      </tr>
+      <tr>
+        <td><strong>普通高中课程方案和课程标准（2017年版2020年修订）</strong><br><span style="font-size:12px;color:var(--text-secondary);">教材〔2020〕3号</span></td>
+        <td><span class="tag-stage tag-senior">高中（10-12年级）</span></td>
+        <td>《思想政治》选择性必修·法律与生活</td>
+        <td>法律知识的深入理解与综合应用</td>
+      </tr>
+      <tr>
+        <td><strong>《思想道德与法治》（2023年版）</strong><br><span style="font-size:12px;color:var(--text-secondary);">马克思主义理论研究和建设工程重点教材 · 高等教育出版社</span></td>
+        <td><span class="tag-stage tag-university">大学（本专科通用）</span></td>
+        <td>《思想道德与法治》（公共必修课）<br>法学专业选修课程群</td>
+        <td>法治理论升华与法治实践能力培养</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>现状分析（v4.0 修订，基于代码核查）</h3>
+    <p>当前 EduMentor 平台已具备以下功能基础：</p>
+    <ul>
+      <li><strong>课程管理</strong>：课程 CRUD，支持 <code>subject</code>（学科）和 <code>grade_level</code>（年级）字段，当前仅有「法学概论」一门课程</li>
+      <li><strong>知识点管理</strong>：知识点树形结构（<code>parent_kp_id</code> 自引用），难度 <code>difficulty</code> 1-5 级，共 1,354 个知识点</li>
+      <li><strong>知识点关系</strong>：PREREQUISITE（前置依赖）、PARENT_OF（父子）、RELATED（相关）</li>
+      <li><strong>学习路径</strong>：基于拓扑排序 + 掌握度评估的个性化学习路径</li>
+      <li><strong>学情诊断</strong>：BKT 引擎，知识点掌握度评估</li>
+      <li><strong>学生端学习链路</strong>：课程列表（StudentCourses）→ 课程学习（StudentLearning，含知识点树、练习题、AI 题目分析、沉浸课堂、出题考核）</li>
+    </ul>
+    <div class="highlight-danger">
+      <h4>❌ 核心缺失（现状核查结论）</h4>
+      <p>「多学段法律课程体系」此前仅在 PRD 中完成设计，<strong>数据库、后端、前端三层均未落地</strong>：</p>
+      <ol>
+        <li><strong>无学段维度</strong>：<code>courses</code> 无 <code>stage</code> 字段，<code>knowledge_points</code> 无 <code>stage</code> / <code>depth_level</code> / <code>theme_id</code> 字段，无法区分同一法律主题在不同学段的教学深度</li>
+        <li><strong>无跨学段进阶</strong>：<code>RelationType</code> 无 <code>PROGRESSION</code> 类型，低学段→高学段知识点之间缺乏显式进阶关系</li>
+        <li><strong>无学段/主题基础设施</strong>：<code>education_stages</code>、<code>subject_themes</code> 表及对应 API 均不存在</li>
+        <li><strong>无前端入口</strong>：学生端无学段切换、主题筛选、知识阶梯视图；<code>StudentLearning.jsx</code> 仅按 courseCode 渲染</li>
+        <li><strong>无大学学段内容</strong>：基于《思想道德与法治》的大学法治教育未纳入</li>
+      </ol>
+      <p style="margin-top:8px;">因此，本版本将落地路线明确为<strong>「先建数据模型与迁移（方案B）→ 再实现前端双维度导航」</strong>，详见第 10、11 章。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====== 3. 产品目标 ====== -->
+<section id="goal">
+  <div class="section-header">
+    <div class="icon">🎯</div>
+    <h2>产品目标</h2>
+    <span class="tag">Goals</span>
+  </div>
+
+  <div class="card">
+    <h3>核心目标</h3>
+    <p>在 EduMentor 平台上构建一套 <strong>「学段 × 深度 × 主题」</strong>三位一体的法律课程体系，覆盖从小学到大学的完整学段，使得：</p>
+    <ol>
+      <li><strong>分层清晰</strong>：同一法律主题在小学、初中、高中、大学有明确区分的深度等级</li>
+      <li><strong>衔接自然</strong>：低学段知识点到高学段知识点之间有显式的进阶关系</li>
+      <li><strong>路径贯通</strong>：学生可以沿着学段阶梯持续学习，系统自动适配当前学段深度</li>
+      <li><strong>管理高效</strong>：教师可以跨学段管理课程内容，清晰看到知识点的深度分布</li>
+      <li><strong>标准对齐</strong>：课程内容严格参照教育部课程标准和统编教材</li>
+      <li><strong>一体化完整</strong>：真正实现大中小学法治教育一体化，避免内容重复或断层</li>
+      <li><strong>成长可溯</strong>：学生在学段进阶时可回顾上一学段学习情况、给未来自己提问，系统生成以法治素养为核心的成长记录</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h3>关键指标</h3>
+    <table>
+      <tr><th>指标</th><th>说明</th><th>目标值</th></tr>
+      <tr><td>学段标注覆盖率</td><td>迁移后法律知识点的学段（stage）标注覆盖率</td><td>≥ 98%（迁移后）</td></tr>
+      <tr><td>主题覆盖率</td><td>跨学段法律主题的定义覆盖课程核心内容</td><td>≥ 8 个主题</td></tr>
+      <tr><td>进阶关系</td><td>跨学段知识点之间的进阶关系数量</td><td>≥ 30 条</td></tr>
+      <tr><td>迁移抽检合格率</td><td>人工抽检标注准确率（抽检比例 ≥ 10%）</td><td>≥ 95%</td></tr>
+      <tr><td>学生路径适配</td><td>基于学段的自适应路径推荐准确率</td><td>≥ 85%</td></tr>
+      <tr><td>时光胶囊参与率</td><td>进阶学生中使用时光胶囊（提问/回答）的比例</td><td>≥ 30%</td></tr>
+      <tr><td>成长档案覆盖率</td><td>已完成至少一个学段的学生中生成成长档案的比例</td><td>≥ 90%</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ====== 4. 用户角色与场景 ====== -->
+<section id="users">
+  <div class="section-header">
+    <div class="icon">👥</div>
+    <h2>用户角色与场景</h2>
+    <span class="tag">Personas</span>
+  </div>
+
+  <div class="card">
+    <table>
+      <tr><th>角色</th><th>核心诉求</th><th>典型场景</th></tr>
+      <tr>
+        <td><strong>👩‍🎓 小学生</strong></td>
+        <td>通过趣味互动了解法律概念</td>
+        <td>"我学了'宪法是根本法'，想知道它和普通法律有什么不一样"</td>
+      </tr>
+      <tr>
+        <td><strong>🧑‍🎓 初中生</strong></td>
+        <td>系统理解法律知识，为中考做准备</td>
+        <td>"我在小学学过'公民权利'，现在想知道权利被侵犯了该怎么办"</td>
+      </tr>
+      <tr>
+        <td><strong>👨‍🎓 高中生</strong></td>
+        <td>深入分析法律案例，准备高考</td>
+        <td>"初中我学了违法和犯罪的区别，现在想深入分析民法和刑法的适用"</td>
+      </tr>
+      <tr>
+        <td><strong>🧑‍🎓 大学生（非法律专业）</strong></td>
+        <td>系统提升法治素养，培育法治思维</td>
+        <td>"高中我学了法律基础知识，现在需要从理论高度理解中国特色社会主义法治体系"</td>
+      </tr>
+      <tr>
+        <td><strong>👨‍⚖️ 大学生（法律专业）</strong></td>
+        <td>深度学习部门法理论与实务</td>
+        <td>"我在通识课学了法治基础，现在需要系统学习法理学、民法、刑法等专业课程"</td>
+      </tr>
+      <tr>
+        <td><strong>👩‍🏫 中小学教师</strong></td>
+        <td>管理跨学段课程内容，查看学生的学段进阶情况</td>
+        <td>"我需要为初一学生创建法律基础课程，并了解哪些学生在小学已经学过相关知识点"</td>
+      </tr>
+      <tr>
+        <td><strong>👨‍🏫 高校教师</strong></td>
+        <td>建设大学法治课程，与中小学形成一体化衔接</td>
+        <td>"我需要了解学生在高中阶段已经学了什么，才能针对性地设计大学《思想道德与法治》课程中的法治教学"</td>
+      </tr>
+      <tr>
+        <td><strong>👨‍💼 管理员</strong></td>
+        <td>配置学段、深度等级和主题体系；执行数据迁移与抽检</td>
+        <td>"我需要执行 V17 迁移、为课程标注学段、抽检知识点标注结果"</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>关键用户场景</h3>
+    <div class="highlight">
+      <h4>场景 A：学生跨学段学习</h4>
+      <p>小明在小学阶段学习了"法律的特征"（深度1：知道法律有强制性），进入初中后系统学习"法律的特征"（深度2：理解法律的三个基本特征），到了高中再深入学习"法律的特征"（深度4：分析法律与道德、习俗的关系）。系统自动记录小明各阶段的掌握度，并推荐适合当前学段的学习内容。</p>
+    </div>
+    <div class="highlight">
+      <h4>场景 B：学生按学段浏览主题</h4>
+      <p>小红进入学生端「课程学习」，顶部切换「初中」学段 Tab，页面展示初中阶段可见的 8 个法律主题卡片。她点开「宪法精神」，看到按深度分层的知识阶梯：深度2（理解·宪法基本原则）、深度3（应用·案例判断），其中已完成的知识点打钩、待学的显示"进入学习"。</p>
+    </div>
+    <div class="highlight">
+      <h4>场景 C：教师搭建学段课程</h4>
+      <p>李老师要为初一学生创建"法治教育基础"课程。她可以从系统预设的学段模板中选择"初中·法律"，系统自动填充该学段对应的知识点（深度2-3级），并显示哪些知识点在小学阶段已经涉及（可点击查看小学内容），方便她做衔接教学。</p>
+    </div>
+    <div class="highlight">
+      <h4>场景 D：智能路径规划</h4>
+      <p>系统根据学生当前学段（如高一），自动规划一条从小学已学知识点复习 → 初中知识巩固 → 高中新知识学习的渐进式学习路径，避免知识断层或重复学习。</p>
+    </div>
+    <div class="highlight">
+      <h4>场景 E：大中小学一体化贯通</h4>
+      <p>一名法学专业大一生需要回顾高中"法律与生活"的知识点作为过渡，再进入大学《思想道德与法治》中的法治理论单元学习。系统自动检测到该学生已完成高中阶段法律课程，跳过基础内容，直接推荐深度4-5的分析评价层级内容，同时标注高中知识的进阶关联。</p>
+    </div>
+    <div class="highlight">
+      <h4>场景 F：成长时光机 — 跨学段自我对话与成长记录</h4>
+      <p>小红刚升入初中，系统自动弹出她在小学阶段的学习报告——法律与规则掌握度92%，宪法精神78%，但公民权利仅65%。系统建议她优先复习再学新课。接着，她打开了一封"来自过去"的信：小学三年级的自己曾问"法律为什么能管住所有人？"她笑着打字回答。系统将这一切收录进她的"法治素养成长档案"，生成了一张从小学到初中的认知深度跃迁曲线图。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====== 5. 学段深度模型 ====== -->
+<section id="stage-model">
+  <div class="section-header">
+    <div class="icon">📊</div>
+    <h2>学段深度模型</h2>
+    <span class="tag">Core Model</span>
+  </div>
+
+  <div class="card">
+    <h3>学段定义 (Education Stage)</h3>
+    <p>将教育阶段划分为四个学段，每个学段对应不同的认知深度和教学要求：</p>
+    <table>
+      <tr>
+        <th>学段</th>
+        <th>代码</th>
+        <th>年级/学段范围</th>
+        <th>课程载体</th>
+        <th>法治教育目标</th>
+      </tr>
+      <tr>
+        <td><span class="tag-stage tag-primary">小学</span></td>
+        <td><code>PRIMARY</code></td>
+        <td>1-6 年级</td>
+        <td>道德与法治</td>
+        <td><strong>启蒙认知</strong> — 建立规则意识、法律初步感知</td>
+      </tr>
+      <tr>
+        <td><span class="tag-stage tag-junior">初中</span></td>
+        <td><code>JUNIOR</code></td>
+        <td>7-9 年级</td>
+        <td>道德与法治</td>
+        <td><strong>系统理解</strong> — 掌握法律基础知识、宪法核心内容</td>
+      </tr>
+      <tr>
+        <td><span class="tag-stage tag-senior">高中</span></td>
+        <td><code>SENIOR</code></td>
+        <td>10-12 年级</td>
+        <td>思想政治·法律与生活</td>
+        <td><strong>深入应用</strong> — 法律分析、综合思辨、案例应用</td>
+      </tr>
+      <tr>
+        <td><span class="tag-stage tag-university">大学</span></td>
+        <td><code>UNIVERSITY</code></td>
+        <td>本专科通用</td>
+        <td>《思想道德与法治》（公共必修）<br>法学专业课（选修）</td>
+        <td><strong>理论升华</strong> — 法治理论系统掌握、法治思维养成、法治实践能力（对应教材第六至第八章）</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>深度等级 (Depth Level)</h3>
+    <p>基于 Bloom 认知分类学，定义 5 级深度学习等级。与现有 <code>difficulty</code> 字段（1-5）含义不同：<strong>depth</strong> 描述<em>认知层次</em>，<strong>difficulty</strong> 描述<em>学习难度</em>。两者正交，但在迁移阶段因无独立 depth 数据，<strong>以 difficulty 作为 depth 的近似值回填</strong>（见 §10.3，属于可配置假设）。</p>
+    <table>
+      <tr>
+        <th>深度</th>
+        <th>认知层级</th>
+        <th>对应标签</th>
+        <th>典型描述</th>
+        <th>示例</th>
+      </tr>
+      <tr>
+        <td><span class="tag-depth-1">深度 1</span></td>
+        <td>识记 (Remember)</td>
+        <td>知道 · 识别</td>
+        <td>"我知道法律是什么"</td>
+        <td>能说出法律名称、识别法律标识</td>
+      </tr>
+      <tr>
+        <td><span class="tag-depth-2">深度 2</span></td>
+        <td>理解 (Understand)</td>
+        <td>理解 · 解释</td>
+        <td>"我理解法律为什么要这样规定"</td>
+        <td>能用自己的话解释法律条文含义</td>
+      </tr>
+      <tr>
+        <td><span class="tag-depth-3">深度 3</span></td>
+        <td>应用 (Apply)</td>
+        <td>应用 · 判断</td>
+        <td>"我能用法律知识判断对错"</td>
+        <td>能将法律应用于简单案例判断</td>
+      </tr>
+      <tr>
+        <td><span class="tag-depth-4">深度 4</span></td>
+        <td>分析 (Analyze)</td>
+        <td>分析 · 区分</td>
+        <td>"我能分析复杂案例中的法律关系"</td>
+        <td>能区分不同法律关系的适用场景</td>
+      </tr>
+      <tr>
+        <td><span class="tag-depth-5">深度 5</span></td>
+        <td>评价 (Evaluate)</td>
+        <td>评价 · 思辨</td>
+        <td>"我能评价法律的合理性和局限性"</td>
+        <td>能对法律规范进行批判性思考</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>学段 × 深度 映射矩阵</h3>
+    <p>每个学段覆盖 2-3 个深度等级，相邻学段之间 <strong>重叠 1 个深度</strong>，确保平滑过渡（此矩阵同时是 §10 迁移规则的基础）：</p>
+    <table>
+      <tr>
+        <th>学段</th>
+        <th>覆盖深度</th>
+        <th>认知发展特征</th>
+      </tr>
+      <tr>
+        <td><span class="tag-stage tag-primary">小学 PRIMARY</span></td>
+        <td><span class="tag-depth-1">深度 1</span> → <span class="tag-depth-2">深度 2</span></td>
+        <td>以具体形象思维为主，通过生活实例感知法律</td>
+      </tr>
+      <tr>
+        <td style="text-align:center;font-size:20px;color:var(--text-secondary);" colspan="3">⬇️ 进阶（深度 2 重叠）</td>
+      </tr>
+      <tr>
+        <td><span class="tag-stage tag-junior">初中 JUNIOR</span></td>
+        <td><span class="tag-depth-2">深度 2</span> → <span class="tag-depth-3">深度 3</span></td>
+        <td>抽象逻辑思维发展，系统学习法律知识体系</td>
+      </tr>
+      <tr>
+        <td style="text-align:center;font-size:20px;color:var(--text-secondary);" colspan="3">⬇️ 进阶（深度 3 重叠）</td>
+      </tr>
+      <tr>
+        <td><span class="tag-stage tag-senior">高中 SENIOR</span></td>
+        <td><span class="tag-depth-3">深度 3</span> → <span class="tag-depth-4">深度 4</span> → <span class="tag-depth-5">深度 5</span></td>
+        <td>辩证逻辑思维成熟，综合运用法律分析思辨</td>
+      </tr>
+      <tr>
+        <td style="text-align:center;font-size:20px;color:var(--text-secondary);" colspan="3">⬇️ 进阶（深度 4 重叠）</td>
+      </tr>
+      <tr>
+        <td><span class="tag-stage tag-university">大学 UNIVERSITY</span></td>
+        <td><span class="tag-depth-4">深度 4</span> → <span class="tag-depth-5">深度 5</span></td>
+        <td>理论思维成熟，法治理论体系化掌握，具备法治实践能力</td>
+      </tr>
+    </table>
+    <div class="highlight-success" style="margin-top:16px;">
+      <h4>✅ 设计原则</h4>
+      <p>重叠深度（深度2、深度3、深度4）保证进阶连续性——小学深度2的知识点是初中深度2的已有基础，初中深度3的知识点是高中深度3的复习起点，高中深度4的知识点是大学深度4的理论升华基础。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====== 6. 跨学段主题体系 ====== -->
+<section id="theme-system">
+  <div class="section-header">
+    <div class="icon">🗂️</div>
+    <h2>跨学段主题体系</h2>
+    <span class="tag">Theme System</span>
+  </div>
+
+  <div class="card">
+    <h3>设计说明</h3>
+    <p>主题（Theme）是跨学段的知识组织单元，一个主题贯穿小学、初中、高中、大学四个学段。每个主题在不同学段有不同深度的知识点，形成<strong>螺旋上升</strong>结构。主题数据存储于 <code>subject_themes</code> 表（待 V17 创建），前端 ThemeGrid 组件依赖 <code>GET /api/themes</code> 获取。</p>
+  </div>
+
+  <div class="card">
+    <h3>法律课程主题体系（核心）</h3>
+    <p>依据教育部课程标准和《思想道德与法治》统编教材，设计以下 8 个跨学段法律主题（主题代码用于 theme 初标的关键词匹配，见 §10.4）：</p>
+    <table>
+      <tr>
+        <th>编号</th>
+        <th>主题名称</th>
+        <th>主题代码</th>
+        <th>小学 (深度1-2)</th>
+        <th>初中 (深度2-3)</th>
+        <th>高中 (深度3-5)</th>
+        <th>大学 (深度4-5)</th>
+      </tr>
+      <tr>
+        <td>01</td>
+        <td><strong>法律与规则</strong></td>
+        <td><code>LAW_RULE</code></td>
+        <td>认识校园规则、交通规则等生活规则</td>
+        <td>理解法律的特征与作用，区分法律与道德</td>
+        <td>分析法律规范的结构、效力层级与体系</td>
+        <td>系统理解社会主义法律的本质特征与运行机制<br>（对应教材第六章）</td>
+      </tr>
+      <tr>
+        <td>02</td>
+        <td><strong>宪法精神</strong></td>
+        <td><code>CONSTITUTION</code></td>
+        <td>知道宪法是国家根本法，认识国徽国旗</td>
+        <td>理解宪法基本原则、国家机构与公民基本权利</td>
+        <td>分析宪法实施、监督机制与违宪审查</td>
+        <td>评价宪法在国家治理现代化中的核心地位<br>（对应教材第七章）</td>
+      </tr>
+      <tr>
+        <td>03</td>
+        <td><strong>公民权利与义务</strong></td>
+        <td><code>CIVIL_RIGHTS</code></td>
+        <td>知道儿童有受教育权、受保护权等基本权利</td>
+        <td>理解公民的基本权利和基本义务及其关系</td>
+        <td>分析权利冲突、权利救济途径与公益诉讼</td>
+        <td>综合运用宪法及部门法保障公民权利<br>（对应教材第七、八章）</td>
+      </tr>
+      <tr>
+        <td>04</td>
+        <td><strong>社会秩序与安全</strong></td>
+        <td><code>ORDER_SAFETY</code></td>
+        <td>遵守公共秩序，了解交通安全、校园安全</td>
+        <td>理解违法与犯罪的区别，了解治安管理</td>
+        <td>分析行政法、刑法在社会治理中的作用</td>
+        <td>系统理解刑事法治与行政法治的理论与实践<br>（对应教材第八章）</td>
+      </tr>
+      <tr>
+        <td>05</td>
+        <td><strong>公平正义</strong></td>
+        <td><code>JUSTICE</code></td>
+        <td>初步感知公平与公正，知道人人平等</td>
+        <td>理解法律面前人人平等，了解司法公正</td>
+        <td>评价司法公正、法律价值与法治精神</td>
+        <td>全面理解中国特色社会主义法治道路与法治价值<br>（对应教材第六章）</td>
+      </tr>
+      <tr>
+        <td>06</td>
+        <td><strong>民事法律</strong></td>
+        <td><code>CIVIL_LAW</code></td>
+        <td>知道民事权利，如财产权、名誉权</td>
+        <td>理解民事主体、民事权利和民事责任</td>
+        <td>分析合同法、侵权责任、婚姻家庭等民法制度</td>
+        <td>系统理解民法体系与民事法律实务原理<br>（对应教材第八章）</td>
+      </tr>
+      <tr>
+        <td>07</td>
+        <td><strong>国家机构与治理</strong></td>
+        <td><code>GOVERNANCE</code></td>
+        <td>知道国家有政府和法律来管理</td>
+        <td>了解国家机构的组成和职能</td>
+        <td>分析国家治理体系与法治政府建设</td>
+        <td>评价全面依法治国与国家治理现代化的关系<br>（对应教材第六、七章）</td>
+      </tr>
+      <tr>
+        <td>08</td>
+        <td><strong>国际视野</strong></td>
+        <td><code>INTERNATIONAL</code></td>
+        <td>（小学阶段不涉及）</td>
+        <td>了解国际法和国际组织的基本概念</td>
+        <td>分析国际法、国际人权公约与中国参与</td>
+        <td>评价全球治理变革中的中国法治贡献</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>主题的组织方式</h3>
+    <ul>
+      <li><strong>主题 = 跨学段的课程组织单元</strong>，一个主题包含多个知识点</li>
+      <li>同一主题下，知识点按 <code>stage + depth</code> 分层</li>
+      <li>学生可以通过主题概览看到完整的"知识阶梯"（KnowledgeLadder）</li>
+      <li>教师创建课程时可选择"基于主题模板生成"</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ====== 7. 知识点学段关联模型 ====== -->
+<section id="knowledge-model">
+  <div class="section-header">
+    <div class="icon">🧩</div>
+    <h2>知识点学段关联模型</h2>
+    <span class="tag">Data Model</span>
+  </div>
+
+  <div class="card">
+    <h3>模型设计</h3>
+    <p>每个知识点在原有属性基础上，新增学段相关字段（V17 迁移落地）：</p>
+    <table>
+      <tr><th>字段</th><th>类型</th><th>说明</th><th>示例</th></tr>
+      <tr><td><code>stage</code></td><td>VARCHAR(16)</td><td>所属学段</td><td><code>PRIMARY</code> / <code>JUNIOR</code> / <code>SENIOR</code> / <code>UNIVERSITY</code></td></tr>
+      <tr><td><code>depth_level</code></td><td>SMALLINT (1-5)</td><td>认知深度等级</td><td>2（理解层）</td></tr>
+      <tr><td><code>theme_id</code></td><td>UUID (FK)</td><td>所属跨学段主题</td><td>宪法精神主题的 UUID</td></tr>
+      <tr><td><code>stage_order</code></td><td>INT</td><td>学段内排序</td><td>该知识点在学段内的教学顺序</td></tr>
+    </table>
+    <p><strong>关键原则</strong>：同一个 <code>theme</code> 下，同一个知识点名称可以在不同学段存在多个版本，但 <code>content</code>（内容）和 <code>depth_level</code> 不同。跨学段版本之间通过 <code>PROGRESSION</code> 关系显式连接。</p>
+  </div>
+
+  <div class="card">
+    <h3>示例：主题"宪法精神"的知识点学段分布</h3>
+    <table>
+      <tr>
+        <th>知识点名称</th>
+        <th>学段</th>
+        <th>深度</th>
+        <th>内容摘要（差异体现）</th>
+      </tr>
+      <tr>
+        <td rowspan="4">宪法是根本法</td>
+        <td><span class="tag-stage tag-primary">小学</span></td>
+        <td><span class="tag-depth-1">深度 1</span></td>
+        <td>知道宪法是国家的根本法，具有最高的法律效力</td>
+      </tr>
+      <tr>
+        <td><span class="tag-stage tag-junior">初中</span></td>
+        <td><span class="tag-depth-2">深度 2</span></td>
+        <td>理解宪法在法律体系中的核心地位和最高法律效力</td>
+      </tr>
+      <tr>
+        <td><span class="tag-stage tag-senior">高中</span></td>
+        <td><span class="tag-depth-4">深度 4</span></td>
+        <td>分析宪法的实施机制、宪法监督制度及其意义</td>
+      </tr>
+      <tr>
+        <td><span class="tag-stage tag-university">大学</span></td>
+        <td><span class="tag-depth-5">深度 5</span></td>
+        <td>评价宪法在国家治理现代化中的地位，理解宪法精神与法治中国建设</td>
+      </tr>
+      <tr>
+        <td rowspan="2">公民基本权利</td>
+        <td><span class="tag-stage tag-primary">小学</span></td>
+        <td><span class="tag-depth-1">深度 1</span></td>
+        <td>知道儿童有受教育权、人身安全等基本权利</td>
+      </tr>
+      <tr>
+        <td><span class="tag-stage tag-junior">初中</span></td>
+        <td><span class="tag-depth-3">深度 3</span></td>
+        <td>应用公民基本权利的知识判断实际情境中的权利保障</td>
+      </tr>
+      <tr>
+        <td rowspan="2">社会主义法律体系</td>
+        <td><span class="tag-stage tag-senior">高中</span></td>
+        <td><span class="tag-depth-3">深度 3</span></td>
+        <td>应用法律体系知识区分不同部门法的适用范围</td>
+      </tr>
+      <tr>
+        <td><span class="tag-stage tag-university">大学</span></td>
+        <td><span class="tag-depth-4">深度 4</span></td>
+        <td>系统理解中国特色社会主义法律体系的构成与运行<br>（对应教材第六章第三节）</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>学段内知识点树</h3>
+    <p>在每个学段内部，知识点仍然保持原有的 <code>parent_kp_id</code> 树形结构。不同学段的树是独立的，但通过 <strong>进阶关系</strong>（见下节）连接。</p>
+    <div class="schema-diagram">
+      <div class="row" style="margin-bottom:12px;">
+        <div class="schema-box primary">小学·宪法<br><span style="font-size:11px;color:var(--text-secondary);">depth=1-2</span></div>
+        <div class="schema-arrow">→</div>
+        <div class="schema-box warning">初中·宪法<br><span style="font-size:11px;color:var(--text-secondary);">depth=2-3</span></div>
+        <div class="schema-arrow">→</div>
+        <div class="schema-box success">高中·宪法<br><span style="font-size:11px;color:var(--text-secondary);">depth=3-5</span></div>
+        <div class="schema-arrow">→</div>
+        <div class="schema-box" style="border-color:#6a1b9a;background:#f3e5f5;">大学·宪法<br><span style="font-size:11px;color:var(--text-secondary);">depth=4-5</span></div>
+      </div>
+      <div class="row">
+        <span style="font-size:11px;color:var(--text-secondary);">每学段内部：树形知识点结构</span>
+        <span style="font-size:11px;color:var(--text-secondary);margin:0 12px;">|</span>
+        <span style="font-size:11px;color:var(--text-secondary);">学段之间：进阶关系连接</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== 8. 跨学段进阶衔接 ====== -->
+<section id="progression">
+  <div class="section-header">
+    <div class="icon">🪜</div>
+    <h2>跨学段进阶衔接</h2>
+    <span class="tag">Progression</span>
+  </div>
+
+  <div class="card">
+    <h3>新关系类型：PROGRESSION（V17 落地）</h3>
+    <p>在现有的 <code>RelationType</code> 枚举中新增 <code>PROGRESSION</code>（进阶关系），用于连接不同学段知识点：</p>
+    <table>
+      <tr><th>关系类型</th><th>用途</th><th>示例</th></tr>
+      <tr><td><code>PREREQUISITE</code></td><td>（已有）同课程内前置依赖</td><td>先学"法的概念"→再学"法的特征"</td></tr>
+      <tr><td><code>PARENT_OF</code></td><td>（已有）父子层级关系</td><td>"法律体系"包含"宪法"和"普通法律"</td></tr>
+      <tr><td><code>RELATED</code></td><td>（已有）知识点之间相关</td><td>"民事权利"与"侵权责任"相关联</td></tr>
+      <tr><td><strong><code>PROGRESSION</code></strong></td><td><strong>（新增）跨学段进阶关系</strong></td><td><strong>小学·"宪法是根本法" → 初中·"宪法是根本法"</strong></td></tr>
+    </table>
+
+    <div class="highlight">
+      <h4>📐 PROGRESSION 关系语义</h4>
+      <p><code>sourceKpId</code>（低学段知识点） → <code>targetKpId</code>（高学段知识点），表示"学完 source 后，可以进阶学习 target"。</p>
+      <p>约束：source 和 target 必须属于<strong>不同学段</strong>，且 source 的学段低于 target 的学段。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>进阶路径示例</h3>
+    <p>以"宪法"主题的进阶路径为例：</p>
+    <div class="schema-diagram">
+      <div class="row">
+        <div class="schema-box primary">小学·宪法是根本法<br><span style="font-size:11px;color:var(--text-secondary);">depth=1 | PRIMARY</span></div>
+        <div class="schema-arrow">→ PROGRESSION →</div>
+        <div class="schema-box warning">初中·宪法是根本法<br><span style="font-size:11px;color:var(--text-secondary);">depth=2 | JUNIOR</span></div>
+        <div class="schema-arrow">→ PROGRESSION →</div>
+        <div class="schema-box success">高中·宪法实施与监督<br><span style="font-size:11px;color:var(--text-secondary);">depth=4 | SENIOR</span></div>
+        <div class="schema-arrow">→ PROGRESSION →</div>
+        <div class="schema-box" style="border-color:#6a1b9a;background:#f3e5f5;">大学·宪法与国家治理<br><span style="font-size:11px;color:var(--text-secondary);">depth=5 | UNIVERSITY</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== 9. 课程体系设计 ====== -->
+<section id="curriculum">
+  <div class="section-header">
+    <div class="icon">📋</div>
+    <h2>课程体系设计</h2>
+    <span class="tag">Curriculum</span>
+  </div>
+
+  <div class="card">
+    <h3>课程组织方式</h3>
+    <p>法律课程按学段分为四大课程群，每个课程群可包含多个具体课程。课程通过 <code>courses.stage</code> 字段（V17 新增）归属学段：</p>
+    <table>
+      <tr>
+        <th>课程群</th>
+        <th>示例课程</th>
+        <th>目标学生</th>
+        <th>对应教育部文件</th>
+      </tr>
+      <tr>
+        <td><strong>🏫 小学法治启蒙</strong></td>
+        <td>《法治小课堂》<br>《身边的规则》<br>《安全小卫士》</td>
+        <td>小学 1-6 年级</td>
+        <td>义务教育道德与法治课程标准（2022年版）</td>
+      </tr>
+      <tr>
+        <td><strong>📖 初中法治基础</strong></td>
+        <td>《宪法基础》<br>《公民的权利与义务》<br>《法律与社会秩序》</td>
+        <td>初中 7-9 年级</td>
+        <td>义务教育道德与法治课程标准（2022年版）</td>
+      </tr>
+      <tr>
+        <td><strong>⚖️ 高中法治实务</strong></td>
+        <td>《法律与生活》<br>《民法案例分析》<br>《法治与社会治理》</td>
+        <td>高中 10-12 年级</td>
+        <td>普通高中思想政治课程标准（2017年版2020年修订）</td>
+      </tr>
+      <tr>
+        <td><strong>🎓 大学法治理论</strong></td>
+        <td>《思想道德与法治·法治篇》<br>《习近平法治思想概论》<br>《法律部门与法律实务》</td>
+        <td>本专科学生</td>
+        <td>《思想道德与法治》（2023年版）<br>马克思主义理论研究和建设工程重点教材</td>
+      </tr>
+    </table>
+    <div class="highlight-warning">
+      <h4>📌 与当前数据的关系</h4>
+      <p>当前线上仅有「法学概论」一门课程（含 1,354 个知识点）。迁移后该课程将被标注一个学段（见 §10.2），其余学段的课程与知识点属于<strong>后续内容建设</strong>（M2 里程碑），通过"主题模板生成"批量构建。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>课程创建流程（教师侧）</h3>
+    <pre style="background:var(--bg);padding:16px;border-radius:6px;font-size:13px;line-height:1.8;">
+1. 选择课程所属学段（PRIMARY / JUNIOR / SENIOR / UNIVERSITY）
+2. 系统自动推荐该学段对应的深度范围
+3. 教师可选择"从主题模板生成"：
+   → 勾选 1 个或多个法律主题
+   → 系统自动填充该学段对应深度的知识点
+   → 教师可编辑、增删知识点
+4. 或者教师手动创建知识点，设置 stage + depth
+5. 可选：关联低学段/高学段的 PROGRESSION 源知识点
+6. 发布课程</pre>
+  </div>
+</section>
+
+<!-- ====== 10. 落地路线：数据迁移方案（方案B） ====== -->
+<section id="migration">
+  <div class="section-header">
+    <div class="icon">🗺️</div>
+    <h2>落地路线：数据迁移方案（方案B）</h2>
+    <span class="tag new">NEW</span>
+  </div>
+
+  <div class="card">
+    <h3>10.1 迁移总览</h3>
+    <p>方案B的核心原则：<strong>先让数据真实、可核查，再实现前端展示。</strong>整体链路分四步：</p>
+    <div class="schema-diagram">
+      <div class="row">
+        <div class="schema-box warning">① V17 数据模型落库<br><span style="font-size:11px;color:var(--text-secondary);">建表 + 加字段 + 关系类型</span></div>
+        <div class="schema-arrow">→</div>
+        <div class="schema-box primary">② 课程级学段标注<br><span style="font-size:11px;color:var(--text-secondary);">管理员/教师人工确认</span></div>
+        <div class="schema-arrow">→</div>
+        <div class="schema-box success">③ 知识点级回填<br><span style="font-size:11px;color:var(--text-secondary);">stage 继承 + depth 近似 + theme 初标</span></div>
+        <div class="schema-arrow">→</div>
+        <div class="schema-box">④ 校验 / 抽检 / 回滚<br><span style="font-size:11px;color:var(--text-secondary);">迁移报告 + 人工抽检</span></div>
+      </div>
+      <div class="row" style="margin-top:12px;">
+        <span style="font-size:11px;color:var(--text-secondary);">完成后：后端 API + 前端双维度导航（§11）基于真实数据上线</span>
+      </div>
+    </div>
+    <p><strong>前置说明</strong>：评审核查发现数据模型本身尚未落地（§1 现状核查表），故「迁移」包含两部分——① 结构性迁移（DDL + 基础数据），② 数据性迁移（存量课程与知识点的学段/主题标注）。两者均通过新的 Flyway 脚本 <code>V17</code> 及配套的一次性迁移工具完成。</p>
+  </div>
+
+  <div class="card">
+    <h3>10.2 结构性迁移：V17 脚本（与 §15 数据模型变更一致）</h3>
+    <pre style="background:var(--bg);padding:16px;border-radius:6px;font-size:13px;line-height:1.6;">
+-- V17__add_multi_stage_legal_education.sql（要点）
+-- ① 新增 education_stages 表 + 初始化四学段数据
+CREATE TABLE IF NOT EXISTS education_stages (
+    id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    code        VARCHAR(16) NOT NULL UNIQUE,   -- PRIMARY/JUNIOR/SENIOR/UNIVERSITY
+    name        VARCHAR(32) NOT NULL,           -- 小学/初中/高中/大学
+    description TEXT,
+    min_depth   INT NOT NULL DEFAULT 1,
+    max_depth   INT NOT NULL DEFAULT 5,
+    sort_order  INT NOT NULL DEFAULT 0,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+INSERT INTO education_stages (code, name, min_depth, max_depth, sort_order) VALUES
+  ('PRIMARY', '小学', 1, 2, 1),
+  ('JUNIOR',  '初中', 2, 3, 2),
+  ('SENIOR',  '高中', 3, 5, 3),
+  ('UNIVERSITY', '大学', 4, 5, 4);
+
+-- ② 新增 subject_themes 表 + 初始化 8 个法律主题
+CREATE TABLE IF NOT EXISTS subject_themes (
+    id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    subject     VARCHAR(64) NOT NULL,          -- '法律'
+    code        VARCHAR(32) NOT NULL UNIQUE,   -- LAW_RULE / CONSTITUTION / ...
+    name        VARCHAR(128) NOT NULL,
+    description TEXT,
+    icon        VARCHAR(32),
+    sort_order  INT NOT NULL DEFAULT 0,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- INSERT 8 主题（LAW_RULE/CONSTITUTION/CIVIL_RIGHTS/ORDER_SAFETY/JUSTICE/CIVIL_LAW/GOVERNANCE/INTERNATIONAL）
+
+-- ③ knowledge_points 加字段 + 索引
+ALTER TABLE knowledge_points
+    ADD COLUMN IF NOT EXISTS stage VARCHAR(16),
+    ADD COLUMN IF NOT EXISTS depth_level SMALLINT DEFAULT 1 CHECK (depth_level BETWEEN 1 AND 5),
+    ADD COLUMN IF NOT EXISTS theme_id UUID REFERENCES subject_themes(id) ON DELETE SET NULL,
+    ADD COLUMN IF NOT EXISTS stage_order INTEGER DEFAULT 0;
+CREATE INDEX IF NOT EXISTS idx_kp_stage ON knowledge_points (stage);
+CREATE INDEX IF NOT EXISTS idx_kp_theme ON knowledge_points (theme_id);
+CREATE INDEX IF NOT EXISTS idx_kp_stage_depth ON knowledge_points (stage, depth_level);
+
+-- ④ courses 加字段
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS stage VARCHAR(16);
+
+-- ⑤ knowledge_relations 增加 PROGRESSION 类型约束
+ALTER TABLE knowledge_relations DROP CONSTRAINT IF EXISTS knowledge_relations_relation_type_check;
+ALTER TABLE knowledge_relations
+    ADD CONSTRAINT knowledge_relations_relation_type_check
+    CHECK (relation_type IN ('PREREQUISITE', 'PARENT_OF', 'RELATED', 'PROGRESSION'));</pre>
+    <div class="highlight-warning">
+      <h4>⚠️ 注意事项</h4>
+      <ul>
+        <li>V17 是<strong>可逆迁移</strong>：回滚脚本（V17__rollback）删除新增字段与表（不删除用户产生的学习数据）。</li>
+        <li><code>depth_level</code> 与 <code>difficulty</code> 正交：迁移仅为存量数据建立近似映射，教师后续可单独精修 depth_level。</li>
+        <li>JPA 实体（<code>KnowledgePoint</code> / <code>Course</code>）需同步新增字段映射与 DTO 输出。</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>10.3 课程级学段标注（人工锚点）</h3>
+    <p><strong>原则：课程学段是「真实学段数据」的锚点，由管理员/教师人工指定，不依赖推断。</strong>因为一门课程面向的受众是明确的（例如「法学概论」是大学通识课），其学段归属不应由知识点深度反推。</p>
+    <table>
+      <tr><th>步骤</th><th>操作</th><th>说明</th></tr>
+      <tr><td>1</td><td>导出课程清单</td><td>管理员后台生成待标注课程列表（含课程名、subject、grade_level、知识点数量）</td></tr>
+      <tr><td>2</td><td>逐门标注 <code>courses.stage</code></td><td>当前仅「法学概论」一门课，按实际教学对象标注（预计 <code>UNIVERSITY</code>），人工确认后落库</td></tr>
+      <tr><td>3</td><td>标注 <code>stage_order</code> 起点</td><td>若课程内知识点需按学段内教学顺序排序，迁移工具按现有 order_index 顺序写入</td></tr>
+    </table>
+    <div class="highlight">
+      <h4>📐 与专家方案A「按深度推断」的关系</h4>
+      <p>专家方案A的「深度1-2→小学、2-3→初中、3-5→高中、4-5→大学」规则并未被丢弃，而是<strong>降级为辅助规则</strong>：仅当一门课程被标注为<strong>跨学段课程</strong>（同一课程包含多个学段内容，当前不存在）时，其知识点 stage 才用该规则按 depth 拆分。单学段课程的 1,354 个知识点统一继承课程学段，保证与课程定位一致，避免「大学课程标出小学生知识点」的失真。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>10.4 知识点级回填规则</h3>
+    <table>
+      <tr><th>字段</th><th>回填规则</th><th>优先级</th><th>说明</th></tr>
+      <tr>
+        <td><code>stage</code></td>
+        <td><strong>规则1（主）：继承所属课程的 stage</strong><br>规则2（辅，仅跨学段课程）：按 depth 推断——depth 1-2→PRIMARY，2-3→JUNIOR，3-5→SENIOR，4-5→UNIVERSITY（重叠深度取低学段优先）</td>
+        <td>规则1 &gt; 规则2</td>
+        <td>当前存量数据全部走规则1；规则2 为未来跨学段课程预留</td>
+      </tr>
+      <tr>
+        <td><code>depth_level</code></td>
+        <td><strong>以现有 <code>difficulty</code> 近似回填</strong>（depth_level = difficulty）</td>
+        <td>—</td>
+        <td>属于<strong>可配置假设</strong>（§20-风险R1）；迁移报告输出「difficulty 分布 vs depth 分布」对照，供后续精修</td>
+      </tr>
+      <tr>
+        <td><code>stage_order</code></td>
+        <td>沿用现有 <code>order_index</code> 顺序</td>
+        <td>—</td>
+        <td>保证学段内知识阶梯的展示顺序稳定</td>
+      </tr>
+      <tr>
+        <td><code>theme_id</code></td>
+        <td>见 §10.5 主题初标</td>
+        <td>—</td>
+        <td>无法从深度推断，需独立打标流程</td>
+      </tr>
+    </table>
+    <div class="highlight-success">
+      <h4>✅ 回填确定性</h4>
+      <p>规则1 使「法学概论」的 1,354 个知识点全部获得与课程一致的学段标注，且每个知识点的 <code>stage</code> 都有明确的可解释来源（课程归属），满足方案B「展示真实学段数据」的要求，也便于人工抽检复核。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>10.5 主题（theme）初标流程</h3>
+    <p>知识点 → 8 个法律主题的映射无法从深度推断，采用<strong>「关键词词典初标 + LLM 辅助 + 人工复核」</strong>三级流程：</p>
+    <table>
+      <tr><th>阶段</th><th>方法</th><th>产出</th><th>质量目标</th></tr>
+      <tr>
+        <td>① 关键词初标</td>
+        <td>为 8 个主题各维护一组核心关键词（如 CONSTITUTION ← 宪法/根本法/国家机构/基本权利…），按知识点 name + description 命中率打分</td>
+        <td>每个知识点获得 0-1 个候选主题及置信度</td>
+        <td>覆盖 ≥ 60% 知识点</td>
+      </tr>
+      <tr>
+        <td>② LLM 辅助标注</td>
+        <td>对关键词未命中的知识点，调用大模型按 8 主题定义做分类，输出 theme 候选 + 理由</td>
+        <td>补充标注 + 置信度</td>
+        <td>累计覆盖 ≥ 95%</td>
+      </tr>
+      <tr>
+        <td>③ 人工复核</td>
+        <td>管理员对「低置信度」与「随机抽检 10%」的知识点进行人工确认；复核结果回写覆盖机器结果</td>
+        <td>最终 theme_id 标注 + 复核记录表</td>
+        <td>抽检合格率 ≥ 95%</td>
+      </tr>
+    </table>
+    <p><strong>兜底</strong>：未完成 theme 标注的知识点在 ThemeGrid 中归入「未分类」入口（或暂不展示），不影响 stage 维度的课程学习（§11.6 空状态）。</p>
+  </div>
+
+  <div class="card">
+    <h3>10.6 校验、抽检与回滚</h3>
+    <table>
+      <tr><th>环节</th><th>内容</th></tr>
+      <tr>
+        <td>✅ 完整性校验</td>
+        <td>迁移后执行校验 SQL：① 无 course 的知识点必须为 0；② 每门课程的 stage 必须非空；③ <code>stage 为空的课程数 = 0</code>；④ theme_id 为空的知识点比例 ≤ 5%（在 theme 标注完成后）</td>
+      </tr>
+      <tr>
+        <td>✅ 一致性校验</td>
+        <td>规则1 回填的知识点，其 stage 与所属课程 stage 不一致的比例必须为 0</td>
+      </tr>
+      <tr>
+        <td>🔍 人工抽检</td>
+        <td>按学段分层随机抽检 ≥ 10% 知识点（含 stage 与 theme 两维度），由管理员/教师复核，合格率 ≥ 95% 视为通过</td>
+      </tr>
+      <tr>
+        <td>↩️ 回滚策略</td>
+        <td>① 结构性回滚：执行 V17 回滚脚本（DROP 新字段/新表，PROGRESSION 约束还原）；② 数据性回滚：迁移工具支持「迁移前快照」导出（JSON），异常时批量还原 stage/depth/theme 字段；③ 迁移报告留档：记录迁移前/后各字段取值分布与人工修改记录</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>10.7 迁移验收标准</h3>
+    <ol>
+      <li><strong>结构性</strong>：V17 脚本在空库/存量库均可重复执行（幂等），JPA 实体映射与 Flyway schema 一致</li>
+      <li><strong>数据性</strong>：课程 stage 标注率 100%；知识点 stage 标注率 ≥ 98%（其余为孤儿数据待清理）；抽检合格率 ≥ 95%</li>
+      <li><strong>可回滚</strong>：快照导出与回滚演练各完成 1 次</li>
+      <li><strong>可查询</strong>：管理后台可导出「学段 × 深度 × 主题」分布报表，作为迁移完成凭证</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ====== 11. 学生端「学段×主题」双维度导航 ====== -->
+<section id="student-nav">
+  <div class="section-header">
+    <div class="icon">🧭</div>
+    <h2>学生端「学段 × 主题」双维度导航</h2>
+    <span class="tag new">NEW</span>
+  </div>
+
+  <div class="card">
+    <h3>11.1 页面结构总览</h3>
+    <p>入口：学生端 → 课程学习（<code>/student/courses</code>）。在现有「我的课程」基础上，新增一个<strong>「学段主题学习」视图</strong>，采用「学段 Tab → 主题卡片 → 知识阶梯」三层结构：</p>
+    <pre style="background:var(--bg);padding:16px;border-radius:6px;font-size:13px;line-height:1.7;">
+┌─────────────────────────────────────────────────────────┐
+│  📚 课程学习                                             │
+│  ┌───────────────────────────────────────────────────┐  │
+│  │  视图切换：[ 我的课程 ] [ 🧭 学段主题学习 ]         │  │
+│  └───────────────────────────────────────────────────┘  │
+│                                                         │
+│  🔵 学段切换器（StageSelector — 4个Tab）                │
+│  [ 🏫 小学 ] [ 📖 初中 ] [ 🟢 高中 ] [ 🎓 大学 ]       │
+│                                                         │
+│  📚 主题卡片（ThemeGrid — 当前学段可见的8个主题）        │
+│  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────┐ │
+│  │ ⚖️ 法律与规则│ │ 🏛️ 宪法精神 │ │ 🧑‍⚖️ 公民权利│ │ 🚦 社会秩序│ │
+│  │ 12个知识点  │ │ 8个知识点   │ │ 15个知识点  │ │ 10个知识点│ │
+│  └────────────┘ └────────────┘ └────────────┘ └────────┘ │
+│  ...（共8张卡片，横向滚动）                              │
+│                                                         │
+│  🪜 知识阶梯（KnowledgeLadder — 点开主题后）             │
+│  深度2 ████████████████████  6个知识点  ← 当前学段主层   │
+│  深度3 ██████████░░░░░░░░░░  4个知识点  ← 高学段可进阶   │
+└─────────────────────────────────────────────────────────┘</pre>
+  </div>
+
+  <div class="card">
+    <h3>11.2 组件①：StageSelector（学段切换器）</h3>
+    <table>
+      <tr><th>项</th><th>规格</th></tr>
+      <tr><td>位置</td><td>「学段主题学习」视图顶部；数据来自 <code>stageApi.getAll()</code>（即 <code>GET /api/stages</code>）</td></tr>
+      <tr><td>形态</td><td>4 个 Tab（小学 PRIMARY / 初中 JUNIOR / 高中 SENIOR / 大学 UNIVERSITY），带 emoji 图标与学段名称；当前学段高亮</td></tr>
+      <tr><td>默认选中</td><td>① 学生 profile 的 stage 字段（若有）；② 否则按 <code>grade</code> 映射；③ 否则默认「初中」并提示选择</td></tr>
+      <tr><td>交互</td><td>切换 → 触发 <code>themeApi.getAll(stage)</code> 重新拉取主题列表 → ThemeGrid 刷新；URL 同步 query 参数（<code>?stage=JUNIOR</code>）便于分享与刷新保持</td></tr>
+      <tr><td>空状态</td><td>某学段暂无任何主题/课程时，Tab 仍可点击，内容区展示引导文案（§11.6）</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>11.3 组件②：ThemeGrid（主题卡片网格）</h3>
+    <table>
+      <tr><th>项</th><th>规格</th></tr>
+      <tr><td>数据</td><td><code>themeApi.getAll(stage)</code>（即 <code>GET /api/themes?stage=xxx</code>），后端按学段过滤并附带「该学段下知识点数量」统计</td></tr>
+      <tr><td>形态</td><td>响应式卡片网格（桌面 4 列 / 平板 2 列 / 移动 1 列），卡片含主题 icon、名称、描述、知识点计数</td></tr>
+      <tr><td>交互</td><td>点击卡片 → 进入该主题的知识阶梯（KnowledgeLadder），URL：<code>/student/themes/{themeId}?stage=JUNIOR</code></td></tr>
+      <tr><td>禁用态</td><td>「国际视野」在小初阶段无内容时，卡片置灰并标注「该学段暂未开设」</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>11.4 组件③：KnowledgeLadder（知识阶梯）</h3>
+    <table>
+      <tr><th>项</th><th>规格</th></tr>
+      <tr><td>数据</td><td><code>themeApi.getKpsByStageAndTheme(stage, themeId)</code>（即 <code>GET /api/themes/{themeId}/kps?stage=xxx</code>），后端返回按 <code>depth_level</code> 分层的知识点列表</td></tr>
+      <tr><td>形态</td><td>按深度分层展示：每层一个进度条（该深度下已学/总知识点），层内知识点以卡片列表呈现</td></tr>
+      <tr><td>节点状态</td><td>✅ 已掌握（掌握度 ≥ 0.8）/ 🔄 学习中（0.5-0.8）/ ⏳ 待学习 / 🔒 高学段锁定</td></tr>
+      <tr><td>交互</td><td>① 点击「进入学习」→ 跳转 <code>/student/learning/{courseCode}</code>（定位到该知识点）；② 低学段已掌握节点可点击复习；③ 高学段节点展示 PROGRESSION 进阶提示「完成本层后解锁」</td></tr>
+      <tr><td>锁定规则</td><td>跨学段课程场景下：下一学段节点需完成本学段 ≥ 80% 知识点解锁；单学段课程场景下，仅展示本学段分层，不出现锁定态</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>11.5 路由设计与现有页面改造</h3>
+    <table>
+      <tr><th>项</th><th>设计</th></tr>
+      <tr><td><strong>新增路由</strong></td><td><code>/student/courses?view=stages</code>（复用课程学习页，视图切换）<br><code>/student/themes/:themeId?stage=xxx</code>（主题知识阶梯页）</td></tr>
+      <tr><td><strong>改造 StudentCourses.jsx</strong></td><td>① 顶部新增视图切换 Tabs（我的课程 / 学段主题学习）；② 「我的课程」Tab 接入 <code>courseApi.list({ stage })</code> 筛选，展示当前学段课程；③ 选课 Modal 的课程列表按学段分组展示</td></tr>
+      <tr><td><strong>改造 StudentLearning.jsx</strong></td><td>① 从 KnowledgeLadder 跳入时接收 <code>kpId</code>，自动选中知识点；② 知识点树节点展示 stage/depth 标签；③ 课程头部展示学段徽标</td></tr>
+      <tr><td><strong>前端 API 封装（新增）</strong></td><td>在 <code>services/api.jsx</code> 新增 <code>stageApi</code>（getAll）与 <code>themeApi</code>（getAll、getKpsByStageAndTheme）</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>11.6 空状态与兜底策略</h3>
+    <p>迁移完成但内容尚未覆盖全部学段时，前端必须优雅降级：</p>
+    <table>
+      <tr><th>场景</th><th>展示</th></tr>
+      <tr><td>某学段下无主题</td><td>ThemeGrid 展示空状态卡片：「该学段课程建设中，敬请期待」，并提供「查看其他学段」快捷入口</td></tr>
+      <tr><td>某主题下无知识点</td><td>KnowledgeLadder 展示空状态：「暂无知识点，请联系教师补充」</td></tr>
+      <tr><td>知识点未完成 theme 标注</td><td>不阻塞 stage 维度学习；ThemeGrid 增加「未分类」分组（管理员可见），学生端默认隐藏</td></tr>
+      <tr><td>后端接口未就绪/报错</td><td>视图切换 Tab 置灰禁用，保留原「我的课程」功能不受影响（向后兼容）</td></tr>
+    </table>
+    <div class="highlight-warning">
+      <h4>⚠️ 兼容性要求</h4>
+      <p>「学段主题学习」是<strong>增量视图</strong>，不得破坏现有「我的课程 → 课程学习」主链路。若学生未选任何课程，学段主题视图仍需可用（知识点浏览不依赖选课）。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>11.7 数据流与后端 API 依赖</h3>
+    <pre style="background:var(--bg);padding:16px;border-radius:6px;font-size:13px;line-height:1.7;">
+StageSelector ── stageApi.getAll() ──────────→ GET /api/stages
+ThemeGrid     ── themeApi.getAll(stage) ──────→ GET /api/themes?stage=xxx
+KnowledgeLadder─ themeApi.getKpsByStageAndTheme → GET /api/themes/{themeId}/kps?stage=xxx
+StudentCourses(我的课程) ── courseApi.list({stage}) → GET /api/knowledge/courses?stage=xxx
+跳转学习 ──────→ /student/learning/:courseCode?kpId=xxx（复用现有学习页）</pre>
+    <p>以上 4 个后端端点均在 §16「API 设计」中列为<strong>待实现</strong>（现状核查确认当前代码库中不存在）。</p>
+  </div>
+</section>
+
+<!-- ====== 12. 学生学习流程 ====== -->
+<section id="student-flow">
+  <div class="section-header">
+    <div class="icon">🎓</div>
+    <h2>学生学习流程</h2>
+    <span class="tag">Student Flow</span>
+  </div>
+
+  <div class="card">
+    <h3>学生端新增体验</h3>
+    <ol>
+      <li><strong>学段选择/自动识别</strong>：学生首次使用时选择当前学段（小学/初中/高中/大学），系统自动适配该学段的课程和深度。学生 profile 中的 <code>grade</code> 字段可自动映射到学段（映射表可配置），学生可手动调整。</li>
+      <li><strong>学段主题学习视图</strong>（§11）：学段 Tab + 主题卡片 + 知识阶梯，支持按主题浏览跨学段知识点。</li>
+      <li><strong>知识阶梯视图</strong>：每个法律主题以"阶梯"形式展示知识点概览，标记已学、待学与锁定状态。</li>
+      <li><strong>学段自适应学习路径</strong>：规划学习路径时，系统根据学生当前学段，自动包含对应深度的知识点，同时可复习低学段薄弱知识点。</li>
+      <li><strong>进阶推荐</strong>：当学生完成一个学段的某个主题学习后，系统提示"是否进入下一阶段学习"，并展示进阶后的知识点变化。</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h3>学段自适应路径规划算法（修改 PathService）</h3>
+    <pre style="background:var(--bg);padding:16px;border-radius:6px;font-size:13px;line-height:1.8;">
+// 伪代码 — 学段感知的路径规划
+function planPath(studentId, courseId, studentStage):
+  // 1. 获取课程下所有知识点（现有逻辑）
+  kps = getKpsByCourse(courseId)
+
+  // 2. 新增：按学段过滤
+  stageKps = kps.filter(kp => kp.stage == studentStage)
+
+  // 3. 新增：检查低学段掌握度
+  lowerStageKps = kps.filter(kp => kp.stage &lt; studentStage)
+  weakPoints = findWeakInLowerStages(studentId, lowerStageKps)
+
+  // 4. 将薄弱低学段知识点作为前置复习加入路径
+  if weakPoints:
+    reviewPath = createReviewNodes(weakPoints)
+    stageKps = reviewPath + stageKps  // 复习在前，新知在后
+
+  // 5. 原有拓扑排序 + 难度排序
+  sortedKps = topoSort(stageKps, prerequisiteMap)
+
+  // 6. 创建路径（原有逻辑）
+  createPath(sortedKps)</pre>
+  </div>
+</section>
+
+<!-- ====== 13. 成长时光机 ====== -->
+<section id="time-capsule">
+  <div class="section-header">
+    <div class="icon">⏳</div>
+    <h2>成长时光机：跨学段学习衔接与成长记录</h2>
+    <span class="tag">Growth</span>
+  </div>
+
+  <div class="card">
+    <h3>功能概述</h3>
+    <p>「成长时光机」是服务于学生<strong>跨学段成长</strong>的三大能力集合，帮助学生在学段进阶时：</p>
+    <ul>
+      <li><strong>回望</strong>：查看上一学段的学习情况，巩固薄弱知识点</li>
+      <li><strong>前瞻</strong>：给未来自己提问，实现跨时空的自我对话</li>
+      <li><strong>记录</strong>：生成以法治素养培育情况为核心的完整成长档案</li>
+    </ul>
+    <div class="highlight-success">
+      <h4>🎯 设计理念</h4>
+      <p>学生不是"固定学段的用户"，而是沿着学段阶梯持续成长的个体。系统不仅要提供当前学段的内容，更要帮助学生"回头看"不忘来路、"向前看"种下期待、"记录全过程"见证法治素养的成长轨迹。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>能力①：上一学段学习报告</h3>
+    <p><strong>触发时机</strong>：学生首次进入新学段时自动弹出；之后可在个人中心随时查看。</p>
+    <p><strong>数据来源</strong>：现有 <code>student_courses</code>、知识点掌握度记录。无需新增表。</p>
+    <ul>
+      <li>进入新学段时<strong>首次自动弹出</strong>，之后可在个人中心随时查看</li>
+      <li><strong>薄弱知识点自动标记</strong>，并提供"一键复习"入口</li>
+      <li>复习时使用<strong>低学段原版内容</strong>（保持认知一致性），而非高学段的加深版</li>
+      <li>报告数据支持<strong>PDF导出</strong>，供家长/教师查看</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>能力②：给未来的自己提问（时光胶囊）</h3>
+    <ul>
+      <li>在学习某个知识点时，学生可以<strong>写一个问题留给下一学段的自己</strong>，让学习变成一场跨时空的自我对话</li>
+      <li>系统自动检测 <code>source_stage</code> 的下一个学段，学生也可手动选择目标学段</li>
+      <li>进入新学段学习<strong>关联知识点</strong>时，自动弹出"你有一封来自过去的信"</li>
+      <li>问题/回答的<strong>内容质量</strong>可以纳入学习参与度指标</li>
+      <li>支持<strong>学习路径节点展示</strong>作为学习动机</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>能力③：法治素养成长档案</h3>
+    <p>以<strong>法治素养</strong>为核心维度，记录学生从小学到大学的完整成长轨迹。法治素养五维评估模型：</p>
+    <table>
+      <tr><th>维度</th><th>含义</th><th>小学示例</th><th>初中示例</th><th>高中示例</th><th>大学示例</th></tr>
+      <tr>
+        <td><strong>法律认知</strong></td>
+        <td>法律知识的掌握广度与深度</td>
+        <td>知道法律有强制性</td>
+        <td>理解法律三大特征</td>
+        <td>分析法律规范体系</td>
+        <td>评价法治理论</td>
+      </tr>
+      <tr>
+        <td><strong>宪法意识</strong></td>
+        <td>对宪法精神的理解与认同</td>
+        <td>认识国徽国旗</td>
+        <td>理解宪法基本原则</td>
+        <td>分析宪法监督机制</td>
+        <td>评价宪法与国家治理</td>
+      </tr>
+      <tr>
+        <td><strong>公民责任感</strong></td>
+        <td>权利与义务的认知与实践</td>
+        <td>知道儿童有受教育权</td>
+        <td>理解权利义务关系</td>
+        <td>分析权利冲突与救济</td>
+        <td>法治思维指导实践</td>
+      </tr>
+      <tr>
+        <td><strong>规则意识</strong></td>
+        <td>对法律规则的理解与遵守</td>
+        <td>遵守校园规则</td>
+        <td>区分违法与犯罪</td>
+        <td>分析法律适用</td>
+        <td>法治实践能力</td>
+      </tr>
+      <tr>
+        <td><strong>法治思辨</strong></td>
+        <td>对法律问题的分析与评价</td>
+        <td>⚪ 不涉及</td>
+        <td>初级的案例判断</td>
+        <td>复杂的案例推理</td>
+        <td>批判性法律思维</td>
+      </tr>
+    </table>
+    <p><strong>成长档案的关键里程碑事件</strong>：首次完成学段 / 深度跃迁 / 时光胶囊回答 / 跨学段进阶（PROGRESSION）/ 最终毕业。支持 <strong>PDF 成长报告</strong>导出、时间轴视图，家长/教师可授权查看。</p>
+  </div>
+</section>
+
+<!-- ====== 14. 教师管理流程 ====== -->
+<section id="teacher-flow">
+  <div class="section-header">
+    <div class="icon">👩‍🏫</div>
+    <h2>教师管理流程</h2>
+    <span class="tag">Teacher Flow</span>
+  </div>
+
+  <div class="card">
+    <h3>教师新增管理能力</h3>
+    <ol>
+      <li><strong>学段课程管理</strong>：创建课程时选择学段，系统自动约束深度范围。大学教师可选择 UNIVERSITY 学段，系统自动关联《思想道德与法治》教材框架。</li>
+      <li><strong>知识点深度设置</strong>：编辑知识点时可以设置 <code>stage</code> 和 <code>depth_level</code>（可批量修正迁移结果）</li>
+      <li><strong>跨学段进阶管理</strong>：创建 PROGRESSION 关系，连接低学段→高学段知识点。支持查看完整的"小学→初中→高中→大学"进阶链。</li>
+      <li><strong>主题模板</strong>：基于系统预设主题生成学段内知识点框架</li>
+      <li><strong>学段衔接视图</strong>：查看同一个主题在不同学段（含大学）的知识点分布和进阶关系</li>
+      <li><strong>学生进阶报告</strong>：查看学生从低学段到高学段的进阶学习情况，特别标注大学阶段的理论提升效果</li>
+      <li><strong>迁移复核工具</strong>：管理员可查看迁移报告、执行抽检与批量修正（§10.5/10.6）</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ====== 15. 数据模型变更 ====== -->
+<section id="data-model">
+  <div class="section-header">
+    <div class="icon">🗄️</div>
+    <h2>数据模型变更</h2>
+    <span class="tag rev">REVISED</span>
+  </div>
+
+  <div class="highlight-danger">
+    <h4>⚠️ 状态说明（v4.0 修订）</h4>
+    <p>以下变更在 <strong>v3.0 时仅为设计规划，未落地</strong>（现状核查：JPA 实体与 Flyway V1–V16 均无相关实现）。本版本明确其落地载体为 <strong>V17 迁移脚本 + 对应实体/DTO 修改</strong>，与 §10 数据迁移方案配套执行。</p>
+  </div>
+
+  <div class="card">
+    <h3>新增表：education_stages（学段定义）— V17</h3>
+    <pre style="background:var(--bg);padding:16px;border-radius:6px;font-size:13px;">
+CREATE TABLE education_stages (
+    id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    code            VARCHAR(16) NOT NULL UNIQUE,  -- PRIMARY / JUNIOR / SENIOR / UNIVERSITY
+    name            VARCHAR(32) NOT NULL,          -- 小学 / 初中 / 高中 / 大学
+    description     TEXT,
+    min_depth       INT         NOT NULL DEFAULT 1, -- 最小深度
+    max_depth       INT         NOT NULL DEFAULT 5, -- 最大深度
+    sort_order      INT         NOT NULL DEFAULT 0,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);</pre>
+  </div>
+
+  <div class="card">
+    <h3>新增表：subject_themes（跨学段主题）— V17</h3>
+    <pre style="background:var(--bg);padding:16px;border-radius:6px;font-size:13px;">
+CREATE TABLE subject_themes (
+    id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    subject         VARCHAR(64) NOT NULL,          -- 学科（如：法律）
+    code            VARCHAR(32) NOT NULL UNIQUE,   -- LAW_RULE / CONSTITUTION / ...
+    name            VARCHAR(128) NOT NULL,          -- 法律与规则 / 宪法精神 / ...
+    description     TEXT,
+    icon            VARCHAR(32),                    -- 主题图标（emoji）
+    sort_order      INT         NOT NULL DEFAULT 0,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_themes_subject ON subject_themes (subject);</pre>
+  </div>
+
+  <div class="card">
+    <h3>knowledge_points 表变更 — V17</h3>
+    <pre style="background:var(--bg);padding:16px;border-radius:6px;font-size:13px;">
+-- 新增字段（stage 值由迁移回填，见 §10.4）
+ALTER TABLE knowledge_points
+    ADD COLUMN IF NOT EXISTS stage            VARCHAR(16),  -- PRIMARY/JUNIOR/SENIOR/UNIVERSITY
+    ADD COLUMN IF NOT EXISTS depth_level      SMALLINT DEFAULT 1 CHECK (depth_level BETWEEN 1 AND 5),
+    ADD COLUMN IF NOT EXISTS theme_id         UUID REFERENCES subject_themes(id) ON DELETE SET NULL,
+    ADD COLUMN IF NOT EXISTS stage_order      INTEGER DEFAULT 0;
+
+-- 索引
+CREATE INDEX IF NOT EXISTS idx_kp_stage ON knowledge_points (stage);
+CREATE INDEX IF NOT EXISTS idx_kp_theme ON knowledge_points (theme_id);
+CREATE INDEX IF NOT EXISTS idx_kp_stage_depth ON knowledge_points (stage, depth_level);
+
+-- 注意：stage + depth_level 与原有的 difficulty（学习难度）是正交维度；
+-- 迁移阶段以 difficulty 近似回填 depth_level（假设 H1，见 §20）</pre>
+  </div>
+
+  <div class="card">
+    <h3>knowledge_relations 表变更 — V17</h3>
+    <pre style="background:var(--bg);padding:16px;border-radius:6px;font-size:13px;">
+-- 新增 PROGRESSION 关系类型
+ALTER TABLE knowledge_relations 
+    DROP CONSTRAINT IF EXISTS knowledge_relations_relation_type_check;
+
+ALTER TABLE knowledge_relations
+    ADD CONSTRAINT knowledge_relations_relation_type_check
+    CHECK (relation_type IN ('PREREQUISITE', 'PARENT_OF', 'RELATED', 'PROGRESSION'));
+
+-- PROGRESSION 关系的约束（可在应用层确保）：
+--   source 和 target 的 stage 必须不同
+--   source.stage &lt; target.stage
+--   source.depth_level &lt;= target.depth_level</pre>
+  </div>
+
+  <div class="card">
+    <h3>courses 表变更 — V17</h3>
+    <pre style="background:var(--bg);padding:16px;border-radius:6px;font-size:13px;">
+-- 新增学段关联字段（值由课程级人工标注，见 §10.3）
+ALTER TABLE courses
+    ADD COLUMN IF NOT EXISTS stage VARCHAR(16);  -- PRIMARY/JUNIOR/SENIOR/UNIVERSITY
+
+-- courses 的 grade_level 字段保留（用于更细粒度的年级信息）
+-- 新加的 stage 用于粗粒度的学段过滤</pre>
+  </div>
+
+  <div class="card">
+    <h3>新增表：student_time_capsules（时光胶囊）</h3>
+    <pre style="background:var(--bg);padding:16px;border-radius:6px;font-size:13px;">
+CREATE TABLE student_time_capsules (
+    id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id        UUID        NOT NULL REFERENCES users(id),
+    source_kp_id      UUID        NOT NULL REFERENCES knowledge_points(id),
+    source_stage      VARCHAR(16) NOT NULL,  -- 提问时的学段
+    target_stage      VARCHAR(16) NOT NULL,  -- 目标学段（source的下一个学段）
+    question_text     TEXT        NOT NULL,
+    answer_text       TEXT,                   -- 未来自己的回答
+    is_read           BOOLEAN     DEFAULT FALSE,
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    answered_at       TIMESTAMPTZ
+);
+CREATE INDEX idx_capsules_student ON student_time_capsules (student_id);
+CREATE INDEX idx_capsules_target ON student_time_capsules (student_id, target_stage);</pre>
+    <p style="font-size:13px;color:var(--text-secondary);">（本表属于成长时光机能力②，纳入后续迭代 M3，不阻塞 M1 迁移。）</p>
+  </div>
+
+  <div class="card">
+    <h3>新增表：student_literacy_records（法治素养记录）</h3>
+    <pre style="background:var(--bg);padding:16px;border-radius:6px;font-size:13px;">
+CREATE TABLE student_literacy_records (
+    id                      UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id              UUID        NOT NULL REFERENCES users(id),
+    stage                   VARCHAR(16) NOT NULL,           -- 所属学段
+    legal_knowledge         DECIMAL(5,2) DEFAULT 0,         -- 法律认知 (0-100)
+    constitution_awareness  DECIMAL(5,2) DEFAULT 0,         -- 宪法意识
+    civic_responsibility    DECIMAL(5,2) DEFAULT 0,         -- 公民责任感
+    rule_awareness          DECIMAL(5,2) DEFAULT 0,         -- 规则意识
+    legal_thinking          DECIMAL(5,2) DEFAULT 0,         -- 法治思辨
+    overall_score           DECIMAL(5,2) DEFAULT 0,         -- 综合素养分
+    recorded_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (student_id, stage)
+);
+CREATE INDEX idx_literacy_student ON student_literacy_records (student_id);</pre>
+    <p style="font-size:13px;color:var(--text-secondary);">（本表属于成长时光机能力③，纳入后续迭代 M3。）</p>
+  </div>
+
+  <div class="highlight-success">
+    <h4>✅ 数据模型总体变动小结</h4>
+    <p><strong>新增 4 张表</strong>：<code>education_stages</code>、<code>subject_themes</code>、<code>student_time_capsules</code>（时光胶囊）、<code>student_literacy_records</code>（法治素养记录）<br>
+    <strong>修改 3 张表</strong>：<code>knowledge_points</code>（+stage/depth_level/theme_id/stage_order）、<code>knowledge_relations</code>（+PROGRESSION）、<code>courses</code>（+stage）<br>
+    <strong>落地载体</strong>：V17 迁移脚本（M1）；时光胶囊与素养记录表随 M3 迭代创建</p>
+  </div>
+</section>
+
+<!-- ====== 16. API 设计 ====== -->
+<section id="api">
+  <div class="section-header">
+    <div class="icon">🔌</div>
+    <h2>API 设计</h2>
+    <span class="tag rev">REVISED</span>
+  </div>
+
+  <div class="highlight-danger">
+    <h4>⚠️ 状态说明（v4.0 修订）</h4>
+    <p>以下「新增 API 端点」在 v3.0 时被误判为「已就绪」。现状核查确认 <strong>代码库中不存在 stage/theme 相关端点</strong>。本章所有标 <code>【待实现】</code> 的端点均为 M1 阶段新建；标 <code>【已有】</code> 的端点为现有端点（仅扩展参数/返回字段）。</p>
+  </div>
+
+  <div class="card">
+    <h3>新增 API 端点（M1 实现）</h3>
+    <table>
+      <tr><th>方法</th><th>路径</th><th>说明</th><th>前端依赖</th></tr>
+      <tr><td>GET</td><td><code>/api/stages</code> 【待实现】</td><td>获取所有学段定义</td><td>StageSelector</td></tr>
+      <tr><td>GET</td><td><code>/api/themes</code> 【待实现】</td><td>获取所有跨学段主题，支持 <code>?stage=</code> 过滤并附带知识点计数</td><td>ThemeGrid</td></tr>
+      <tr><td>GET</td><td><code>/api/themes/{id}/kps</code> 【待实现】</td><td>获取某主题下知识点，支持 <code>?stage=</code>，按 depth 分层返回（含掌握度状态）</td><td>KnowledgeLadder</td></tr>
+      <tr><td>GET</td><td><code>/api/courses?stage=PRIMARY</code> 【待实现】</td><td>按学段筛选课程</td><td>StudentCourses 改造</td></tr>
+      <tr><td>GET</td><td><code>/api/knowledge-points?stage=JUNIOR&themeId=xxx</code> 【待实现】</td><td>按学段+主题筛选知识点</td><td>管理/教师端</td></tr>
+      <tr><td>GET</td><td><code>/api/knowledge-points/{id}/progression</code> 【待实现】</td><td>获取某知识点的进阶目标（下一学段对应知识点）</td><td>KnowledgeLadder 锁定态</td></tr>
+      <tr><td>GET</td><td><code>/api/knowledge-points/{id}/prerequisites-by-stage</code> 【待实现】</td><td>获取跨学段前置知识点（低学段的基础知识）</td><td>进阶推荐</td></tr>
+      <tr><td>GET</td><td><code>/api/students/{id}/previous-stage-report</code> 【待实现】</td><td>获取上一学段学习报告（含掌握度概览与薄弱点）</td><td>成长时光机能力①</td></tr>
+      <tr><td>POST</td><td><code>/api/students/{id}/time-capsules</code> 【待实现】</td><td>给未来的自己提问（创建时光胶囊）</td><td>成长时光机能力②</td></tr>
+      <tr><td>GET</td><td><code>/api/students/{id}/time-capsules</code> 【待实现】</td><td>查看收到的时光胶囊（按学段筛选）</td><td>成长时光机能力②</td></tr>
+      <tr><td>POST</td><td><code>/api/students/{id}/time-capsules/{cid}/answer</code> 【待实现】</td><td>回答来自过去的提问</td><td>成长时光机能力②</td></tr>
+      <tr><td>GET</td><td><code>/api/students/{id}/literacy-growth</code> 【待实现】</td><td>获取法治素养成长档案数据</td><td>成长时光机能力③</td></tr>
+      <tr><td>GET</td><td><code>/api/students/{id}/literacy-report/pdf</code> 【待实现】</td><td>导出 PDF 成长报告</td><td>成长时光机能力③</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>修改现有 API</h3>
+    <table>
+      <tr><th>现有端点</th><th>变更</th></tr>
+      <tr><td><code>POST /api/knowledge/points</code></td><td>请求体新增可选字段：<code>stage</code>, <code>depthLevel</code>, <code>themeId</code>, <code>stageOrder</code></td></tr>
+      <tr><td><code>PUT /api/knowledge/points/{id}</code></td><td>支持更新学段相关字段</td></tr>
+      <tr><td><code>GET /api/knowledge/courses/{courseId}/points</code></td><td>返回结果包含学段信息</td></tr>
+      <tr><td><code>GET /api/knowledge/courses</code></td><td>新增筛选参数 <code>stage</code></td></tr>
+      <tr><td><code>POST /api/paths/plan</code></td><td>请求体新增 <code>stage</code> 字段，用于学段感知的路径规划</td></tr>
+      <tr><td><code>GET /api/knowledge/courses/{courseId}/graph</code></td><td>返回结果中标注学段和深度信息</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>迁移配套管理端点（管理员/运营）</h3>
+    <table>
+      <tr><th>方法</th><th>路径</th><th>说明</th></tr>
+      <tr><td>POST</td><td><code>/api/admin/migration/course-stages</code> 【待实现】</td><td>批量提交课程学段标注（§10.3）</td></tr>
+      <tr><td>GET</td><td><code>/api/admin/migration/report</code> 【待实现】</td><td>获取迁移报告（覆盖统计、分布报表）</td></tr>
+      <tr><td>POST</td><td><code>/api/admin/migration/rollback</code> 【待实现】</td><td>按快照回滚数据性迁移（§10.6）</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ====== 17. UI 示意 ====== -->
+<section id="ui">
+  <div class="section-header">
+    <div class="icon">🎨</div>
+    <h2>UI 示意</h2>
+    <span class="tag">UI/UX</span>
+  </div>
+
+  <div class="card">
+    <h3>学生端：学段主题学习（双维度导航主视图）</h3>
+    <pre style="background:var(--bg);padding:16px;border-radius:6px;font-size:13px;line-height:1.7;">
+┌──────────────────────────────────────────────────────────────────┐
+│  📚 课程学习                              视图：[我的课程][🧭学段主题学习] │
+│                                                                  │
+│  🔵 学段： [ 🏫 小学 ] [ 📖 初中 ] [ 🟢 高中 ] [ 🎓 大学 ]        │
+│                                                                  │
+│  📚 初中阶段 · 法律主题（8）                                      │
+│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐              │
+│  │ ⚖️ 法律与规则 │ │ 🏛️ 宪法精神  │ │ 🧑‍⚖️ 公民权利  │              │
+│  │ 12个知识点    │ │ 8个知识点     │ │ 15个知识点    │              │
+│  └──────────────┘ └──────────────┘ └──────────────┘              │
+│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐              │
+│  │ 🚦 社会秩序  │ │ ⚖️ 公平正义  │ │ 📜 民事法律   │              │
+│  │ 10个知识点   │ │ 6个知识点    │ │ 9个知识点     │              │
+│  └──────────────┘ └──────────────┘ └──────────────┘              │
+│                                                                  │
+│  🪜 知识阶梯：宪法精神 · 初中阶段                                 │
+│  深度2 理解层  ████████████████████  ✅ 4/6 · 🔄 1 · ⏳ 1        │
+│  深度3 应用层  ██████████░░░░░░░░░░  ⏳ 3/5 · 🔒 高学段进阶提示   │
+│  ── 点击知识点卡片 → 进入学习 / 复习                              │
+└──────────────────────────────────────────────────────────────────┘</pre>
+  </div>
+
+  <div class="card">
+    <h3>学生端：跨学段知识阶梯（原有设计，KnowledgeLadder 落地形态）</h3>
+    <pre style="background:var(--bg);padding:16px;border-radius:6px;font-size:13px;line-height:1.7;">
+┌──────────────────────────────────────────────────────────────────┐
+│  📚 宪法精神 · 知识阶梯                                           │
+│                                                                  │
+│  🟢 小学 · 深度1-2        进阶 → 🟡 初中 · 深度2-3               │
+│  ┌──────────────────────┐  ┌──────────────────────┐              │
+│  │ ✅ 宪法是根本法       │  │ 🔄 宪法是根本法       │              │
+│  │ ✅ 国家象征           │  │ ⏳ 宪法基本原则       │              │
+│  │ ✅ 我是中国公民       │  │ ⏳ 国家机构           │              │
+│  │                      │  │ ⏳ 公民基本权利       │              │
+│  └──────────────────────┘  └──────────────────────┘              │
+│                              ↓                                   │
+│                         🟠 高中 · 深度3-5                        │
+│                         ┌──────────────────────┐                 │
+│                         │ ⏳ 宪法实施与监督      │                 │
+│                         │ ⏳ 违宪审查制度       │                 │
+│                         └──────────────────────┘                 │
+│                                                                  │
+│  图例：✅ 已掌握  🔄 学习中  ⏳ 待学习  🔒 高学段锁定             │
+└──────────────────────────────────────────────────────────────────┘</pre>
+  </div>
+
+  <div class="card">
+    <h3>教师端：学段课程创建（含主题模板）</h3>
+    <pre style="background:var(--bg);padding:16px;border-radius:6px;font-size:13px;line-height:1.7;">
+┌──────────────────────────────────────────────────────┐
+│  创建新课程                                           │
+│                                                      │
+│  课程名称： [法治教育基础                ]            │
+│  学科：     [法律          ▼]                        │
+│  学段：     [● 初中(JUNIOR)  ○ 小学  ○ 高中  ○ 大学]│
+│  深度范围： [深度2 → 深度3]（自动根据学段设置）       │
+│                                                      │
+│  📌 从主题模板生成（可选）：                           │
+│  ☑ 法律与规则    ☑ 宪法精神    ☑ 公民权利与义务       │
+│  ☐ 社会秩序      ☑ 公平正义    ☐ 民事法律            │
+│                                                      │
+│  [预览生成的知识点]                                    │
+│  ┌──────────────────────────────────────────────┐   │
+│  │ #  知识点名称         深度  小学已有衔接       │   │
+│  │ 1  法律的特征         深度2  ← 小学已学可复习  │   │
+│  │ 2  宪法基本原则       深度2  -                 │   │
+│  │ 3  公民基本权利       深度3  ← 小学已学可复习  │   │
+│  └──────────────────────────────────────────────┘   │
+│                                                      │
+│  [取消]                              [创建课程]      │
+└──────────────────────────────────────────────────────┘</pre>
+  </div>
+</section>
+
+<!-- ====== 18. 优先级与里程碑 ====== -->
+<section id="priority">
+  <div class="section-header">
+    <div class="icon">🏗️</div>
+    <h2>优先级与里程碑</h2>
+    <span class="tag rev">REVISED</span>
+  </div>
+
+  <div class="highlight-warning">
+    <h4>⚠️ v4.0 修订</h4>
+    <p>相比 v3.0：① M1 从「建模型」扩展为「建模型 + 数据迁移（方案B）」；② 新增 M2.5「前端双维度导航」（专家建议）；③ 总工时由 7-9 人周调整为 <strong>9-11 人周</strong>。</p>
+  </div>
+
+  <div class="card">
+    <table>
+      <tr><th>阶段</th><th>里程碑</th><th>任务内容</th><th>预估工时</th></tr>
+      <tr>
+        <td><strong>P0 🚀</strong><br>数据底座</td>
+        <td>M1: 数据模型落库 + 数据迁移（方案B）</td>
+        <td>
+          - V17 迁移脚本：education_stages / subject_themes 建表 + 初始化<br>
+          - knowledge_points / courses 加字段、knowledge_relations 加 PROGRESSION<br>
+          - JPA 实体 / DTO / Repository 同步修改<br>
+          - 后端 API：stages / themes / themes/{id}/kps / courses?stage=<br>
+          - 前端 API 封装：stageApi、themeApi<br>
+          - 课程级学段标注（人工锚点，§10.3）<br>
+          - 知识点 stage/depth 回填 + theme 三级打标（§10.4/10.5）<br>
+          - 迁移校验、抽检（≥10%）、回滚演练（§10.6）
+        </td>
+        <td>3.5 人周</td>
+      </tr>
+      <tr>
+        <td><strong>P1 💡</strong><br>前端导航</td>
+        <td>M2.5: 学生端「学段×主题」双维度导航</td>
+        <td>
+          - StageSelector 组件（4 学段 Tab）<br>
+          - ThemeGrid 组件（主题卡片 + 计数）<br>
+          - KnowledgeLadder 组件（深度分层 + 掌握度状态）<br>
+          - StudentCourses 改造（视图切换 + 按学段筛选课程）<br>
+          - 路由：/student/courses?view=stages、/student/themes/:themeId<br>
+          - StudentLearning 学段徽标 + kpId 定位跳转<br>
+          - 空状态与兼容性兜底（§11.6）
+        </td>
+        <td>2 人周</td>
+      </tr>
+      <tr>
+        <td><strong>P2 🌟</strong><br>课程内容</td>
+        <td>M2: 法律课程内容填充（含大学）</td>
+        <td>
+          - 依据课程标准构建小学/初中/高中/大学法律主题知识点体系<br>
+          - 大学学段知识点基于《思想道德与法治》教材第六、七、八章<br>
+          - 建立跨学段 PROGRESSION 进阶关系（≥40条，含大学衔接）<br>
+          - 创建示例课程（小学启蒙/初中基础/高中实务/大学法治理论）<br>
+          - 教师端学段课程管理 + 主题模板生成
+        </td>
+        <td>2.5 人周</td>
+      </tr>
+      <tr>
+        <td><strong>P3 🔧</strong><br>学习体验</td>
+        <td>M3: 学段自适应学习 + 成长时光机</td>
+        <td>
+          - 学生学段选择/自动识别（含大学学段）<br>
+          - 学段自适应路径规划（修改 PathService）<br>
+          - 跨学段知识图谱可视化 + 进阶推荐通知<br>
+          - 上一学段学习报告（自动弹出 + 一键复习）<br>
+          - 时光胶囊：提问与回答流程<br>
+          - 法治素养五维评估模型计算引擎
+        </td>
+        <td>2 人周</td>
+      </tr>
+      <tr>
+        <td><strong>P4 🎁</strong><br>报告分析</td>
+        <td>M4: 报告与分析</td>
+        <td>
+          - 学生进阶学习报告（小学至大学完整路径）<br>
+          - 学段掌握度分布仪表盘 + 教师跨学段衔接视图<br>
+          - 学段题库与深度匹配<br>
+          - 法治素养成长档案完整页面 + PDF 成长报告<br>
+          - 时光胶囊回答率与素养评估相关性分析
+        </td>
+        <td>1 人周</td>
+      </tr>
+    </table>
+    <p style="font-size:13px;color:var(--text-secondary);">总计约 11 人周（含并行与缓冲，区间 9-11 人周）。M1 → M2.5 为关键路径：数据迁移完成是前端导航的前提。</p>
+  </div>
+</section>
+
+<!-- ====== 19. 待决策问题 ====== -->
+<section id="open-questions">
+  <div class="section-header">
+    <div class="icon">❓</div>
+    <h2>待决策问题</h2>
+    <span class="tag rev">REVISED</span>
+  </div>
+
+  <div class="card">
+    <h3>✅ 已决策（v4.0）</h3>
+    <table>
+      <tr><th>问题</th><th>决策</th><th>决策人/依据</th></tr>
+      <tr>
+        <td>存量知识点尚未标记学段，如何落地学段切换？</td>
+        <td><strong>方案B：先数据迁移（V17 落库 + 课程锚点 + 知识点回填 + theme 打标），再实现前端 UI</strong></td>
+        <td>用户确认；专家评审（§1）</td>
+      </tr>
+      <tr>
+        <td>现有课程（「法学概论」）的迁移策略</td>
+        <td>课程级人工标注 stage（锚点），知识点 stage 继承课程；深度推断规则降级为跨学段课程的辅助规则（§10.3/10.4）</td>
+        <td>本修订稿 §10</td>
+      </tr>
+      <tr>
+        <td>前端入口位置</td>
+        <td>学生端「课程学习」页（/student/courses）升级为「学段×主题」双维度导航</td>
+        <td>专家建议（§1、§11）</td>
+      </tr>
+      <tr>
+        <td>学段 Tab 数量与定义</td>
+        <td>4 学段：PRIMARY / JUNIOR / SENIOR / UNIVERSITY，映射深度 1-2 / 2-3 / 3-5 / 4-5</td>
+        <td>教育部课程标准 + 专家评审</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>❓ 仍待决策</h3>
+    <ol>
+      <li><strong>学段与年级的映射策略</strong>：学生 profile 中的 <code>grade</code>（如"三年级"）是否需要自动推导学段？还是由学生/教师手动选择？建议自动映射 + 手动可调。</li>
+      <li><strong>深度等级的命名争议</strong>：深度1-5的数字命名是否足够直观？还是应该使用 Bloom 分类学术语（识记/理解/应用/分析/评价）作为展示名？建议数字+术语双标。</li>
+      <li><strong>知识点跨学段复用 vs. 新建</strong>：同一个法律知识点（如"法律的特征"）在不同学段是创建多个独立知识点记录（<code>stage</code> 不同），还是在同一个知识点记录上做深度版本管理？建议采用<strong>独立记录 + PROGRESSION 关系</strong>方案，更灵活。</li>
+      <li><strong>depth_level 与 difficulty 的最终关系</strong>：迁移阶段以 difficulty 近似 depth_level（假设 H1）。后续是否引入独立的深度标注流程（教师人工精修 / LLM 辅助）？建议 M2 内容建设时同步建立精修机制。</li>
+      <li><strong>大学学段的内容粒度</strong>：大学《思想道德与法治》教材第六至第八章涵盖法治理论、宪法和部门法三部分。知识点拆分应该到何种粒度？建议按教材"节"级（如"社会主义法律的本质特征"）作为知识点单元。</li>
+      <li><strong>非法律学科是否也适用此模型？</strong>：当前需求聚焦法律课程，但学段深度模型具有通用性。是否需要在设计中考虑未来扩展到其他学科？建议<strong>当前聚焦法律</strong>，但数据模型设计时保留学科通用性（subject_themes.subject 字段）。</li>
+      <li><strong>习题的学段适配</strong>：题目是否需要关联 <code>stage</code> 和 <code>depth_level</code>？建议在 <code>questions</code> 表也增加 <code>stage</code> 和 <code>depth_level</code> 字段（M3 处理）。</li>
+      <li><strong>大学学段与法学专业的区分</strong>：大学学段需要区分"非法律专业通识教育"（《思想道德与法治》）和"法学专业系统教育"（部门法专业课）。是否在同一学段内做子分类？建议在 UNIVERSITY 学段内通过 <code>course_type</code> 区分。</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ====== 20. 风险与假设 ====== -->
+<section id="risks">
+  <div class="section-header">
+    <div class="icon">⚠️</div>
+    <h2>风险与假设</h2>
+    <span class="tag new">NEW</span>
+  </div>
+
+  <div class="card">
+    <h3>关键假设（H）</h3>
+    <table>
+      <tr><th>编号</th><th>假设</th><th>影响</th><th>验证方式</th></tr>
+      <tr>
+        <td>H1</td>
+        <td>存量知识点的 <code>difficulty</code> 可作为 <code>depth_level</code> 的近似值（迁移回填）</td>
+        <td>若偏离，知识阶梯分层可能不符合真实认知层次</td>
+        <td>迁移报告输出分布对照 + 抽检；M2 建立精修机制</td>
+      </tr>
+      <tr>
+        <td>H2</td>
+        <td>「法学概论」为单学段课程，知识点 stage 可统一继承课程学段</td>
+        <td>若课程实际跨学段，需要按深度推断拆分</td>
+        <td>课程级标注时由管理员确认课程定位（§10.3）</td>
+      </tr>
+      <tr>
+        <td>H3</td>
+        <td>8 个法律主题覆盖全部存量知识点内容</td>
+        <td>若存在主题外内容，theme 标注会失败或失真</td>
+        <td>theme 三级打标后统计"未分类"比例（目标 ≤ 5%）</td>
+      </tr>
+      <tr>
+        <td>H4</td>
+        <td>学生 profile 的 <code>grade</code> 字段可用于学段推导</td>
+        <td>若字段缺失或格式不统一，默认学段可能不准确</td>
+        <td>前端提供手动切换，尊重用户选择</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>风险清单（R）</h3>
+    <table>
+      <tr><th>编号</th><th>风险</th><th>等级</th><th>缓解措施</th></tr>
+      <tr>
+        <td>R1</td>
+        <td>迁移标注质量不足，前端展示失真（方案B的核心风险）</td>
+        <td>🔴 高</td>
+        <td>课程级人工锚点（不依赖推断）+ 抽检 ≥10% + 合格率 ≥95% 门槛 + 快照可回滚</td>
+      </tr>
+      <tr>
+        <td>R2</td>
+        <td>「法学概论」课程内容可能混含多学段知识点，继承式标注产生误差</td>
+        <td>🟠 中</td>
+        <td>迁移报告按 depth 分布展示；对 difficulty ≥ 4 的知识点提高抽检比例至 30%</td>
+      </tr>
+      <tr>
+        <td>R3</td>
+        <td>LLM 主题打标存在系统性偏差（如某主题被过度归类）</td>
+        <td>🟠 中</td>
+        <td>三级流程中人工复核覆盖低置信度样本；统计各主题分布并人工校准</td>
+      </tr>
+      <tr>
+        <td>R4</td>
+        <td>前端开发依赖的 4 个后端端点与迁移进度串行，形成关键路径</td>
+        <td>🟡 低</td>
+        <td>前后端并行开发：前端先以 Mock 数据联调（参照 §11.7 契约），后端完成即切换</td>
+      </tr>
+      <tr>
+        <td>R5</td>
+        <td>存量学生已产生的学习数据（掌握度、答题记录）与新的学段体系不兼容</td>
+        <td>🟠 中</td>
+        <td>学习数据按 course_id/kp_id 关联，迁移不改动主键，历史数据天然兼容；仅展示层按学段过滤</td>
+      </tr>
+      <tr>
+        <td>R6</td>
+        <td>「法学概论」课程标注为大学学段后，学生端四个学段中三个为空，首屏体验差</td>
+        <td>🟠 中</td>
+        <td>空状态引导 + 「课程建设中」提示（§11.6）；M2 内容建设优先级提升，尽快填充小学/初中/高中课程</td>
+      </tr>
+    </table>
+  </div>
+</section>
+
+<!-- ====== FOOTER ====== -->
+<footer class="footer">
+  <p>EduMentor 智学导师 · 多学段法律课程体系 PRD · v4.0（修订稿：采纳专家评审意见，落地路线 = 方案B）</p>
+  <p>v4.0 修订要点：现状核查修正（三层均未落地）· 新增数据迁移方案（§10）· 新增学生端双维度导航（§11）· 里程碑与工时更新（9-11 人周）</p>
+  <p>参考文件：教材〔2022〕2号 · 教材〔2020〕3号 · 《思想道德与法治》（2023年版）高等教育出版社</p>
+</footer>
+
+</div>
+</body>
+</html>

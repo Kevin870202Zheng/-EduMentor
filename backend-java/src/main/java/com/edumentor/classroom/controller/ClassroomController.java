@@ -99,6 +99,40 @@ public class ClassroomController {
                 .build());
     }
 
+    /**
+     * 基于勾选知识点/章节生成课堂（场景一，设计文档 §4.4）。
+     * <p>aggregated：同步生成一个聚合课堂；batch：异步批量生成（每知识点一课）。</p>
+     */
+    @PostMapping("/generate-from-selection")
+    @Operation(summary = "勾选生成课堂", description = "根据勾选的知识点/章节生成课堂，支持聚合模式（一个课堂）与批量模式（每知识点一课）")
+    public ApiResponse<Map<String, Object>> generateFromSelection(@RequestBody GenerateFromSelectionRequest request) {
+        if (request.getCourseId() == null) {
+            return ApiResponse.error(400, "请提供课程ID");
+        }
+        if (request.getKnowledgePointIds() == null || request.getKnowledgePointIds().isEmpty()) {
+            return ApiResponse.error(400, "请至少勾选一个知识点或章节");
+        }
+        int difficulty = request.getDifficulty() != null ? request.getDifficulty() : 3;
+
+        if ("batch".equalsIgnoreCase(request.getMode())) {
+            String jobId = classroomGenerator.generateFull(
+                    request.getCourseId(), request.getKnowledgePointIds(), difficulty);
+            log.info("Batch classroom generation started: jobId={}, kps={}", jobId, request.getKnowledgePointIds().size());
+            return ApiResponse.success(Map.of("mode", "batch", "jobId", jobId, "status", "processing"));
+        }
+
+        // 聚合模式：同步生成一个课堂
+        Classroom classroom = classroomGenerator.generateFromSelection(
+                request.getCourseId(),
+                request.getKnowledgePointIds(),
+                request.getTitle(),
+                difficulty,
+                request.getCourseName());
+        Map<String, Object> result = classroom.toDto();
+        result.put("mode", "aggregated");
+        return ApiResponse.success(result, "课堂生成成功");
+    }
+
     // ═══════════════════════════════════════════════════════════════
     //  课堂查询
     // ═══════════════════════════════════════════════════════════════

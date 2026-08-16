@@ -98,6 +98,7 @@ public class KnowledgeService {
         course.setDescription(request.getDescription());
         course.setSubject(request.getSubject());
         course.setGradeLevel(request.getGradeLevel());
+        course.setStage(request.getStage());
         course.setCoverUrl(request.getCoverUrl());
         course.setIsPublished(false);
         course.setCreatedBy(userId);
@@ -145,6 +146,9 @@ public class KnowledgeService {
         }
         if (request.getGradeLevel() != null) {
             course.setGradeLevel(request.getGradeLevel());
+        }
+        if (request.getStage() != null) {
+            course.setStage(request.getStage());
         }
         if (request.getCoverUrl() != null) {
             course.setCoverUrl(request.getCoverUrl());
@@ -223,7 +227,7 @@ public class KnowledgeService {
      */
     @Transactional(readOnly = true)
     public Page<CourseDto> listCourses(int page, int size, String subject,
-                                       String keyword, boolean publishedOnly) {
+                                       String keyword, boolean publishedOnly, String stage) {
         Pageable pageable = PageRequest.of(page - 1, size,
                 Sort.by(Sort.Direction.DESC, "createdAt"));
 
@@ -237,6 +241,11 @@ public class KnowledgeService {
         if (subject != null && !subject.isBlank()) {
             spec = spec.and((root, query, cb) ->
                     cb.equal(root.get("subject"), subject));
+        }
+
+        if (stage != null && !stage.isBlank()) {
+            spec = spec.and((root, query, cb) ->
+                    cb.equal(root.get("stage"), stage));
         }
 
         if (publishedOnly) {
@@ -298,6 +307,64 @@ public class KnowledgeService {
     // ═══════════════════════════════════════════════════════════════
 
     /**
+     * 一键标注学段（教师端内容管理，PRD v4.0 §10.4 / §14）。
+     * <p>
+     * 将课程的 stage 回填到该课程下未标注学段的知识点，
+     * 并将 difficulty 近似回填为 depth_level（仅当 depth_level 未设置时）。
+     * 幂等：已标注的知识点不会被覆盖。
+     * </p>
+     *
+     * @param courseId 课程 ID
+     * @return 回填统计（total / updatedStage / updatedDepth）
+     * @throws ResourceNotFoundException 如果课程不存在
+     * @throws ValidationException       如果课程尚未设置学段
+     */
+    @Transactional
+    public Map<String, Object> backfillCourseStage(UUID courseId) {
+        Course course = courseRepository.findById(courseId)
+                .orElseThrow(() -> new ResourceNotFoundException("课程", courseId));
+
+        if (course.getStage() == null || course.getStage().isBlank()) {
+            throw new ValidationException("请先为课程设置学段（stage），再执行一键标注");
+        }
+
+        List<KnowledgePoint> kps = knowledgePointRepository.findByCourseIdOrderByOrderIndexAsc(courseId);
+        int updatedStage = 0;
+        int updatedDepth = 0;
+
+        for (KnowledgePoint kp : kps) {
+            boolean changed = false;
+            // 学段：仅回填未标注的（不覆盖教师手工调整结果）
+            if (kp.getStage() == null || kp.getStage().isBlank()) {
+                kp.setStage(course.getStage());
+                updatedStage++;
+                changed = true;
+            }
+            // 认知深度：未设置时以 difficulty 近似（PRD §20 假设 H1）
+            if (kp.getDepthLevel() == null || kp.getDepthLevel() < 1) {
+                kp.setDepthLevel(kp.getDifficulty() != null ? kp.getDifficulty() : 1);
+                updatedDepth++;
+                changed = true;
+            }
+            if (changed) {
+                knowledgePointRepository.save(kp);
+            }
+        }
+
+        log.info("一键标注学段: courseId={}, courseName={}, stage={}, total={}, updatedStage={}, updatedDepth={}",
+                courseId, course.getName(), course.getStage(), kps.size(), updatedStage, updatedDepth);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("courseId", courseId);
+        result.put("courseName", course.getName());
+        result.put("courseStage", course.getStage());
+        result.put("total", kps.size());
+        result.put("updatedStage", updatedStage);
+        result.put("updatedDepth", updatedDepth);
+        return result;
+    }
+
+    /**
      * 创建知识点。
      *
      * @param request 创建知识点请求
@@ -335,6 +402,14 @@ public class KnowledgeService {
         kp.setTags(request.getTags() != null ? request.getTags() : "[]");
         kp.setOrderIndex(request.getOrderIndex() != null ? request.getOrderIndex() : 0);
         kp.setType(request.getType() != null ? request.getType() : "LEAF");
+        kp.setStage(request.getStage());
+        kp.setDepthLevel(request.getDepthLevel() != null
+                ? request.getDepthLevel()
+                : (request.getDifficulty() != null ? request.getDifficulty() : 1));
+        kp.setThemeId(request.getThemeId());
+        kp.setStageOrder(request.getStageOrder() != null
+                ? request.getStageOrder()
+                : (request.getOrderIndex() != null ? request.getOrderIndex() : 0));
 
         KnowledgePoint saved = knowledgePointRepository.save(kp);
         log.info("知识点创建成功: id={}, name={}", saved.getId(), saved.getName());
@@ -394,6 +469,18 @@ public class KnowledgeService {
 
         if (request.getType() != null) {
             kp.setType(request.getType());
+        }
+        if (request.getStage() != null) {
+            kp.setStage(request.getStage());
+        }
+        if (request.getDepthLevel() != null) {
+            kp.setDepthLevel(request.getDepthLevel());
+        }
+        if (request.getThemeId() != null) {
+            kp.setThemeId(request.getThemeId());
+        }
+        if (request.getStageOrder() != null) {
+            kp.setStageOrder(request.getStageOrder());
         }
 
         KnowledgePoint saved = knowledgePointRepository.save(kp);

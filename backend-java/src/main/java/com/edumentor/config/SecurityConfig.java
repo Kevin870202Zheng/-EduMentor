@@ -93,8 +93,9 @@ public class SecurityConfig {
         if (allowedOrigins != null && !allowedOrigins.isBlank()) {
             configuration.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
         } else {
-            configuration.setAllowedOrigins(List.of(
-                "http://localhost:5173", "http://localhost:3000", "http://localhost:3003"));
+            // 开发环境放行 localhost 任意端口（Vite dev server 可能占用 3000/3001/5173 等）
+            configuration.setAllowedOriginPatterns(List.of(
+                    "http://localhost:*", "http://127.0.0.1:*"));
         }
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With"));

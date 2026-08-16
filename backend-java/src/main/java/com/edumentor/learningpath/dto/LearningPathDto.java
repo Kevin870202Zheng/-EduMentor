@@ -34,6 +34,8 @@ public class LearningPathDto {
     private Integer completedNodes;
     private Integer dailyMinutes;
     private String adaptStrategy;
+    private String source;
+    private UUID templateId;
     private List<LearningPathNodeDto> nodes;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -61,6 +63,8 @@ public class LearningPathDto {
         dto.setCompletedNodes(entity.getCompletedNodes());
         dto.setDailyMinutes(entity.getDailyMinutes());
         dto.setAdaptStrategy(entity.getAdaptStrategy());
+        dto.setSource(entity.getSource());
+        dto.setTemplateId(entity.getTemplateId());
         dto.setCreatedAt(entity.getCreatedAt());
         dto.setUpdatedAt(entity.getUpdatedAt());
 

@@ -16,6 +16,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -93,14 +94,15 @@ public class KnowledgeController {
      * 分页查询课程列表。
      */
     @GetMapping("/courses")
-    @Operation(summary = "课程列表", description = "分页查询课程列表，支持学科筛选、名称搜索和发布状态过滤")
+    @Operation(summary = "课程列表", description = "分页查询课程列表，支持学科、学段筛选、名称搜索和发布状态过滤")
     public ApiResponse<PaginatedResponse<CourseDto>> listCourses(
             @Parameter(description = "页码（从 1 开始）") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页数量") @RequestParam(defaultValue = "20") int size,
             @Parameter(description = "学科筛选") @RequestParam(required = false) String subject,
             @Parameter(description = "名称关键字搜索") @RequestParam(required = false) String keyword,
-            @Parameter(description = "仅显示已发布课程") @RequestParam(defaultValue = "false") boolean publishedOnly) {
-        Page<CourseDto> coursePage = knowledgeService.listCourses(page, size, subject, keyword, publishedOnly);
+            @Parameter(description = "仅显示已发布课程") @RequestParam(defaultValue = "false") boolean publishedOnly,
+            @Parameter(description = "学段筛选（PRIMARY/JUNIOR/SENIOR/UNIVERSITY）") @RequestParam(required = false) String stage) {
+        Page<CourseDto> coursePage = knowledgeService.listCourses(page, size, subject, keyword, publishedOnly, stage);
         return PaginatedResponse.of(coursePage).toApiResponse();
     }
 
@@ -143,6 +145,19 @@ public class KnowledgeController {
     // ═══════════════════════════════════════════════════════════════
     //  知识点 API (Knowledge Point API)
     // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * 一键标注学段（教师端内容管理，PRD v4.0 §10.4 / §14）。
+     * <p>将课程的 stage 回填到该课程下未标注的知识点，difficulty 近似回填 depth_level。</p>
+     */
+    @PostMapping("/courses/{courseId}/backfill-stage")
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    @Operation(summary = "一键标注学段", description = "将课程学段批量回填到该课程下未标注的知识点（幂等，不覆盖已标注结果），需要教师或管理员权限")
+    public ApiResponse<Map<String, Object>> backfillCourseStage(
+            @Parameter(description = "课程 ID") @PathVariable UUID courseId) {
+        Map<String, Object> result = knowledgeService.backfillCourseStage(courseId);
+        return ApiResponse.success(result, "学段标注完成");
+    }
 
     /**
      * 创建知识点（教师/管理员权限）。

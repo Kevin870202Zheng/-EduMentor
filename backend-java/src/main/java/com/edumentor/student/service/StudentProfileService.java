@@ -30,6 +30,7 @@ public class StudentProfileService {
                 .orElseThrow(() -> new ResourceNotFoundException("学生画像", userId));
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("userId", profile.getUserId());
+        result.put("stage", profile.getStage());
         result.put("grade", profile.getGrade());
         result.put("className", profile.getClassName());
         result.put("major", profile.getMajor());
@@ -45,6 +46,7 @@ public class StudentProfileService {
         StudentProfile profile = studentProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("学生画像", userId));
 
+        if (request.getStage() != null) profile.setStage(request.getStage());
         if (request.getGrade() != null) profile.setGrade(request.getGrade());
         if (request.getClassName() != null) profile.setClassName(request.getClassName());
         if (request.getMajor() != null) profile.setMajor(request.getMajor());

@@ -17,6 +17,8 @@ import {
 import {
   PlayCircleOutlined,
   ReloadOutlined,
+  ExperimentOutlined,
+  AuditOutlined,
 } from '@ant-design/icons';
 import { classroomApi } from '../../api/classroomApi';
 
@@ -72,6 +74,10 @@ const ClassroomList: React.FC = () => {
     navigate(`/student/classroom/${classroomId}`);
   };
 
+  const handleCourt = (classroomId: string) => {
+    navigate(`/student/classroom/${classroomId}/court`);
+  };
+
   if (!selectedCourseId) {
     return (
       <div style={{ padding: 24 }}>
@@ -113,14 +119,24 @@ const ClassroomList: React.FC = () => {
             {classrooms.length > 0 ? ` · ${classrooms.length} 个课堂` : ''}
           </Text>
         </div>
-        <Button
-          icon={<ReloadOutlined />}
-          onClick={loadClassrooms}
-          size="small"
-          loading={loading}
-        >
-          刷新
-        </Button>
+        <Space>
+          <Button
+            type="primary"
+            icon={<ExperimentOutlined />}
+            onClick={() => navigate('/student/classroom-generator')}
+            size="small"
+          >
+            课堂生成器
+          </Button>
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={loadClassrooms}
+            size="small"
+            loading={loading}
+          >
+            刷新
+          </Button>
+        </Space>
       </div>
 
       {/* 错误提示 */}
@@ -151,13 +167,9 @@ const ClassroomList: React.FC = () => {
               </Text>
               <Button
                 type="primary"
-                onClick={() => {
-                  const code = currentCourse?.courseCode;
-                  if (code) navigate(`/student/learning/${code}`);
-                  else message.warning('请先选择一门课程');
-                }}
+                onClick={() => navigate('/student/classroom-generator')}
               >
-                去课程学习页生成课堂
+                去课堂生成器创建课堂
               </Button>
             </Space>
           </Empty>
@@ -189,6 +201,15 @@ const ClassroomList: React.FC = () => {
                     disabled={cr.status !== 'published'}
                   >
                     {cr.status === 'published' ? '进入学习' : '待生成'}
+                  </Button>,
+                  <Button
+                    block
+                    size="small"
+                    icon={<AuditOutlined />}
+                    onClick={() => handleCourt(cr.id)}
+                    disabled={cr.status !== 'published'}
+                  >
+                    模拟法庭
                   </Button>,
                 ]}
               >
@@ -254,8 +275,8 @@ const ClassroomList: React.FC = () => {
       {classrooms.length > 0 && (
         <div style={{ marginTop: 16, padding: 12, background: '#f6ffed', borderRadius: 8, border: '1px solid #b7eb8f' }}>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            💡 <Text strong>提示：</Text>课堂按知识点自动生成，每次进入时复用已有课堂内容（不会重复生成）。
-            如需为其他知识点创建课堂，请前往「课程学习」页点击「沉浸课堂」按钮。
+            💡 <Text strong>提示：</Text>课堂支持三种来源——① 课程学习页的章级课堂（按知识点自动生成）；
+            ② 课堂生成器的「知识点勾选生成」（聚合/批量）；③ 课堂生成器的「学段合作课堂」（教师发起）。
           </Text>
         </div>
       )}

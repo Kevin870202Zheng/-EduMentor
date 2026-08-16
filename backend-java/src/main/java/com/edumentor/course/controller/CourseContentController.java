@@ -64,6 +64,7 @@ public class CourseContentController {
         info.put("description", course.getDescription());
         info.put("subject", course.getSubject());
         info.put("gradeLevel", course.getGradeLevel());
+        info.put("stage", course.getStage());
         info.put("isPublished", course.getIsPublished());
         return ApiResponse.success(info);
     }

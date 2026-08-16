@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智慧课堂 · 模拟法庭功能设计文档</title>
+<style>
+  :root { --primary:#1677ff; --bg:#f5f7fa; --card:#fff; --border:#e5e7eb; --text:#1f2937; --muted:#6b7280; --ok:#16a34a; --warn:#d97706; --err:#dc2626; --purple:#722ed1; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--text); line-height:1.7; }
+  .container { max-width:960px; margin:0 auto; padding:32px 24px 80px; }
+  header { background:linear-gradient(135deg,#2d1b69,#722ed1); color:#fff; border-radius:12px; padding:28px 32px; margin-bottom:24px; }
+  header h1 { font-size:24px; margin-bottom:6px; }
+  header .meta { font-size:13px; opacity:.85; }
+  h2 { font-size:20px; margin:36px 0 12px; padding-left:10px; border-left:4px solid var(--primary); }
+  h3 { font-size:16px; margin:20px 0 8px; color:#111827; }
+  p { margin:8px 0; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:18px 20px; margin:12px 0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:14px; background:#fff; }
+  th,td { border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; }
+  th { background:#f5f0ff; font-weight:600; }
+  code { background:#f3f4f6; border:1px solid #e5e7eb; border-radius:4px; padding:1px 6px; font-size:13px; font-family:"SF Mono",Consolas,monospace; color:#b91c1c; }
+  pre { background:#111827; color:#e5e7eb; border-radius:8px; padding:14px 16px; overflow-x:auto; font-size:13px; line-height:1.6; margin:10px 0; }
+  pre code { background:none; border:none; color:inherit; padding:0; }
+  .tag { display:inline-block; background:#f5f0ff; color:var(--purple); border:1px solid #d3c5f5; border-radius:20px; padding:1px 10px; font-size:12px; margin-right:6px; }
+  .tag.ok { background:#ecfdf5; color:var(--ok); border-color:#a7f3d0; }
+  .tag.warn { background:#fffbeb; color:var(--warn); border-color:#fde68a; }
+  .note { background:#fffbeb; border:1px solid #fde68a; border-left:4px solid var(--warn); border-radius:6px; padding:10px 14px; margin:10px 0; font-size:14px; }
+  .flow { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:12px 0; font-size:13px; }
+  .flow .step { background:#f5f0ff; border:1px solid #d3c5f5; border-radius:6px; padding:4px 10px; color:var(--purple); }
+  .flow .arrow { color:#9ca3af; }
+  .diagram { background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px; padding:14px 16px; font-family:"SF Mono",Consolas,monospace; font-size:13px; white-space:pre; overflow-x:auto; color:#334155; }
+  ul,ol { padding-left:22px; margin:8px 0; }
+  li { margin:4px 0; }
+  .decision { border:1px solid var(--border); border-radius:8px; padding:14px 16px; margin:10px 0; background:#f8fafc; }
+  .decision .q { font-weight:600; color:#111827; }
+  .decision .rec { margin-top:6px; font-size:14px; color:var(--primary); }
+  .msg { border-radius:8px; padding:8px 12px; margin:4px 0; font-size:13px; display:inline-block; max-width:75%; }
+  .msg-plaintiff { background:#fff1f0; border:1px solid #ffa39e; }
+  .msg-defendant { background:#e6f7ff; border:1px solid #91d5ff; }
+  .msg-judge { background:#f6ffed; border:1px solid #b7eb8f; }
+  .msg-clerk { background:#fafafa; border:1px solid #d9d9d9; color:#555; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>🎭 智慧课堂 · 模拟法庭功能设计文档</h1>
+  <div class="meta">版本 v1.1 · 2026-08-06 · 状态：✅ 已确认（2026-08-06）</div>
+  <div class="meta">✅ 已实现（2026-08-16）· 截图：<a href="moot-court-screenshot.png">法庭聊天室截图</a></div>
+  <div class="meta">目标：在已生成的智慧课堂上提供「课前/课后」双阶段模拟法庭，学生扮演法官，AI 扮演原被告，并生成两份判决的分析报告</div>
+</header>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2>1. 功能概述</h2>
+<div class="card">
+  <p><strong>一句话</strong>：给每个智慧课堂加一个「法庭直播间」——AI 按课程内容生成案件，学生在聊天室里当法官主持庭审、做判决，课前课后各判一次，AI 对比两次判决出分析报告。</p>
+  <p><strong>核心价值</strong>：把「学知识」变成「用知识判案」——课前判决暴露认知盲区，课后判决检验学习效果，报告呈现成长轨迹。</p>
+
+  <div class="diagram">┌────────────────────────────────────────────────────────────────┐
+│  智慧课堂（学生视角）                                              │
+│  ┌──────────────────┐   ┌──────────────────────────────────────┐  │
+│  │ 课前（未学完）    │   │ 课后（已学完）                        │  │
+│  │ 🎭 课前模拟法庭  │   │ 🎭 课后模拟法庭                      │  │
+│  │  ↓              │   │  ↓                                  │  │
+│  │ 案例生成         │   │ 同一案件二次开庭（对比才有意义）       │  │
+│  │  ↓              │   │  ↓                                  │  │
+│  │ 庭审聊天室       │   │ 庭审聊天室（AI 原被告 + 学生法官）     │  │
+│  │ （AI原/被告+法官）│   │  ↓                                  │  │
+│  │  ↓              │   │ 学生二次判决                          │  │
+│  │ 学生一次判决     │   │  ↓                                  │  │
+│  └──────────────────┘   │ 🤖 AI 分析报告（两份判决对比）       │  │
+│                          └──────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────────┘</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2>2. 现状调研结论（可复用能力）</h2>
+<div class="card">
+<table>
+  <tr><th>维度</th><th>现状</th><th>复用方式</th></tr>
+  <tr><td>LLM 对话</td><td>LLMService.chat(systemPrompt, List&lt;ChatMessage&gt;) 支持多轮；askStructured 支持结构化输出；DeepSeek 可用</td><td>案例生成用 askStructured；庭审对话用 chat（不同角色切换 system prompt）</td></tr>
+  <tr><td>课前/课后判定</td><td>classroom_progress 表（student_id+classroom_id 唯一），status: not_started/in_progress/completed/paused，含 completed_at</td><td><code>status == completed</code> → 可开课后法庭；否则课前法庭</td></tr>
+  <tr><td>课堂内容素材</td><td>课堂关联课程与知识点（KnowledgePoint，含名称/内容/深度）</td><td>案例生成以「课堂关联的知识点」为素材（✅ 已确认）</td></tr>
+  <tr><td>前端聊天范式</td><td>智能答疑 / AI 规划均有对话面板（气泡 + 输入框）</td><td>复用气泡样式与流式输出（或非流式）</td></tr>
+  <tr><td>课堂播放器</td><td>ClassroomPlayback + usePlayback（进度/场景切换）</td><td>播放器顶部与完成后加入口；进度传给法庭</td></tr>
+</table>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2>3. 核心设计：一个案件，两场庭审，一份报告</h2>
+<div class="card">
+  <p><strong>关键决策</strong>：课前与课后使用<b>同一个案件</b>（进入课前法庭时生成并冻结）。理由：</p>
+  <ul>
+    <li>两份判决针对同一案件才有可比性，AI 报告才能呈现「认知变化轨迹」</li>
+    <li>避免课后二次生成案件的随机性干扰评估</li>
+  </ul>
+  <p><strong>双阶段判定</strong>：</p>
+  <table>
+    <tr><th>阶段</th><th>触发条件</th><th>入口</th></tr>
+    <tr><td>🎭 课前法庭（PRE）</td><td>课堂存在 &amp; 学生尚未学完（progress != completed）</td><td>课堂列表卡片「🎭 模拟法庭」按钮</td></tr>
+    <tr><td>🎭 课后法庭（POST）</td><td>课堂 progress.status == completed（学完）</td><td>课堂列表卡片「🎭 模拟法庭」按钮（✅ 已确认：仅课堂列表卡片一处入口）</td></tr>
+  </table>
+  <div class="note">📌 允许学生在学完前先体验课前法庭（认知摸底）；学完后再开课后法庭。两次判决都提交后，报告入口自动出现。</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2>4. 模拟法庭状态机</h2>
+<div class="flow">
+  <span class="step">CASE_GENERATING 生成案例</span><span class="arrow">→</span>
+  <span class="step">OPENING 宣布开庭</span><span class="arrow">→</span>
+  <span class="step">HEARING 庭审对抗</span><span class="arrow">→</span>
+  <span class="step">JUDGMENT_READY 等待判决</span><span class="arrow">→</span>
+  <span class="step">JUDGED 已判决</span><span class="arrow">→</span>
+  <span class="step">REPORTED 报告生成</span>
+</div>
+<table>
+  <tr><th>状态</th><th>说明</th><th>由谁触发</th></tr>
+  <tr><td>CASE_GENERATING</td><td>AI 按课堂内容生成案件（事实/争议焦点/法条/原被告设定）</td><td>学生首次进入 → 系统调 LLM（约 10-20s）</td></tr>
+  <tr><td>OPENING</td><td>系统（书记员）宣读开庭词 + 案情简介，原告做首次陈述</td><td>案例生成完成自动进入</td></tr>
+  <tr><td>HEARING</td><td>庭审对抗：原告陈述 → 被告答辩 → 举证质证 → 法庭辩论；AI 交替扮演双方，学生以法官身份发言/提问/主持</td><td>庭审对话循环</td></tr>
+  <tr><td>JUDGMENT_READY</td><td>庭审结束，学生作为法官提交判决书（结构化：判决结果 + 理由）</td><td>学生点「提交判决」</td></tr>
+  <tr><td>JUDGED</td><td>判决书已保存；若两份判决（PRE+POST）齐全 → 报告可生成</td><td>判决提交后自动</td></tr>
+  <tr><td>REPORTED</td><td>AI 生成「两次判决分析报告」（认知变化/知识掌握/建议）</td><td>两份判决齐全后自动触发或手动生成</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2>5. 庭审对话引擎（AI 角色化）</h2>
+
+<h3>5.1 角色设定</h3>
+<table>
+  <tr><th>角色</th><th>扮演者</th><th>职责</th></tr>
+  <tr><td>🧑‍⚖️ 法官</td><td><b>学生</b></td><td>主持流程、向原被告提问、最终判决</td></tr>
+  <tr><td>⚖️ 原告（AI）</td><td>LLM（system prompt = 原告角色卡）</td><td>陈述主张、举证、回应法官与被告</td></tr>
+  <tr><td>⚖️ 被告（AI）</td><td>LLM（system prompt = 被告角色卡）</td><td>答辩、反驳、回应法官与原告</td></tr>
+  <tr><td>📜 书记员（系统）</td><td>前端+后端模板</td><td>开庭词、流程节点播报、庭审记录归档</td></tr>
+</table>
+
+<h3>5.2 AI 对抗机制</h3>
+<ul>
+  <li><b>角色切换</b>：每个角色持有独立 system prompt（角色卡：立场 + 性格 + 案件信息 + 庭审规则），用 <code>LLMService.chat()</code> 多轮调用</li>
+  <li><b>上下文</b>：每次调用携带「案件 + 全部庭审历史 + 最新发言对象」，保证记忆连贯</li>
+  <li><b>庭审节奏</b>（提示词约束 + 服务端编排）：
+    <div class="flow">
+      <span class="step">原告陈述</span><span class="arrow">→</span>
+      <span class="step">被告答辩</span><span class="arrow">→</span>
+      <span class="step">原告举证质证</span><span class="arrow">→</span>
+      <span class="step">被告反驳</span><span class="arrow">→</span>
+      <span class="step">法庭辩论（1-2 轮）</span><span class="arrow">→</span>
+      <span class="step">法官（学生）判决</span>
+    </div>
+  </li>
+  <li><b>法官自由度</b>：学生可随时发言打断（提问原告/被告、宣布进入下一环节、直接判决）；AI 被告知「法官的指令优先于流程」</li>
+</ul>
+
+<h3>5.3 消息模型</h3>
+<div class="msg msg-clerk">📜 书记员：现在开庭。原告赵某诉被告某公司名誉权纠纷一案……</div>
+<div class="msg msg-plaintiff">⚖️ 原告：法官大人，被告在公开平台发布不实言论，损害了我的名誉……</div>
+<div class="msg msg-defendant">⚖️ 被告：我方认为发布内容有事实依据，且属于合理评价……</div>
+<div class="msg msg-judge">🧑‍⚖️ 法官（你）：请原告出示证据原件。</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2>6. 数据模型（V21 迁移）</h2>
+<pre><code>-- ① 模拟法庭会话（每个学生每个课堂两个：PRE/POST）
+CREATE TABLE moot_court_sessions (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    classroom_id UUID NOT NULL REFERENCES classrooms(id),
+    student_id  UUID NOT NULL REFERENCES users(id),
+    phase       VARCHAR(8)  NOT NULL CHECK (phase IN ('PRE','POST')),
+    status      VARCHAR(20) NOT NULL DEFAULT 'CASE_GENERATING'
+                CHECK (status IN ('CASE_GENERATING','OPENING','HEARING',
+                                  'JUDGMENT_READY','JUDGED','REPORTED')),
+    case_content JSONB,               -- AI生成的案件：事实/争议焦点/法条/原被告设定
+    judgment    TEXT,                 -- 学生判决书（结构化 JSON：result + reason）
+    report      TEXT,                 -- AI 分析报告（两份判决对比）
+    stage_index INTEGER DEFAULT 0,    -- 当前庭审环节（0陈述/1答辩/2举证/3辩论/4判决）
+    created_at  TIMESTAMPTZ DEFAULT now(),
+    updated_at  TIMESTAMPTZ DEFAULT now(),
+    UNIQUE (classroom_id, student_id, phase)
+);
+
+-- ② 庭审消息（独立表，便于审计/分页/未来回放）
+CREATE TABLE moot_court_messages (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id  UUID NOT NULL REFERENCES moot_court_sessions(id) ON DELETE CASCADE,
+    role        VARCHAR(16) NOT NULL,  -- SYSTEM/CLERK/PLAINTIFF_AI/DEFENDANT_AI/JUDGE_STUDENT
+    content     TEXT NOT NULL,
+    round_seq   INTEGER NOT NULL,      -- 庭审轮次
+    created_at  TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_mcm_session ON moot_court_messages (session_id, round_seq);</code></pre>
+
+<h3>6.1 case_content JSON 结构</h3>
+<pre><code>{
+  "caseTitle": "王某诉某物业公司物业服务合同纠纷案",
+  "fact": "案件事实（案情叙述）……",
+  "disputes": ["争议焦点1：物业费调价是否合法", "争议焦点2：……"],
+  "legalPoints": ["相关法律知识/条文要点（从课堂内容提炼）"],
+  "plaintiff": { "name": "王某", "claim": "主张……" },
+  "defendant": { "name": "某物业公司", "defense": "抗辩……" },
+  "difficulty": 3
+}</code></pre>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2>7. API 设计</h2>
+<pre><code># ── 法庭会话 ──
+POST /api/moot-courts/{classroomId}/start?phase=PRE|POST
+     # 获取或创建法庭；首次进入触发案例生成（同步等待 LLM，约 10-20s）
+     # 返回 { sessionId, status, caseContent, messages:[...] }
+GET  /api/moot-courts/{classroomId}/session?phase=PRE|POST
+     # 查询会话（含案例/状态/消息列表/判决/报告状态）
+
+# ── 庭审对话（核心） ──
+POST /api/moot-courts/{classroomId}/message
+     Body: { phase, content }        # 法官（学生）发言
+     # 服务端编排：记录法官发言 → 决定轮到原告/被告 → 调 LLM 生成回应
+     # 返回 { messages: [法官发言, AI回应(原/被告)], stageIndex, nextSpeaker }
+     # 支持可选参数 action: "next_stage"（进入下一庭审环节，由书记员播报）
+
+# ── 判决与报告 ──
+POST /api/moot-courts/{classroomId}/judgment
+     Body: { phase, result, reason } # 判决结果 + 判决理由（结构化）
+POST /api/moot-courts/{classroomId}/report
+     # 生成分析报告（要求 PRE+POST 两份判决齐全；AI 对比生成）
+GET  /api/moot-courts/{classroomId}/report
+     # 获取报告（含两份判决 + 报告正文）</code></pre>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2>8. 前端设计</h2>
+
+<h3>8.1 入口（课堂播放器 + 课堂详情）</h3>
+<table>
+  <tr><th>位置</th><th>条件</th><th>行为</th></tr>
+  <tr><td>播放器顶部工具栏（新增「🎭 模拟法庭」按钮）</td><td>未学完 → 课前法庭</td><td>跳转 <code>/student/classroom/:id/court?phase=PRE</code></td></tr>
+  <tr><td>播放完成后的引导条（state 播完时）</td><td>已学完 → 课后法庭</td><td>跳转 <code>?phase=POST</code></td></tr>
+  <tr><td>课堂详情（ClassroomList 卡片操作区）</td><td>按进度状态显示 PRE/POST/报告入口</td><td>同上</td></tr>
+</table>
+
+<h3>8.2 法庭聊天室页（MootCourtRoom）</h3>
+<div class="diagram">┌────────────────────────────────────────────────┐
+│  🎭 王某诉某物业公司…案（课后法庭）  [进度: 庭审对抗]  │
+│  ┌───────────────┬──────────────────────────────┐  │
+│  │ 📋 案件卡      │ 💬 法庭聊天室                │  │
+│  │ · 案情摘要     │   📜 书记员：现在开庭…        │  │
+│  │ · 争议焦点×2   │   ⚖️ 原告：法官大人…          │  │
+│  │ · 法律要点×3   │   ⚖️ 被告：我方认为…          │  │
+│  │ · 原告/被告    │   🧑⚖️ 法官（你）：…          │  │
+│  │               │                              │  │
+│  ├───────────────┤  ┌──────────────────────────┐ │  │
+│  │ 📝 流程节点    │  │ 输入框：以法官身份发言      │ │  │
+│  │ 陈述/答辩/举证 │  │ [下一环节] [提交判决]       │ │  │
+│  │ /辩论/判决    │  └──────────────────────────┘ │  │
+│  └───────────────┴──────────────────────────────┘  │
+└────────────────────────────────────────────────┘</div>
+<ul>
+  <li><b>案件卡</b>：折叠面板展示 case_content（案情/争议焦点/法条/当事人设定）</li>
+  <li><b>聊天室</b>：气泡按角色着色（原告红/被告蓝/法官绿/书记员灰），支持自动滚动与「法官输入中…」等待态</li>
+  <li><b>快捷指令</b>：预设按钮——「请原告陈述」「请被告答辩」「进入举证环节」「进入辩论」「申请休庭讨论」等（作为法官发言模板）</li>
+  <li><b>提交判决</b>：结构化弹窗（判决结果单选：支持原告诉请/驳回/部分支持 + 理由文本框）</li>
+</ul>
+
+<h3>8.3 分析报告页（MootCourtReport）</h3>
+<ul>
+  <li>左右对比：课前判决 vs 课后判决（并排展示）</li>
+  <li>AI 报告三段式：<b>认知变化轨迹</b>（从课前到课后观点/理由变化）→ <b>知识掌握评估</b>（对照课堂知识点逐项）→ <b>学习建议</b></li>
+  <li>支持复制/下载报告文本</li>
+</ul>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2>9. 权限与数据归属</h2>
+<div class="card">
+  <ul>
+    <li>法庭会话按 <code>student_id</code> 隔离，学生只能访问自己的法庭</li>
+    <li>课堂未发布/不存在 → 不可进入</li>
+    <li>课后法庭判定以 <code>classroom_progress.status == completed</code> 为准（服务端校验，不信任前端）</li>
+    <li>报告生成前校验两份判决均存在</li>
+  </ul>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2>10. 实施计划（约 8 人天）</h2>
+<div class="card">
+<table>
+  <tr><th>里程碑</th><th>内容</th><th>估时</th></tr>
+  <tr><td>M1 数据底座</td><td>V21 迁移（moot_court_sessions + moot_court_messages）+ 实体/Repository/DTO</td><td>0.5 人天</td></tr>
+  <tr><td>M2 会话与案例</td><td>start/get 接口 + 案例生成（LLM askStructured，素材=课堂关联的知识点名称+内容）+ 进度判定</td><td>1.5 人天</td></tr>
+  <tr><td>M3 庭审对话引擎</td><td>message 接口 + 原/被告角色卡 + 多轮上下文 + 环节编排（stage_index）</td><td>2 人天</td></tr>
+  <tr><td>M4 判决与报告</td><td>judgment 接口 + report 生成（两份判决对比分析）</td><td>1 人天</td></tr>
+  <tr><td>M5 前端法庭聊天室</td><td>MootCourtRoom 页（案件卡/聊天室/快捷指令/判决弹窗）+ 课堂列表卡片入口 + 报告页</td><td>2 人天</td></tr>
+  <tr><td>M6 集成验证</td><td>课堂播放器入口 + 进度联动 + 端到端验证（课前→学习→课后→报告）</td><td>1 人天</td></tr>
+</table>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2>11. 风险与假设</h2>
+<div class="card">
+  <ul>
+    <li><b>R1 案例生成质量</b>：课堂内容若过短，AI 可能生成泛化案例 → 素材不足时提示「课堂内容较少，案例为通识性案件」</li>
+    <li><b>R2 LLM 角色一致性</b>：长对话中原被告可能串角色 → 系统 prompt 强约束 + 消息 role 前缀，必要时每次调用重新注入完整案件+历史</li>
+    <li><b>R3 庭审时长</b>：完整庭审需多轮 LLM 调用（每次 3-8s）→ 设置轮次上限（如每环节最多 2 轮），保证 10 分钟内完成</li>
+    <li><b>R4 报告对比失真</b>：若学生课前课后判决相同 → 报告明确说明「未发生认知变化」，避免强行解读</li>
+    <li><b>H1 假设</b>：课堂关联的知识点内容足以支撑案件生成 —— 若课堂未关联知识点，退化为「按课堂名 + 场景讲解文本」生成通识性案件</li>
+  </ul>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2>12. 待确认决策点</h2>
+
+<div class="decision">
+  <div class="q">① 课前/课后用同一案件？</div>
+  <div class="rec">✅ 已确认：同一案件（两份判决对比才有意义，报告可呈现成长轨迹）。</div>
+</div>
+<div class="decision">
+  <div class="q">② 庭审推进方式？</div>
+  <div class="rec">✅ 已确认：AI 自动推进 + 学生可干预（AI 每轮结尾提示下一环节；学生可随时发言或点「下一环节」）。</div>
+</div>
+<div class="decision">
+  <div class="q">③ 判决书形式？</div>
+  <div class="rec">✅ 已确认：结构化（判决结果单选：支持原告诉请 / 驳回诉讼请求 / 部分支持 + 理由文本框），便于报告对比。</div>
+</div>
+<div class="decision">
+  <div class="q">④ 报告生成时机？</div>
+  <div class="rec">✅ 已确认：两份判决齐全后，学生在报告页点击「生成报告」（LLM 约 15-25s），避免自动生成浪费。</div>
+</div>
+<div class="decision">
+  <div class="q">⑤ 案例生成素材范围？</div>
+  <div class="rec">✅ 已确认（调整）：以<b>课堂关联的知识点</b>为素材构造案例（知识点名称+内容 → AI 构造贴合知识点的案件）；课堂未关联知识点时退化为通识性案件。</div>
+</div>
+<div class="decision">
+  <div class="q">⑥ 入口位置？</div>
+  <div class="rec">✅ 已确认（调整）：<b>仅课堂列表卡片一处</b>（按进度状态显示 PRE/POST 按钮；不再加播放器内入口）。</div>
+</div>
+
+<div class="note">✅ 全部决策已确认（2026-08-06），按 M1→M6 开始实现。</div>
+
+</div>
+</body>
+</html>

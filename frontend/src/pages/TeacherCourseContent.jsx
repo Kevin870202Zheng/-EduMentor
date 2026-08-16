@@ -8,9 +8,9 @@ import {
   PlusOutlined, EditOutlined, DeleteOutlined, FileTextOutlined,
   BookOutlined, QuestionCircleOutlined, RobotOutlined,
   ApartmentOutlined, FolderOutlined, FolderOpenOutlined,
-  FileOutlined,
+  FileOutlined, ThunderboltOutlined,
 } from '@ant-design/icons';
-import { knowledgePointAPI, questionManageAPI, courseAPI } from '../services/api';
+import { knowledgePointAPI, questionManageAPI, courseAPI, themeAPI } from '../services/api';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -30,6 +30,23 @@ const DIFFICULTY_OPTIONS = [
   { label: '★★★☆☆ 中等', value: 3 },
   { label: '★★★★☆ 较难', value: 4 },
   { label: '★★★★★ 困难', value: 5 },
+];
+
+// 学段与认知深度选项（PRD v4.0 §5，教师端内容标注）
+const STAGE_NAMES = { PRIMARY: '小学', JUNIOR: '初中', SENIOR: '高中', UNIVERSITY: '大学' };
+const STAGE_COLORS = { PRIMARY: 'blue', JUNIOR: 'orange', SENIOR: 'green', UNIVERSITY: 'purple' };
+const STAGE_OPTIONS = [
+  { label: '🏫 小学', value: 'PRIMARY' },
+  { label: '📖 初中', value: 'JUNIOR' },
+  { label: '🟢 高中', value: 'SENIOR' },
+  { label: '🎓 大学', value: 'UNIVERSITY' },
+];
+const DEPTH_OPTIONS = [
+  { label: '深度1 · 识记', value: 1 },
+  { label: '深度2 · 理解', value: 2 },
+  { label: '深度3 · 应用', value: 3 },
+  { label: '深度4 · 分析', value: 4 },
+  { label: '深度5 · 评价', value: 5 },
 ];
 
 const DEFAULT_AI_COUNTS = {
@@ -82,6 +99,17 @@ const buildTreeData = (nodes, questionsMap) => {
                 color={typeConfig.color}>
                 {typeConfig.label}
               </Tag>
+              {kp.stage && (
+                <Tag style={{ marginLeft: 4, fontSize: 10, lineHeight: '16px' }}
+                  color={STAGE_COLORS[kp.stage] || 'default'}>
+                  {STAGE_NAMES[kp.stage] || kp.stage}
+                </Tag>
+              )}
+              {kp.depthLevel && (
+                <Tag style={{ marginLeft: 4, fontSize: 10, lineHeight: '16px' }}>
+                  深度{kp.depthLevel}
+                </Tag>
+              )}
               {qs.length > 0 && kp.type === 'LEAF' && (
                 <Text type="secondary" style={{ fontSize: 10 }}>({qs.length}题)</Text>
               )}
@@ -144,6 +172,11 @@ export default function TeacherCourseContent() {
   const [qKpId, setQKpId] = useState(null);
   const [qForm] = Form.useForm();
 
+  // 跨学段主题列表（知识点归属设置）
+  const [themes, setThemes] = useState([]);
+  // 一键标注学段
+  const [backfilling, setBackfilling] = useState(false);
+
   // AI 出题弹窗
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [aiKpId, setAiKpId] = useState(null);
@@ -158,7 +191,35 @@ export default function TeacherCourseContent() {
 
   useEffect(() => {
     loadData();
+    loadThemes();
   }, [courseCode]);
+
+  const loadThemes = async () => {
+    try {
+      const res = await themeAPI.getAll();
+      setThemes(res?.data || res || []);
+    } catch (err) {
+      setThemes([]);
+    }
+  };
+
+  // 一键标注学段：将课程学段回填到未标注的知识点（PRD v4.0 §10.4）
+  const handleBackfillStage = async () => {
+    if (!courseInfo?.id) return;
+    setBackfilling(true);
+    try {
+      const res = await courseAPI.backfillStage(courseInfo.id);
+      const data = res?.data || res;
+      message.success(
+        `标注完成：共 ${data.total} 个知识点，学段回填 ${data.updatedStage} 个，` +
+        `认知深度回填 ${data.updatedDepth} 个`
+      );
+      await loadData();
+    } catch (err) {
+      message.error(err.response?.data?.message || '标注失败：请先为课程设置学段');
+    }
+    setBackfilling(false);
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -220,6 +281,7 @@ export default function TeacherCourseContent() {
         subject: courseInfo.courseCode,
         type: 'LEAF',
         parentKpId: selectedKp?.id || null,
+        stage: courseInfo.stage || undefined,
       });
     }
     setKpModalOpen(true);
@@ -457,8 +519,22 @@ export default function TeacherCourseContent() {
   return (
     <div>
       {/* 顶部标题栏 */}
-      <Card title="📝 课程内容管理" extra={
+      <Card title={
         <Space>
+          <span>📝 课程内容管理</span>
+          {courseInfo?.stage ? (
+            <Tag color={STAGE_COLORS[courseInfo.stage] || 'blue'}>
+              {STAGE_NAMES[courseInfo.stage] || courseInfo.stage}学段
+            </Tag>
+          ) : (
+            <Tag color="orange">未设置学段 · 知识点无法按学段展示</Tag>
+          )}
+        </Space>
+      } extra={
+        <Space>
+          <Button icon={<ThunderboltOutlined />} onClick={handleBackfillStage} loading={backfilling}>
+            一键标注学段
+          </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreateKp}>新增知识点</Button>
           <Button icon={<ApartmentOutlined />} onClick={openTreeGenerate}
             loading={treeGenLoading}>🔄 生成树结构</Button>
@@ -618,6 +694,23 @@ export default function TeacherCourseContent() {
             </Form.Item>
             <Form.Item name="orderIndex" label="排序序号">
               <InputNumber min={0} style={{ width: 100 }} />
+            </Form.Item>
+          </Space>
+          <Space style={{ width: '100%' }}>
+            <Form.Item name="stage" label="学段" tooltip="留空则默认继承课程学段">
+              <Select options={STAGE_OPTIONS} style={{ width: 140 }} allowClear placeholder="继承课程学段" />
+            </Form.Item>
+            <Form.Item name="depthLevel" label="认知深度" tooltip="与难度正交：认知层次 1-5，留空则默认≈难度">
+              <Select options={DEPTH_OPTIONS} style={{ width: 180 }} allowClear placeholder="默认≈难度" />
+            </Form.Item>
+            <Form.Item name="themeId" label="所属主题">
+              <Select style={{ width: 210 }} allowClear placeholder="跨学段法律主题"
+                showSearch filterOption={(input, option) =>
+                  (option?.children || '').includes(input)}>
+                {themes.map(t => (
+                  <Select.Option key={t.id} value={t.id}>{t.icon || '📚'} {t.name}</Select.Option>
+                ))}
+              </Select>
             </Form.Item>
           </Space>
         </Form>

@@ -7,6 +7,8 @@ import lombok.Data;
  */
 @Data
 public class StudentProfileUpdateRequest {
+    /** 所属学段（PRIMARY/JUNIOR/SENIOR/UNIVERSITY），可选 */
+    private String stage;
     private String grade;
     private String className;
     private String major;

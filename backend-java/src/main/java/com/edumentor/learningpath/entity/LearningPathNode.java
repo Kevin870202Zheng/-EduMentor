@@ -48,6 +48,10 @@ public class LearningPathNode extends BaseEntity {
     @Column(name = "mastery_threshold")
     private Double masteryThreshold;
 
+    /** AI 选择理由（source=AI 时记录，供学生查看/异议） */
+    @Column(name = "ai_reason", columnDefinition = "text")
+    private String aiReason;
+
     public void markInProgress() {
         this.status = PathNodeStatus.IN_PROGRESS;
     }
@@ -73,6 +77,7 @@ public class LearningPathNode extends BaseEntity {
         dto.put("estimatedMinutes", estimatedMinutes);
         dto.put("actualMinutes", actualMinutes);
         dto.put("masteryThreshold", masteryThreshold);
+        dto.put("aiReason", aiReason);
         dto.put("createdAt", getCreatedAt());
         dto.put("updatedAt", getUpdatedAt());
         return dto;

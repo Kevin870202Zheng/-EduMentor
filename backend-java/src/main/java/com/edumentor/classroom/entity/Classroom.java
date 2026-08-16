@@ -30,8 +30,13 @@ public class Classroom extends BaseEntity {
     @Column(name = "course_id", nullable = false)
     private UUID courseId;
 
-    @Column(name = "knowledge_point_id", nullable = false)
+    /** 关联知识点（聚合/协作课堂可为空，见设计文档 §5.3） */
+    @Column(name = "knowledge_point_id")
     private UUID knowledgePointId;
+
+    /** 生成来源：knowledge（单知识点）/ multi_knowledge（多知识点聚合）/ collaborative（学段协作） */
+    @Column(nullable = false, length = 16)
+    private String source = "knowledge";
 
     @Column(nullable = false, length = 255)
     private String title;
@@ -65,6 +70,7 @@ public class Classroom extends BaseEntity {
         dto.put("id", getId());
         dto.put("courseId", courseId);
         dto.put("knowledgePointId", knowledgePointId);
+        dto.put("source", source);
         dto.put("title", title);
         dto.put("description", description);
         dto.put("difficulty", difficulty);

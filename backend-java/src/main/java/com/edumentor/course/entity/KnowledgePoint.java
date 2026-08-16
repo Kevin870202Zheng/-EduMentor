@@ -59,6 +59,22 @@ public class KnowledgePoint extends BaseEntity {
     @Column(name = "order_index")
     private Integer orderIndex = 0;
 
+    /** 所属学段：PRIMARY / JUNIOR / SENIOR / UNIVERSITY（PRD v4.0 §15） */
+    @Column(length = 16)
+    private String stage;
+
+    /** 认知深度等级 1-5（与 difficulty 正交：depth=认知层次，difficulty=学习难度） */
+    @Column(name = "depth_level")
+    private Integer depthLevel = 1;
+
+    /** 所属跨学段主题（subject_themes.id） */
+    @Column(name = "theme_id")
+    private UUID themeId;
+
+    /** 学段内排序 */
+    @Column(name = "stage_order")
+    private Integer stageOrder = 0;
+
     @Override
     public Map<String, Object> toDto() {
         Map<String, Object> dto = new HashMap<>();
@@ -75,6 +91,10 @@ public class KnowledgePoint extends BaseEntity {
         dto.put("type", type);
         dto.put("sequencePath", sequencePath);
         dto.put("orderIndex", orderIndex);
+        dto.put("stage", stage);
+        dto.put("depthLevel", depthLevel);
+        dto.put("themeId", themeId);
+        dto.put("stageOrder", stageOrder);
         dto.put("createdAt", getCreatedAt());
         dto.put("updatedAt", getUpdatedAt());
         return dto;

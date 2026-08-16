@@ -29,5 +29,8 @@ public class CourseCreateRequest {
     @NotBlank(message = "适用年级不能为空")
     private String gradeLevel;
 
+    /** 所属学段（PRIMARY/JUNIOR/SENIOR/UNIVERSITY），可选 */
+    private String stage;
+
     private String coverUrl;
 }

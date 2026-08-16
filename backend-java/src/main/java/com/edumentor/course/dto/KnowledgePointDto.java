@@ -24,6 +24,10 @@ import java.util.UUID;
  * @param type         节点类型（VOLUME/PART/CHAPTER/SECTION/LEAF）
  * @param sequencePath 路径编号（如 "1.2.3"）
  * @param orderIndex  排序序号
+ * @param stage       所属学段（PRIMARY/JUNIOR/SENIOR/UNIVERSITY）
+ * @param depthLevel  认知深度（1-5，与 difficulty 正交）
+ * @param themeId     所属跨学段主题 ID
+ * @param stageOrder  学段内排序
  * @param createdAt   创建时间
  * @param updatedAt   更新时间
  *
@@ -44,6 +48,10 @@ public record KnowledgePointDto(
         String type,
         String sequencePath,
         int orderIndex,
+        String stage,
+        int depthLevel,
+        UUID themeId,
+        int stageOrder,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
@@ -68,6 +76,10 @@ public record KnowledgePointDto(
                 entity.getType(),
                 entity.getSequencePath(),
                 entity.getOrderIndex(),
+                entity.getStage(),
+                entity.getDepthLevel(),
+                entity.getThemeId(),
+                entity.getStageOrder(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
         );

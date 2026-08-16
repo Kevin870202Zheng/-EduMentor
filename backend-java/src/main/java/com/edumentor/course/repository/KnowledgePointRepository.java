@@ -61,4 +61,56 @@ public interface KnowledgePointRepository extends JpaRepository<KnowledgePoint, 
      * @return 匹配的知识点列表
      */
     List<KnowledgePoint> findByIdIn(List<UUID> ids);
+
+    /**
+     * 按学段查询知识点。
+     *
+     * @param stage 学段代码（PRIMARY/JUNIOR/SENIOR/UNIVERSITY）
+     * @return 知识点列表
+     */
+    List<KnowledgePoint> findByStage(String stage);
+
+    /**
+     * 按主题查询知识点（PRD v4.0：主题下按 stage+depth 分层）。
+     *
+     * @param themeId 主题 ID
+     * @return 知识点列表
+     */
+    List<KnowledgePoint> findByThemeId(UUID themeId);
+
+    /**
+     * 按主题 + 学段查询知识点（知识阶梯核心查询）。
+     *
+     * @param themeId 主题 ID
+     * @param stage   学段代码
+     * @return 知识点列表（按学段内排序）
+     */
+    List<KnowledgePoint> findByThemeIdAndStageOrderByStageOrderAsc(UUID themeId, String stage);
+
+    /**
+     * 按主题 + 学段 + 深度查询知识点。
+     *
+     * @param themeId    主题 ID
+     * @param stage      学段代码
+     * @param depthLevel 认知深度 1-5
+     * @return 知识点列表
+     */
+    List<KnowledgePoint> findByThemeIdAndStageAndDepthLevel(UUID themeId, String stage, Integer depthLevel);
+
+    /**
+     * 按主题统计知识点数量。
+     *
+     * @param themeId 主题 ID
+     * @return 知识点数量
+     */
+    long countByThemeId(UUID themeId);
+
+    /**
+     * 按主题 + 学段统计知识点数量（ThemeGrid 卡片计数）。
+     *
+     * @param themeId 主题 ID
+     * @param stage   学段代码
+     * @return 知识点数量
+     */
+    long countByThemeIdAndStage(UUID themeId, String stage);
 }
