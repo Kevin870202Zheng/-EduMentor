@@ -75,6 +75,12 @@ export function usePlayback(classroomId: string) {
       case 'wb_draw_text':
       case 'wb_draw_diagram': return 3000;
       case 'code_demo': return 4000;
+      case 'show_slide': return 4000;
+      case 'launch_widget': return 3000;
+      case 'widget_highlight':
+      case 'widget_set_state':
+      case 'widget_annotate':
+      case 'widget_reveal': return 5000;
       default: return 3000;
     }
   }, []);

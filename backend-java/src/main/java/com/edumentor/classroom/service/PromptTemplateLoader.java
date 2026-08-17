@@ -11,6 +11,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -78,15 +80,50 @@ public class PromptTemplateLoader {
      * 用变量替换模板中的 {{variable}} 占位符。
      */
     private String render(String template, Map<String, String> variables) {
-        if (variables == null || variables.isEmpty()) {
-            return template;
+        if (template == null) {
+            return "";
         }
         String result = template;
-        for (Map.Entry<String, String> entry : variables.entrySet()) {
-            String placeholder = "{{" + entry.getKey() + "}}";
-            String value = entry.getValue() != null ? entry.getValue() : "";
-            result = result.replace(placeholder, value);
+        // 1. 递归展开 {{include:path}} 子模板引用（先于变量替换，避免子模板内变量无法替换）
+        result = expandIncludes(result, 0);
+        // 2. 变量替换
+        if (variables != null && !variables.isEmpty()) {
+            for (Map.Entry<String, String> entry : variables.entrySet()) {
+                String placeholder = "{{" + entry.getKey() + "}}";
+                String value = entry.getValue() != null ? entry.getValue() : "";
+                result = result.replace(placeholder, value);
+            }
         }
         return result;
     }
+
+    /**
+     * 递归展开 {{include:path}} 占位符，将子模板（如 rules/slide-layout-rules.md）内联进主模板。
+     */
+    private String expandIncludes(String template, int depth) {
+        if (template == null || depth > 8) {
+            return template;
+        }
+        Matcher matcher = INCLUDE_PATTERN.matcher(template);
+        StringBuffer sb = new StringBuffer();
+        boolean found = false;
+        while (matcher.find()) {
+            found = true;
+            String includePath = matcher.group(1);
+            String included = readTemplate(includePath);
+            if (included == null) {
+                log.warn("Include template not found: {}", includePath);
+                included = "";
+            }
+            matcher.appendReplacement(sb, Matcher.quoteReplacement(included));
+        }
+        if (!found) {
+            return template;
+        }
+        matcher.appendTail(sb);
+        // 递归展开子模板内部的 include
+        return expandIncludes(sb.toString(), depth + 1);
+    }
+
+    private static final Pattern INCLUDE_PATTERN = Pattern.compile("\\{\\{include:([^}]+)}}");
 }

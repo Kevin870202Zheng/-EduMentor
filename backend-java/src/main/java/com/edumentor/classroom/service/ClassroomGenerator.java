@@ -210,6 +210,14 @@ public class ClassroomGenerator {
 
             SceneContent content = contentGenerator.generate(outline, material.getDifficulty(), material.getTitle(), contentExtra);
 
+            // 结构校验与降级：slides/widget 等新结构不合格时就地修复，不中断生成
+            if (!SceneContentValidator.isValid(content)) {
+                List<String> problems = SceneContentValidator.validate(content);
+                log.warn("Scene content structure invalid, sanitizing. scene={}, problems={}",
+                        outline.getTitle(), problems);
+                SceneContentValidator.sanitize(content);
+            }
+
             // 保存场景
             Scene scene = new Scene();
             scene.setClassroomId(classroom.getId());
@@ -245,6 +253,12 @@ public class ClassroomGenerator {
                     }
                     if (actionDto.getWbContent() != null) params.put("wbContent", actionDto.getWbContent());
                     if (actionDto.getWbStyle() != null) params.put("wbStyle", actionDto.getWbStyle());
+                    if (actionDto.getLayoutId() != null) params.put("layoutId", actionDto.getLayoutId());
+                    if (actionDto.getSpeech() != null) params.put("speech", actionDto.getSpeech());
+                    if (actionDto.getWidgetKey() != null) params.put("widgetKey", actionDto.getWidgetKey());
+                    if (actionDto.getIntro() != null) params.put("intro", actionDto.getIntro());
+                    if (actionDto.getTarget() != null) params.put("target", actionDto.getTarget());
+                    if (actionDto.getState() != null) params.put("state", actionDto.getState());
                     if (actionDto.getParams() != null) params.putAll(actionDto.getParams());
                     action.setParamsJson(toJson(params));
 

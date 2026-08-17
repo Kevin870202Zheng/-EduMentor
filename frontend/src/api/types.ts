@@ -9,6 +9,12 @@ export type ActionType =
   | 'speech_with_highlight'
   | 'wb_draw_text'
   | 'wb_draw_diagram'
+  | 'show_slide'
+  | 'launch_widget'
+  | 'widget_highlight'
+  | 'widget_set_state'
+  | 'widget_annotate'
+  | 'widget_reveal'
   | 'quiz'
   | 'discussion'
   | 'scene_transition'
@@ -31,6 +37,73 @@ export interface ActionDTO {
   // 白板专用
   wbContent?: string;
   wbStyle?: string;
+  // 幻灯片专用（show_slide）
+  layoutId?: string;
+  speech?: string;
+  // 交互组件专用（launch_widget / widget_*）
+  widgetKey?: string;
+  intro?: string;
+  target?: string;
+  state?: Record<string, any>;
+}
+
+/** 幻灯片元素（PPT 卡片中的可视化元素） */
+export interface SlideElement {
+  id: string;
+  kind: 'text' | 'shape' | 'line' | 'chart' | 'latex';
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  // text
+  content?: string;
+  fontSize?: number;
+  color?: string;
+  align?: 'left' | 'center' | 'right';
+  bold?: boolean;
+  // shape
+  shape?: 'rect' | 'circle' | 'round';
+  fill?: string;
+  radius?: number;
+  label?: string;
+  // line
+  from?: [number, number];
+  to?: [number, number];
+  arrow?: boolean;
+  dashed?: boolean;
+  // chart
+  chartType?: 'bar' | 'line' | 'pie' | 'radar';
+  data?: { labels?: string[]; series?: number[][]; legends?: string[] };
+  themeColors?: string[];
+  // latex
+  latex?: string;
+}
+
+/** 幻灯片布局（一页） */
+export interface SlideLayout {
+  layoutId: string;
+  title?: string;
+  elements: SlideElement[];
+}
+
+/** 交互组件配置 */
+export interface WidgetConfig {
+  variables?: Array<{ name: string; label: string; min?: number; max?: number; default?: number }>;
+  targets?: string[];
+}
+
+/** 交互组件（interactive 场景） */
+export interface WidgetPayload {
+  subtype: 'simulation' | 'game' | 'explore';
+  title?: string;
+  config?: WidgetConfig;
+  html: string;
+}
+
+/** 总结思维导图（review 场景） */
+export interface SummaryMap {
+  root: string;
+  branches: Array<{ label: string; children?: string[]; color?: string }>;
 }
 
 /** 教学场景详情 */

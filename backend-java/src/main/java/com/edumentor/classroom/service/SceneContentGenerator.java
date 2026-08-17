@@ -113,6 +113,12 @@ public class SceneContentGenerator {
                 contentMap.put("knowledgeMap", km);
             }
             if (cn.has("takeawayMessage")) contentMap.put("takeawayMessage", cn.get("takeawayMessage").asText());
+            // 幻灯片布局（slide/review 场景）
+            if (cn.has("slides")) contentMap.put("slides", cn.get("slides").toString());
+            // 交互组件（interactive 场景）
+            if (cn.has("widget")) contentMap.put("widget", cn.get("widget").toString());
+            // 总结思维导图（review 场景）
+            if (cn.has("summaryMap")) contentMap.put("summaryMap", cn.get("summaryMap").toString());
         }
 
         List<ActionDTO> actions = new ArrayList<>();
@@ -156,6 +162,15 @@ public class SceneContentGenerator {
         if (node.has("explanation")) b.explanation(node.get("explanation").asText());
         if (node.has("topic")) b.topic(node.get("topic").asText());
         if (node.has("prompt")) b.prompt(node.get("prompt").asText());
+        // 幻灯片/交互组件字段
+        if (node.has("layoutId")) b.layoutId(node.get("layoutId").asText());
+        if (node.has("speech")) b.speech(node.get("speech").asText());
+        if (node.has("widgetKey")) b.widgetKey(node.get("widgetKey").asText());
+        if (node.has("intro")) b.intro(node.get("intro").asText());
+        if (node.has("target")) b.target(node.get("target").asText());
+        if (node.has("state") && node.get("state").isObject()) {
+            b.state(objectMapper.convertValue(node.get("state"), Map.class));
+        }
         return b.build();
     }
 

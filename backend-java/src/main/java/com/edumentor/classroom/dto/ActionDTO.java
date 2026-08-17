@@ -37,4 +37,14 @@ public class ActionDTO {
     // 白板专用
     private String wbContent;
     private String wbStyle;
+
+    // 幻灯片专用（show_slide）
+    private String layoutId;
+    private String speech;
+
+    // 交互组件专用（launch_widget / widget_*）
+    private String widgetKey;
+    private String intro;
+    private String target;
+    private Map<String, Object> state;
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   Button,
@@ -22,6 +22,7 @@ import TeacherAvatar from './components/TeacherAvatar';
 import { PRESET_TEACHERS } from './components/TeacherAvatar';
 import SceneSidebar from './components/SceneSidebar';
 import type { PlaybackState } from './usePlayback';
+import type { WidgetPayload } from '../../api/types';
 
 const { Text, Title } = Typography;
 
@@ -55,6 +56,16 @@ const ClassroomPlayback: React.FC = () => {
   } = playback;
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // 当前场景已装载的交互组件（widget_* 动作复用，场景切换时重置）
+  const [activeWidget, setActiveWidget] = useState<WidgetPayload | null>(null);
+  const widgetFrameRef = useRef<HTMLIFrameElement | null>(null);
+
+  // 切换场景时重置交互组件状态
+  useEffect(() => {
+    setActiveWidget(null);
+    widgetFrameRef.current = null;
+  }, [currentSceneIndex]);
 
   // 判断当前 speech 是否正在 TTS 播放中（用于波形动画）
   const isSpeaking =
@@ -207,6 +218,10 @@ const ClassroomPlayback: React.FC = () => {
                   disabled={state !== 'playing'}
                   isSpeaking={isSpeaking}
                   onAdvance={nextAction}
+                  sceneContent={currentScene?.content}
+                  activeWidget={activeWidget}
+                  widgetFrameRef={widgetFrameRef}
+                  onWidgetLaunched={setActiveWidget}
                 />
               ) : (
                 <div style={{ textAlign: 'center', padding: 48, color: '#999' }}>

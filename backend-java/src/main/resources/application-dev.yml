@@ -26,7 +26,8 @@ jwt:
 llm:
   provider: DEEPSEEK
   deepseek:
-    api-key: sk-REPLACED_DEEPSEEK_KEY
+    api-key: ${DEEPSEEK_API_KEY:}
+    api-base: ${DEEPSEEK_API_BASE:https://api.deepseek.com}
 
 logging:
   level:

@@ -419,6 +419,17 @@ public class ClassroomService {
         String topic = params.getOrDefault("topic", "").toString();
         String prompt = params.getOrDefault("prompt", "").toString();
 
+        // 提取幻灯片/交互组件字段
+        String layoutId = params.getOrDefault("layoutId", "").toString();
+        String speech = params.getOrDefault("speech", "").toString();
+        String widgetKey = params.getOrDefault("widgetKey", "").toString();
+        String intro = params.getOrDefault("intro", "").toString();
+        String target = params.getOrDefault("target", "").toString();
+        Map<String, Object> state = null;
+        if (params.get("state") instanceof Map) {
+            state = (Map<String, Object>) params.get("state");
+        }
+
         return ActionDTO.builder()
                 .type(action.getActionType())
                 .text(text)
@@ -433,6 +444,12 @@ public class ClassroomService {
                 .prompt(prompt.isEmpty() && !params.containsKey("prompt") ? null : prompt)
                 .wbContent(params.getOrDefault("wbContent", "").toString())
                 .wbStyle(params.getOrDefault("wbStyle", "").toString())
+                .layoutId(layoutId.isEmpty() && !params.containsKey("layoutId") ? null : layoutId)
+                .speech(speech.isEmpty() && !params.containsKey("speech") ? null : speech)
+                .widgetKey(widgetKey.isEmpty() && !params.containsKey("widgetKey") ? null : widgetKey)
+                .intro(intro.isEmpty() && !params.containsKey("intro") ? null : intro)
+                .target(target.isEmpty() && !params.containsKey("target") ? null : target)
+                .state(state)
                 .build();
     }
 
