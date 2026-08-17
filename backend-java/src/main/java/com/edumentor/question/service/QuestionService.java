@@ -3,6 +3,7 @@ package com.edumentor.question.service;
 import com.edumentor.common.exception.DuplicateResourceException;
 import com.edumentor.common.exception.ResourceNotFoundException;
 import com.edumentor.common.exception.ValidationException;
+import com.edumentor.course.repository.KnowledgePointRepository;
 import com.edumentor.question.dto.QuestionCreateRequest;
 import com.edumentor.question.dto.QuestionDto;
 import com.edumentor.question.dto.QuestionUpdateRequest;
@@ -27,10 +28,14 @@ public class QuestionService {
     private static final Logger log = LoggerFactory.getLogger(QuestionService.class);
 
     private final QuestionRepository questionRepository;
+    private final KnowledgePointRepository knowledgePointRepository;
     private final ObjectMapper objectMapper;
 
-    public QuestionService(QuestionRepository questionRepository, ObjectMapper objectMapper) {
+    public QuestionService(QuestionRepository questionRepository,
+                           KnowledgePointRepository knowledgePointRepository,
+                           ObjectMapper objectMapper) {
         this.questionRepository = questionRepository;
+        this.knowledgePointRepository = knowledgePointRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -74,6 +79,14 @@ public class QuestionService {
 
     @Transactional(readOnly = true)
     public List<QuestionDto> listQuestionsByKnowledgePoint(UUID kpId) {
+        // 目录节点（非 LEAF）只做导航，不承载练习题（设计文档 §3.3）
+        // 即使历史数据存在误挂在目录节点上的题目，学生端也不展示
+        boolean isLeaf = knowledgePointRepository.findById(kpId)
+                .map(kp -> "LEAF".equals(kp.getType()))
+                .orElse(false);
+        if (!isLeaf) {
+            return List.of();
+        }
         return questionRepository.findByKnowledgePointId(kpId).stream()
                 .map(QuestionDto::fromEntity)
                 .toList();

@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>课堂学习模块优化：目录节点导航化 + 仲裁人案例分析（模拟仲裁）— 设计文档</title>
+<style>
+  :root { --primary:#1677ff; --success:#52c41a; --warn:#faad14; --danger:#ff4d4f; --bg:#f6f8fb; --card:#fff; --border:#e5e8ef; --text:#1f2329; --text2:#5a6472; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--text); line-height:1.7; padding:24px; }
+  .container { max-width:1080px; margin:0 auto; }
+  header { background:linear-gradient(135deg,#1d39c4,#1677ff); color:#fff; border-radius:16px; padding:32px 40px; margin-bottom:24px; }
+  header h1 { font-size:26px; margin-bottom:8px; }
+  header .meta { opacity:.85; font-size:13px; display:flex; gap:16px; flex-wrap:wrap; }
+  header .version { background:rgba(255,255,255,.2); padding:2px 10px; border-radius:20px; font-size:12px; }
+  section { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:28px 32px; margin-bottom:20px; }
+  h2 { font-size:20px; margin-bottom:16px; padding-left:12px; border-left:4px solid var(--primary); }
+  h3 { font-size:16px; margin:20px 0 10px; color:#1d39c4; }
+  h4 { font-size:14px; margin:14px 0 8px; }
+  p { margin-bottom:10px; color:var(--text2); }
+  ul,ol { margin:8px 0 12px 22px; color:var(--text2); }
+  li { margin-bottom:6px; }
+  table { width:100%; border-collapse:collapse; margin:12px 0 16px; font-size:13px; }
+  th { background:#f0f4fb; text-align:left; padding:9px 12px; border:1px solid var(--border); font-weight:600; }
+  td { padding:8px 12px; border:1px solid var(--border); color:var(--text2); vertical-align:top; }
+  code { background:#f0f4fb; border:1px solid #e2e8f0; border-radius:4px; padding:1px 6px; font-size:12.5px; font-family:"SF Mono",Consolas,monospace; }
+  pre { background:#0f172a; color:#e2e8f0; border-radius:8px; padding:16px 18px; overflow-x:auto; font-size:12.5px; line-height:1.65; margin:10px 0; }
+  pre code { background:none; border:none; padding:0; color:inherit; }
+  .tag { display:inline-block; padding:1px 10px; border-radius:20px; font-size:12px; margin-right:6px; }
+  .tag-blue { background:#e6f4ff; color:#0958d9; }
+  .tag-green { background:#f6ffed; color:#389e0d; }
+  .tag-orange { background:#fff7e6; color:#d46b08; }
+  .tag-red { background:#fff1f0; color:#cf1322; }
+  .tag-purple { background:#f9f0ff; color:#722ed1; }
+  .callout { border-radius:8px; padding:14px 18px; margin:12px 0; font-size:14px; }
+  .callout-info { background:#e6f4ff; border-left:4px solid #1677ff; }
+  .callout-warn { background:#fff7e6; border-left:4px solid #faad14; }
+  .callout-ok { background:#f6ffed; border-left:4px solid #52c41a; }
+  .callout-danger { background:#fff1f0; border-left:4px solid #ff4d4f; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media (max-width:768px){ .grid2 { grid-template-columns:1fr; } }
+  .flow { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:12px 0; }
+  .flow .step { background:#f0f4fb; border:1px solid #d5deeb; border-radius:8px; padding:6px 14px; font-size:13px; }
+  .flow .arrow { color:#bbb; }
+  .mermaid-like { background:#fafbfd; border:1px dashed #c5d0e0; border-radius:8px; padding:16px 20px; font-family:monospace; font-size:13px; color:#33415c; white-space:pre; overflow-x:auto; }
+  .toggle-badge { font-weight:600; }
+  footer { text-align:center; color:#98a1b3; font-size:12px; margin-top:24px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>📖 课堂学习模块优化：目录节点导航化 + 仲裁人案例分析（模拟仲裁）</h1>
+  <div class="meta">
+    <span class="version">v1.0 · 设计稿</span>
+    <span>EduMentor</span>
+    <span>2026-08-16</span>
+    <span>状态：待评审</span>
+  </div>
+</header>
+
+<!-- ═════════════════ 一、需求背景 ═════════════════ -->
+<section>
+  <h2>一、需求背景与目标</h2>
+  <p>用户在使用课堂学习模块时提出两项优化/新增需求：</p>
+
+  <h3>需求 1：知识树目录节点「纯导航化」</h3>
+  <div class="callout callout-warn">
+    <strong>反馈原文：</strong>「课堂学习中，知识点上边有『编、章、节』等目录，目前这些目录下面也像知识点一样有题目，显得很突兀。最好是这些目录型节点，下面只展示具体的知识点或章节目录名字，不需要有练习题等和知识点一样的功能，人看了会迷惑。」
+  </div>
+  <p><strong>目标：</strong>目录节点（编/章/节）与知识点（LEAF）在交互上彻底区分——目录节点是纯导航容器，点击后展示其下子目录/知识点清单；练习题等学习功能仅保留在 LEAF 知识点层级。</p>
+
+  <h3>需求 2：新增「仲裁人案例分析（模拟仲裁）」功能</h3>
+  <div class="callout callout-info">
+    <strong>反馈原文（摘要）：</strong>「开始一节的学习前，学生可作为仲裁人完成一份案例分析，按庭审程序主动提问，AI 被设定为无法律基础的普通老百姓（例如：小宇诉晨光玩具店买卖合同纠纷案——原告是『小宇爸爸』，被告是玩具店张老板，双方都用非专业的直观感受表达诉求，AI 要降智）。完成一节学习后，需再次对该案进行模拟裁决，并生成两次模拟裁决的分析报告。这个功能就加载在课堂学习模块。」
+  </div>
+  <p><strong>目标：</strong>在每个知识点（一课）的学习流程中嵌入「课前案例分析 → 学习 → 课后案例分析 → 双裁决对比报告」的完整闭环，帮助学生通过角色扮演理解法律知识。</p>
+</section>
+
+<!-- ═════════════════ 二、现状核查 ═════════════════ -->
+<section>
+  <h2>二、现状核查（代码实况）</h2>
+  <p>对现有代码逐项核查后的结论：</p>
+
+  <table>
+    <tr><th style="width:24%">核查项</th><th style="width:14%">结论</th><th>说明</th></tr>
+    <tr>
+      <td>知识点类型体系</td>
+      <td><span class="tag tag-green">就绪</span></td>
+      <td><code>knowledge_points.type</code> 支持 <code>VOLUME/PART/CHAPTER/SECTION/LEAF</code>（V12 迁移），<code>KnowledgePointDto</code> 已含 <code>type</code> 字段，前端可据此区分目录节点与 LEAF</td>
+    </tr>
+    <tr>
+      <td>目录节点点击后的行为</td>
+      <td><span class="tag tag-red">问题根因</span></td>
+      <td><code>StudentLearning.jsx</code> 中 <code>knowledgePoints</code> = <code>getKpsByCourse</code> 返回<strong>全部节点（含目录）</strong>；点击任意节点都会执行 <code>loadQuestions(kpId)</code> → <code>GET /v1/questions?knowledgePointId=</code>，若数据库中有题目直接挂在目录节点上，右侧便出现练习题——目录节点被当成了"课"</td>
+    </tr>
+    <tr>
+      <td>题目查询后端逻辑</td>
+      <td><span class="tag tag-orange">需防御</span></td>
+      <td><code>QuestionService.listQuestionsByKnowledgePoint</code> = <code>findByKnowledgePointId</code> 精确匹配，本身不做目录/LEAF 区分；建议对非 LEAF 节点直接返回空列表（防御历史误挂数据）</td>
+    </tr>
+    <tr>
+      <td>掌握度计算</td>
+      <td><span class="tag tag-green">就绪</span></td>
+      <td><code>masteryLevel = 答对次数 / 答题总数</code>（answer_records 聚合）。无显式"学习完成"标记；页面进度条已用 <code>mastery ≥ 0.5</code> 判定"已学习"，可复用作课后仲裁准入标准</td>
+    </tr>
+    <tr>
+      <td>v1 模拟法庭（法官模式）</td>
+      <td><span class="tag tag-blue">可复用</span></td>
+      <td>已有完整实现：<code>moot_court_sessions/messages</code> 表（V21/V22）、<code>MootCourtService</code>（案例生成/对话/判决/报告）、<code>MootCourtRoom.tsx</code>（聊天室 UI）、<code>courtApi.ts</code>。入口已隐藏，代码保留。其对话引擎、结构化输出、报告模板均可作为 v2 仲裁模式的参考底座</td>
+    </tr>
+    <tr>
+      <td>v1 与 v2 的差异</td>
+      <td><span class="tag tag-orange">需新建</span></td>
+      <td>维度不同（v1=课堂 classroomId，v2=知识点 kpId）；角色不同（v1=法官+专业原被告，v2=仲裁人+普通老百姓）；提示词体系不同（v1 引用法条，v2 需降智）。建议<strong>新建独立表 + 独立服务</strong>，不污染 v1 数据与代码</td>
+    </tr>
+  </table>
+</section>
+
+<!-- ═════════════════ 三、需求1 设计 ═════════════════ -->
+<section>
+  <h2>三、需求 1：知识树目录节点「纯导航化」</h2>
+
+  <h3>3.1 改造思路</h3>
+  <p>核心原则：<strong>目录节点只做导航，LEAF 节点才承载学习。</strong>改动集中在前端 <code>StudentLearning.jsx</code>，后端加一道防御性校验。</p>
+
+  <div class="mermaid-like">
+┌─ 知识结构树（左侧）────────────────────────────┐
+│ 1 第一编 法律总论 [目录]                       │
+│   ├─ 1.1 第一章 法的概念 [目录]                │
+│   │    ├─ 1.1.1 第一节 法的本质 [目录]          │
+│   │    │    ├─ 法的定义            ← LEAF 可学习│
+│   │    │    ├─ 法的特征            ← LEAF 可学习│
+│   │    │    └─ ...                            │
+└───────────────────────────────────────────────┘
+
+点击「第一章 法的概念」→ 右侧展示【目录视图】：
+┌─ 目录：第一章 法的概念 ────────────────────────┐
+│ 📁 第一节 法的本质          → 点击进入该节目录   │
+│ 📁 第二节 法的价值          → 点击进入该节目录   │
+│ 📄 法的定义                 → 点击直接学习       │
+│ 📄 法的特征                 → 点击直接学习       │
+│ ...（仅列出直属子节点，无练习题、无学习内容）    │
+└───────────────────────────────────────────────┘
+  </div>
+
+  <h3>3.2 前端改造明细（StudentLearning.jsx）</h3>
+  <table>
+    <tr><th style="width:26%">改造点</th><th>说明</th></tr>
+    <tr>
+      <td>选中节点分类</td>
+      <td>在 <code>handleTreeSelect</code> 中读取选中节点的 <code>type</code>：<code>LEAF</code> → 走现有"第 N 课"渲染；<code>VOLUME/PART/CHAPTER/SECTION</code> → 渲染<strong>目录视图</strong>，<strong>不调用</strong> <code>loadQuestions</code>，不设置"学习内容/练习题/出题考核/智慧课堂"等学习功能</td>
+    </tr>
+    <tr>
+      <td>新增 DirectoryView 组件</td>
+      <td>展示当前目录节点的：① 面包屑路径（返回上级入口）；② 直属子节点清单（图标 + 名称 + 子节点数）；③ 子节点类型区分：目录节点可点击进入其目录视图，LEAF 节点可点击直接进入学习（设置 currentKp 并加载题目）；④ 无子节点时的空状态提示</td>
+    </tr>
+    <tr>
+      <td>"上一课 / 下一课"导航</td>
+      <td><code>switchKp</code> 改为<strong>只在 LEAF 节点间</strong>跳转（跳过目录节点），避免"下一课"跳到目录视图</td>
+    </tr>
+    <tr>
+      <td>知识树选中高亮</td>
+      <td>目录节点被选中时同样高亮（视觉反馈），但右侧内容为目录视图而非学习视图</td>
+    </tr>
+    <tr>
+      <td>目录视图不渲染的内容</td>
+      <td>不显示「第 N 课」标题、学习内容卡、练习题 Tabs（练习题/待考核/我出的题）、掌握度圆圈、「去课堂生成」「出题考核」按钮——目录节点上这些功能全部隐藏</td>
+    </tr>
+  </table>
+
+  <h3>3.3 后端防御性改造（QuestionController）</h3>
+  <div class="callout callout-ok">
+    <strong>改动：</strong><code>QuestionService.listQuestionsByKnowledgePoint</code> 增加校验——若目标知识点 <code>type != 'LEAF'</code>，直接返回空列表。<br>
+    <strong>目的：</strong>即使历史数据存在误挂在目录节点上的题目（教师 AI 出题误挂），学生端也不会再看到；教师端习题管理按知识点查询时同样生效，逻辑一致不冲突。
+  </div>
+
+  <h3>3.4 验收标准</h3>
+  <ul>
+    <li>点击任何目录节点（编/章/节），右侧只展示子节点清单，<strong>绝不出现练习题、学习内容、出题考核</strong></li>
+    <li>点击 LEAF 知识点，行为与现在完全一致（学习内容 + 练习题）</li>
+    <li>目录视图中的 LEAF 子项可一键进入学习；目录子项可逐级下钻并返回上级</li>
+    <li>"上一课/下一课"只在知识点间跳转</li>
+  </ul>
+</section>
+
+<!-- ═════════════════ 四、需求2 设计 ═════════════════ -->
+<section>
+  <h2>四、需求 2：仲裁人案例分析（模拟仲裁）</h2>
+
+  <h3>4.1 功能总览</h3>
+  <p>在每个知识点（一课）的学习流程中，嵌入「模拟仲裁」闭环：</p>
+
+  <div class="flow">
+    <span class="step">📋 课前仲裁（PRE）</span>
+    <span class="arrow">→</span>
+    <span class="step">📖 完成本课学习（掌握度 ≥ 50%）</span>
+    <span class="step" style="border-style:dashed">（解锁）</span>
+    <span class="arrow">→</span>
+    <span class="step">⚖️ 课后仲裁（POST，同一案件）</span>
+    <span class="arrow">→</span>
+    <span class="step">📊 AI 双裁决对比报告</span>
+  </div>
+
+  <table>
+    <tr><th style="width:20%">维度</th><th style="width:40%">课前仲裁（PRE）</th><th>课后仲裁（POST）</th></tr>
+    <tr><td>准入条件</td><td>学习前，随时可进入</td><td>掌握度 ≥ 0.5（与进度条"已学习"判定一致），否则提示「请先完成本课学习」</td></tr>
+    <tr><td>案件</td><td>按当前知识点内容 AI 生成</td><td><strong>复用课前同一案件</strong>（对比才有意义）</td></tr>
+    <tr><td>学生角色</td><td colspan="2">🧑‍⚖️ <strong>仲裁人</strong>（主动提问、主持流程、做出裁决）</td></tr>
+    <tr><td>AI 角色</td><td colspan="2">👨‍🌾 <strong>普通老百姓原/被告</strong>（AI 降智，口语化表达）</td></tr>
+    <tr><td>产出</td><td>课前裁决书</td><td>课后裁决书</td></tr>
+    <tr><td>报告</td><td colspan="2">两份裁决齐全后 → AI 生成《案例分析报告》（认知变化轨迹 / 知识掌握评估 / 学习建议）</td></tr>
+  </table>
+
+  <h3>4.2 场景示例（用户提供的案件模板）</h3>
+  <div class="callout callout-info">
+    <strong>案件：小宇诉晨光玩具店买卖合同纠纷案</strong><br>
+    案情：2024 年 9 月 10 日，初中生小宇在晨光玩具店购买遥控机器人模型（398 元），店员宣称"遥控距离可达 10 米"。小宇回家后发现遥控距离仅 2 米，次日要求退货。店主张老板以"使用环境有墙壁遮挡"为由拒绝。小宇认为构成欺诈，要求按《消费者权益保护法》退一赔三。<br><br>
+    <strong>原告（小宇爸爸）发言：</strong>"我是小宇爸爸，这店家怎么能骗小孩钱呢？说的能遥控，结果离两步远就没反应了。赔钱，赶快赔钱。"<br>
+    <strong>被告（张老板）发言（示例）：</strong>"咱这玩具没问题啊，说明书上都写着呢，是小宇家墙挡着信号了。小孩子哪懂这个，退货哪能这么退？"
+  </div>
+  <p>↑ 本案即"AI 降智老百姓"的典型样本：双方都不讲法条，凭生活直觉和情绪说话。</p>
+
+  <h3>4.3 角色与流程设计</h3>
+  <table>
+    <tr><th style="width:22%">环节（stage）</th><th style="width:36%">流程动作</th><th>AI 行为</th></tr>
+    <tr><td>0 陈述</td><td>记录员播报案情 → 原告（AI）陈述</td><td>原告以老百姓口吻讲"自己吃了什么亏、想要什么"</td></tr>
+    <tr><td>1 答辩</td><td>仲裁人（学生）可提问 → 被告（AI）答辩</td><td>被告强调"我没问题/是误会/不关我事"</td></tr>
+    <tr><td>2 举证质证</td><td>双方就证据/事实交锋（AI 交替发言）</td><td>双方用生活化语言争辩事实细节（说明书、现场、证人等）</td></tr>
+    <tr><td>3 辩论</td><td>围绕争议焦点充分辩论</td><td>双方各自坚持立场，可情绪化但围绕事实</td></tr>
+    <tr><td>4 裁决</td><td>仲裁人（学生）提交裁决书</td><td>记录员播报"请仲裁员作出裁决"</td></tr>
+  </table>
+
+  <h3>4.4 AI「降智」提示词体系（核心设计）</h3>
+  <div class="callout callout-danger">
+    <strong>设计原则：原被告是无法律基础的普通老百姓，AI 必须"降智"。</strong>
+  </div>
+  <table>
+    <tr><th style="width:22%">设定项</th><th>提示词要求</th></tr>
+    <tr>
+      <td>角色人设</td>
+      <td>原告/被告均为<strong>普通老百姓</strong>（如家长、个体店主、普通消费者），文化程度中等，第一次进"仲裁庭"，不理解专业术语；角色卡中给出生活身份与立场（谁、什么职业/身份、为什么生气/委屈）</td>
+    </tr>
+    <tr>
+      <td>语言风格</td>
+      <td>口语化、自然、有情绪（可带语气词），基于<strong>生活经验和眼前事实</strong>说话；可用重复、反问、感慨表达感受</td>
+    </tr>
+    <tr>
+      <td>法条红线</td>
+      <td><strong>禁止引用法条原文、禁止使用法律术语</strong>（"合同""欺诈""举证责任""赔偿标准"等一律不得直接说出）；若必须表达法律含义，用大白话（如"这是骗人""得给个说法""该赔的就得赔"）</td>
+    </tr>
+    <tr>
+      <td>发言长度</td>
+      <td>每次 60~180 字，短句为主；原告突出"委屈+诉求"，被告突出"无辜+反驳"</td>
+    </tr>
+    <tr>
+      <td>互动约束</td>
+      <td>仲裁人（学生）的指令优先，必须正面回应提问；不得代替对方发言；不得提及"我是 AI"</td>
+    </tr>
+  </table>
+
+  <p>提示词模板（原告示例）：</p>
+  <pre><code>你是本案原告「小宇爸爸」，一个普通家长。
+你的孩子花 398 元买了个遥控机器人，回家发现根本遥控不远，
+去找店家退货，店家还凶巴巴地不认账。
+你觉得店家就是在骗小孩钱，越想越气，要讨个说法。
+
+【案件事实】{case.fact}
+【争议焦点】{case.disputes}
+
+说话要求：
+1. 就像跟街坊邻居倒苦水一样，用最平常的大白话；
+2. 想说什么就说什么，可以带情绪、可以反问、可以重复强调；
+3. 绝对不要讲法条、不要用"合同""欺诈""诉讼"这类词；
+4. 每次说 60~180 字，最后落到你的诉求上（比如"这钱必须退！"）。</code></pre>
+
+  <h3>4.5 案例生成设计</h3>
+  <table>
+    <tr><th style="width:24%">项</th><th>方案</th></tr>
+    <tr><td>生成素材</td><td><strong>当前知识点</strong>的 name / description / content；若 content 为空或过短，自动向上扩展父级（父节点 description/content）与同级兄弟知识点名称，保证素材充足</td></tr>
+    <tr><td>生成方式</td><td>LLM <code>askStructured</code> 结构化输出，结构复用 <code>MootCourtCase</code>（caseTitle / fact / disputes / legalPoints / plaintiffName / plaintiffClaim / defendantName / defendantDefense / difficulty）；失败降级为基于知识点名称的通识案件模板</td></tr>
+    <tr><td>案件要求</td><td>贴近生活（买卖、租赁、侵权、校园纠纷等），案情完整可信，争议焦点 2~3 个紧扣知识点；双方身份为普通老百姓（如"XX 的爸爸""个体店主""邻居"）</td></tr>
+    <tr><td>案件复用</td><td>POST 阶段直接读取 PRE 会话的 <code>case_content</code>，不重新生成</td></tr>
+  </table>
+
+  <h3>4.6 状态机</h3>
+  <div class="mermaid-like">
+CASE_GENERATING → OPENING → HEARING → AWARD_READY → AWARDED → REPORTED
+    │生成案例+开庭     │书记员播报  │对话进行中   │仲裁人待提交裁决
+    └──────────────────────────────────────────────────────┘
+    POST 阶段：start 时若 PRE 已生成案件 → 直接复用，跳过 CASE_GENERATING
+    报告：PRE + POST 均为 AWARDED 后可触发生成 → REPORTED
+  </div>
+
+  <h3>4.7 数据模型（V24 迁移）</h3>
+  <pre><code>-- ① 仲裁会话（每知识点每学生两个：PRE 课前 / POST 课后）
+CREATE TABLE arbitration_sessions (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    course_id    UUID NOT NULL,
+    knowledge_point_id UUID NOT NULL,
+    student_id   UUID NOT NULL,
+    phase        VARCHAR(8)  NOT NULL CHECK (phase IN ('PRE','POST')),
+    status       VARCHAR(20) NOT NULL DEFAULT 'CASE_GENERATING'
+                 CHECK (status IN ('CASE_GENERATING','OPENING','HEARING',
+                                   'AWARD_READY','AWARDED','REPORTED')),
+    case_content JSONB,          -- AI 生成的案件（结构与 MootCourtCase 一致）
+    award        TEXT,           -- 学生裁决书（JSON：result + reason）
+    report       TEXT,           -- AI 分析报告（Markdown）
+    stage_index  INTEGER NOT NULL DEFAULT 0,   -- 0陈述/1答辩/2举证/3辩论/4裁决
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (knowledge_point_id, student_id, phase)
+);
+CREATE INDEX idx_ars_kp ON arbitration_sessions (knowledge_point_id, student_id);
+
+-- ② 仲裁消息（独立表，便于回放/审计）
+CREATE TABLE arbitration_messages (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id  UUID NOT NULL,
+    role        VARCHAR(16) NOT NULL,   -- CLERK/PLAINTIFF_AI/DEFENDANT_AI/ARBITER_STUDENT
+    content     TEXT NOT NULL,
+    round_seq   INTEGER NOT NULL DEFAULT 0,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_arm_session ON arbitration_messages (session_id, round_seq);</code></pre>
+
+  <h3>4.8 后端 API 设计（/api/arbitrations）</h3>
+  <table>
+    <tr><th style="width:32%">接口</th><th style="width:14%">方法</th><th>说明</th></tr>
+    <tr><td><code>/api/arbitrations/{kpId}/start?phase=</code></td><td>POST</td><td>启动/获取仲裁会话；PRE 首次进入生成案件并开庭，POST 复用 PRE 案件；<strong>POST 准入校验：掌握度 ≥ 0.5</strong></td></tr>
+    <tr><td><code>/api/arbitrations/{kpId}/session?phase=</code></td><td>GET</td><td>查询会话（含案件 + 消息列表 + 裁决）</td></tr>
+    <tr><td><code>/api/arbitrations/{kpId}/message?phase=</code></td><td>POST</td><td>仲裁人（学生）发言 → AI 原/被告按"降智老百姓"人设回应（发言中提及"原告/被告"指定回应方）</td></tr>
+    <tr><td><code>/api/arbitrations/{kpId}/next-stage?phase=</code></td><td>POST</td><td>进入下一环节（记录员播报 + 对应方自动发言）</td></tr>
+    <tr><td><code>/api/arbitrations/{kpId}/award?phase=</code></td><td>POST</td><td>提交裁决书（SUPPORT/REJECT/PARTIAL + 理由，仲裁语境文案：支持请求/驳回请求/部分支持）</td></tr>
+    <tr><td><code>/api/arbitrations/{kpId}/report</code></td><td>GET/POST</td><td>获取/生成双裁决对比分析报告</td></tr>
+    <tr><td><code>/api/arbitrations/{kpId}/status</code></td><td>GET</td><td>查询该知识点仲裁状态（PRE/POST 是否已裁决、报告是否可生成）——供学习页入口卡片展示</td></tr>
+  </table>
+
+  <h3>4.9 前端 UI 设计</h3>
+  <table>
+    <tr><th style="width:24%">组件</th><th>设计</th></tr>
+    <tr>
+      <td>入口卡片（StudentLearning）</td>
+      <td>在知识点学习区（学习内容/练习题下方）新增「⚖️ 案例分析·模拟仲裁」卡片：展示三态——① 课前仲裁（未做/已裁决）；② 课后仲裁（锁定：未完成学习 / 未做 / 已裁决）；③ 分析报告（可生成 / 已生成，点击查看）。点击"进入仲裁"打开仲裁聊天室</td>
+    </tr>
+    <tr>
+      <td>ArbitrationRoom（仲裁聊天室）</td>
+      <td>复用 <code>MootCourtRoom.tsx</code> 的聊天室布局：案件卡（左）+ 对话流（右）+ 快捷指令；文案全面改为仲裁语境（仲裁庭/仲裁员/记录员/裁决书/支持请求/驳回请求）；角色气泡样式区分（原告=红色系、被告=蓝色系、仲裁人=绿色系、记录员=灰）；输入框提示"以仲裁人身份发言，提及「原告/被告」指定回应方"</td>
+    </tr>
+    <tr>
+      <td>承载形式</td>
+      <td><strong>全屏 Drawer 内嵌</strong>课程学习页（不离开学习语境），从入口卡片打开；关闭后回到原知识点位置。备选：独立路由</td>
+    </tr>
+    <tr>
+      <td>ArbitrationReport（报告页）</td>
+      <td>复用 <code>MootCourtReport</code> 结构：案件摘要 + 课前裁决 + 课后裁决 + AI 分析报告（认知变化轨迹 / 知识掌握评估 / 学习建议）</td>
+    </tr>
+    <tr>
+      <td>API 封装</td>
+      <td>新增 <code>frontend/src/api/arbitrationApi.ts</code>（对齐 courtApi 结构）</td>
+    </tr>
+  </table>
+
+  <h3>4.10 报告生成</h3>
+  <p>复用 v1 的报告引擎模式：PRE + POST 两份裁决齐全后，LLM 对比两份裁决书 + 案件知识要点，输出三部分：</p>
+  <ol>
+    <li><strong>认知变化轨迹</strong>：课前→课后裁决结果/理由的变化，判断学生是否"学到了"（例如课前凭直觉支持退货、课后能结合"说明与实物不符"给出更扎实理由）</li>
+    <li><strong>知识掌握评估</strong>：对照知识点核心概念，评估学生对关键要点的理解程度</li>
+    <li><strong>学习建议</strong>：针对薄弱点给出下一步学习建议（关联到练习题/知识点）</li>
+  </ol>
+</section>
+
+<!-- ═════════════════ 五、实施计划 ═════════════════ -->
+<section>
+  <h2>五、实施计划</h2>
+  <table>
+    <tr><th style="width:8%">里程碑</th><th style="width:34%">内容</th><th style="width:12%">工时</th><th>验收要点</th></tr>
+    <tr>
+      <td><span class="tag tag-blue">M1</span></td>
+      <td>需求 1：目录节点导航化<br>· StudentLearning.jsx 分类渲染 + DirectoryView 组件 + 上一课/下一课跳 LEAF<br>· QuestionService 对非 LEAF 返回空列表</td>
+      <td>1 人天</td>
+      <td>目录节点零练习题；LEAF 行为不变</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-blue">M2</span></td>
+      <td>数据底座：V24 迁移 + <code>ArbitrationSession/ArbitrationMessage</code> 实体 + Repository + 枚举</td>
+      <td>0.5 人天</td>
+      <td>迁移可重跑；实体编译通过</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-blue">M3</span></td>
+      <td>后端仲裁服务：案例生成（kp 素材+扩展）→ 降智对话引擎 → 环节推进 → 裁决 → 报告 → 准入校验（掌握度）</td>
+      <td>2.5 人天</td>
+      <td>接口全通；POST 未学完返回 400；AI 发言符合"老百姓"风格</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-blue">M4</span></td>
+      <td>前端：arbitrationApi + 入口卡片 + ArbitrationRoom（全屏 Drawer）+ ArbitrationReport</td>
+      <td>2 人天</td>
+      <td>从学习页开仲裁→对话→裁决→报告全链路</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-blue">M5</span></td>
+      <td>集成验证：后端编译 + 前端构建 + 浏览器全链路回归（含"学完→解锁课后仲裁"）</td>
+      <td>1 人天</td>
+      <td>端到端演示通过</td>
+    </tr>
+    <tr><td colspan="2" style="text-align:right"><strong>合计</strong></td><td><strong>约 7 人天</strong></td><td></td></tr>
+  </table>
+</section>
+
+<!-- ═════════════════ 六、风险与假设 ═════════════════ -->
+<section>
+  <h2>六、风险与假设</h2>
+  <table>
+    <tr><th style="width:8%">编号</th><th style="width:18%">类型</th><th>说明与对策</th></tr>
+    <tr><td>R1</td><td>历史数据</td><td>若存在大量误挂在目录节点上的题目，后端防御返回空即可，无需清理数据</td></tr>
+    <tr><td>R2</td><td>AI 降智效果</td><td>"降智老百姓"依赖提示词，可能偶发"冒专业词"。对策：提示词强约束 + 降级文案（LLM 失败时返回模板化的老百姓口吻发言）；后续可加"发言合规检查"</td></tr>
+    <tr><td>R3</td><td>掌握度准入</td><td>个别知识点无练习题或学生未答题 → 掌握度恒为 0 → 课后仲裁永远锁定。对策：POST 准入兜底——若该知识点练习题数为 0，允许直接进入课后仲裁</td></tr>
+    <tr><td>R4</td><td>案例生成失败</td><td>LLM 超时/空响应 → 降级为基于知识点名称的通识案件，流程不中断</td></tr>
+    <tr><td>R5</td><td>LLM 成本</td><td>每知识点课前+课后各一段庭审对话（每次发言 1 次调用）。对策：控制发言轮次上限（如每环节双方各 1~2 次），必要时做发言缓存</td></tr>
+    <tr><td>H1</td><td>假设</td><td>"完成一节学习"以掌握度 ≥ 0.5 判定（与页面进度条一致）；若后续产品定义"完成"为显式动作（如点击完成按钮），可平滑替换</td></tr>
+  </table>
+</section>
+
+<!-- ═════════════════ 七、待确认决策 ═════════════════ -->
+<section>
+  <h2>七、待确认决策点</h2>
+  <table>
+    <tr><th style="width:6%">#</th><th style="width:30%">决策项</th><th style="width:34%">推荐方案（默认）</th><th>备选</th></tr>
+    <tr><td>1</td><td>功能命名</td><td>「案例分析·模拟仲裁」（仲裁人模式）</td><td>「模拟法庭·仲裁庭」</td></tr>
+    <tr><td>2</td><td>仲裁聊天室承载形式</td><td><strong>全屏 Drawer 内嵌</strong>课堂学习页（不离开学习语境）</td><td>独立路由页面</td></tr>
+    <tr><td>3</td><td>课后仲裁准入</td><td>掌握度 ≥ 0.5；知识点无练习题时直接放行</td><td>必须答对全部练习题</td></tr>
+    <tr><td>4</td><td>案例生成素材</td><td>当前知识点内容优先，不足时扩展父级/同级</td><td>仅当前知识点</td></tr>
+    <tr><td>5</td><td>AI 降智红线</td><td><strong>完全禁止</strong>引用法条/法律术语（大白话表达）</td><td>允许偶尔提及但须白话解释</td></tr>
+    <tr><td>6</td><td>裁决结果选项</td><td>沿用 v1 三选一：支持请求 / 驳回请求 / 部分支持（文案仲裁化）</td><td>开放自由文本裁决</td></tr>
+    <tr><td>7</td><td>课前仲裁是否强制</td><td><strong>不强制</strong>，仅在学习区展示入口（学生自主选择）</td><td>学习前弹窗引导强制完成</td></tr>
+    <tr><td>8</td><td>v1 模拟法庭去留</td><td>保留代码与数据（入口仍隐藏），仅新增 v2 仲裁模块</td><td>复用 v1 表结构扩展 kp 维度</td></tr>
+  </table>
+  <div class="callout callout-warn">
+    <strong>请确认以上决策点</strong>（尤其 #2 承载形式、#3 准入标准、#5 降智红线），确认后我按 M1→M5 实施；也可在确认时提出调整。
+  </div>
+</section>
+
+<footer>EduMentor · 课堂学习模块优化设计文档 v1.0 · 2026-08-16</footer>
+</div>
+</body>
+</html>

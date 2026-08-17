@@ -39,4 +39,7 @@ public interface QuestionRepository extends JpaRepository<Question, UUID> {
      * @return 题目列表
      */
     List<Question> findByKnowledgePointId(UUID knowledgePointId);
+
+    /** 统计某知识点下的题目数（用于课后仲裁准入：无练习题直接放行） */
+    long countByKnowledgePointId(UUID knowledgePointId);
 }

@@ -4,8 +4,10 @@ import { Card, Typography, Button, Spin, Tag, Progress, Radio, Checkbox, Input, 
 import { CheckCircleOutlined, CloseCircleOutlined, ArrowLeftOutlined, ArrowRightOutlined, RobotOutlined, BookOutlined, FolderOutlined, FileTextOutlined, FormOutlined, TeamOutlined, PlusOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import { courseAPI, learningAPI, answerAPI, questionAnalysisAPI, knowledgePointAPI, peerQuizAPI } from '../services/api';
 import { classroomApi } from '../api/classroomApi';
+import { arbitrationApi } from '../api/arbitrationApi';
 import ClassroomList from './classroom/ClassroomList';
 import KnowledgePointPicker from './classroom/KnowledgePointPicker';
+import ArbitrationRoom from './classroom/ArbitrationRoom';
 import { useAuth } from '../context/AuthContext';
 
 const { Title, Text, Paragraph } = Typography;
@@ -239,6 +241,133 @@ const QuestionCard = React.memo(({
 });
 
 // ============================================================
+// 子组件：目录视图（编/章/节等目录节点 — 纯导航，不承载练习题）
+// 设计文档: .youcoder/plans/learning-directory-arbitration-design.html §3
+// ============================================================
+const TYPE_META = {
+  VOLUME: { label: '编', icon: '📚', color: '#722ed1' },
+  PART: { label: '部', icon: '🗂️', color: '#2f54eb' },
+  CHAPTER: { label: '章', icon: '📁', color: '#1677ff' },
+  SECTION: { label: '节', icon: '📄', color: '#13c2c2' },
+  LEAF: { label: '知识点', icon: '📌', color: '#52c41a' },
+};
+
+const DirectoryView = ({ kp, treeNodes, masteryMap, onEnterKp, onEnterDir }) => {
+  // 构建父子映射（与 treeData 同构）
+  const childrenMap = useMemo(() => {
+    const map = {};
+    (treeNodes || []).forEach(n => {
+      const pid = n.knowledgePoint.parentKpId || 'root';
+      if (!map[pid]) map[pid] = [];
+      map[pid].push(n);
+    });
+    return map;
+  }, [treeNodes]);
+
+  const children = useMemo(() => {
+    const list = childrenMap[kp.id] || [];
+    return [...list].sort((a, b) => (a.knowledgePoint.orderIndex || 0) - (b.knowledgePoint.orderIndex || 0));
+  }, [childrenMap, kp.id]);
+
+  // 父级链（面包屑导航）
+  const parentChain = useMemo(() => {
+    const chain = [];
+    let pid = kp.parentKpId;
+    let guard = 0;
+    while (pid && guard < 10) {
+      const parent = (treeNodes || []).find(n => n.knowledgePoint.id === pid);
+      if (!parent) break;
+      chain.unshift(parent.knowledgePoint);
+      pid = parent.knowledgePoint.parentKpId;
+      guard++;
+    }
+    return chain;
+  }, [treeNodes, kp]);
+
+  const meta = TYPE_META[kp.type] || TYPE_META.CHAPTER;
+
+  return (
+    <div>
+      <Card size="small" style={{ marginBottom: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <Title level={5} style={{ margin: 0 }}>{meta.icon} 目录：{kp.name}</Title>
+            <Space style={{ marginTop: 4 }}>
+              <Tag color={meta.color}>{meta.label}</Tag>
+              <Text type="secondary">{kp.description || '本目录仅作导航，请从下方知识点开始学习'}</Text>
+            </Space>
+          </div>
+          {kp.parentKpId && (
+            <Button size="small" icon={<ArrowLeftOutlined />} onClick={() => onEnterDir(kp.parentKpId)}>
+              返回上级
+            </Button>
+          )}
+        </div>
+      </Card>
+
+      {parentChain.length > 0 && (
+        <div style={{ marginBottom: 12, fontSize: 12 }}>
+          <Text type="secondary">
+            {parentChain.map(p => p.name).join(' / ')} / <Text strong>{kp.name}</Text>
+          </Text>
+        </div>
+      )}
+
+      <Card size="small" title={`📂 包含 ${children.length} 个子节点`}>
+        {children.length === 0 ? (
+          <Empty description="该目录暂无子节点" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        ) : (
+          <List
+            size="small"
+            dataSource={children}
+            renderItem={(item) => {
+              const child = item.knowledgePoint;
+              const isLeaf = child.type === 'LEAF';
+              const childMeta = TYPE_META[child.type] || TYPE_META.LEAF;
+              const mastery = masteryMap[child.id];
+              return (
+                <List.Item
+                  style={{ cursor: 'pointer', padding: '8px 12px' }}
+                  onClick={() => (isLeaf ? onEnterKp(child.id) : onEnterDir(child.id))}
+                  extra={
+                    <Space>
+                      {isLeaf && mastery != null && (
+                        <Tag color={mastery >= 0.8 ? 'green' : mastery >= 0.5 ? 'blue' : 'orange'}>
+                          {mastery >= 0.8 ? '已掌握' : mastery >= 0.5 ? '学习中' : '待巩固'}
+                        </Tag>
+                      )}
+                      {!isLeaf && (
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          {(childrenMap[child.id] || []).length} 个子节点
+                        </Text>
+                      )}
+                      <Button type={isLeaf ? 'primary' : 'default'} size="small" ghost={!isLeaf}>
+                        {isLeaf ? '去学习' : '进入'}
+                      </Button>
+                    </Space>
+                  }
+                >
+                  <List.Item.Meta
+                    avatar={<span style={{ fontSize: 18 }}>{childMeta.icon}</span>}
+                    title={
+                      <Space>
+                        <Text strong>{child.name}</Text>
+                        <Tag color={childMeta.color} style={{ fontSize: 10, lineHeight: '14px' }}>{childMeta.label}</Tag>
+                      </Space>
+                    }
+                    description={child.description || (isLeaf ? '点击开始学习本节课' : '目录节点，点击查看子节点')}
+                  />
+                </List.Item>
+              );
+            }}
+          />
+        )}
+      </Card>
+    </div>
+  );
+};
+
+// ============================================================
 // 主组件
 // ============================================================
 export default function StudentLearning() {
@@ -261,6 +390,17 @@ export default function StudentLearning() {
 
   const currentKp = knowledgePoints[currentKpIndex];
   const prevCourseIdRef = useRef(null);
+
+  // 加载当前知识点的仲裁状态（入口卡片三态展示）
+  useEffect(() => {
+    if (currentKp?.type === 'LEAF' && currentKp?.id) {
+      arbitrationApi.getStatus(currentKp.id)
+        .then(setArbStatus)
+        .catch(() => setArbStatus(null));
+    } else {
+      setArbStatus(null);
+    }
+  }, [currentKpIndex]);
 
   // ─── ref 存储所有答案（不触发渲染） ───
   const answerRefs = useRef({});
@@ -318,6 +458,11 @@ export default function StudentLearning() {
   const [quizAnswers, setQuizAnswers] = useState({});
   const [submittingQuiz, setSubmittingQuiz] = useState(false);
   const [loadingQuizzes, setLoadingQuizzes] = useState(false);
+
+  // ─── 案例分析·模拟仲裁状态 ───
+  const [arbOpen, setArbOpen] = useState(false);
+  const [arbPhase, setArbPhase] = useState('PRE');
+  const [arbStatus, setArbStatus] = useState(null);
 
   // ─── 稳定的事件回调 ───
 
@@ -563,12 +708,20 @@ export default function StudentLearning() {
     }
   };
 
+  // 上一课/下一课：只在 LEAF 知识点间跳转（跳过目录节点）
   const switchKp = useCallback((index) => {
     if (index < 0 || index >= knowledgePoints.length) return;
-    setCurrentKpIndex(index);
-    const kp = knowledgePoints[index];
+    const step = index > currentKpIndex ? 1 : -1;
+    let target = index;
+    while (target >= 0 && target < knowledgePoints.length
+      && knowledgePoints[target].type !== 'LEAF') {
+      target += step;
+    }
+    if (target < 0 || target >= knowledgePoints.length) return;
+    setCurrentKpIndex(target);
+    const kp = knowledgePoints[target];
     if (kp?.id) loadQuestions(kp.id);
-  }, [knowledgePoints]);
+  }, [knowledgePoints, currentKpIndex]);
 
   // ─── useMemo 缓存 ───
 
@@ -683,6 +836,13 @@ export default function StudentLearning() {
     return { total, learned, percent: total > 0 ? Math.round(learned / total * 100) : 0 };
   }, [knowledgePoints, masteryMap]);
 
+  // LEAF 索引（上一课/下一课只在知识点间跳转）
+  const leafIndices = useMemo(() =>
+    knowledgePoints.map((k, i) => (k.type === 'LEAF' ? i : -1)).filter(i => i >= 0),
+  [knowledgePoints]);
+  const hasPrevLeaf = leafIndices.some(i => i < currentKpIndex);
+  const hasNextLeaf = leafIndices.some(i => i > currentKpIndex);
+
   // ─── Tree 选择处理 ───
 
   const handleTreeSelect = useCallback((selectedKeys) => {
@@ -691,7 +851,11 @@ export default function StudentLearning() {
     const idx = knowledgePoints.findIndex(k => k.id === kpId);
     if (idx >= 0) {
       setCurrentKpIndex(idx);
-      loadQuestions(kpId);
+      // 目录节点（非 LEAF）：纯导航，不加载练习题
+      const kp = knowledgePoints[idx];
+      if (kp?.type === 'LEAF') {
+        loadQuestions(kpId);
+      }
     }
   }, [knowledgePoints]);
 
@@ -744,6 +908,21 @@ export default function StudentLearning() {
 
         <div style={{ flex: 1 }}>
           {currentKp ? (
+            currentKp.type !== 'LEAF' ? (
+            <DirectoryView
+              kp={currentKp}
+              treeNodes={treeNodes}
+              masteryMap={masteryMap}
+              onEnterKp={(id) => {
+                const idx = knowledgePoints.findIndex(k => k.id === id);
+                if (idx >= 0) { setCurrentKpIndex(idx); loadQuestions(id); }
+              }}
+              onEnterDir={(id) => {
+                const idx = knowledgePoints.findIndex(k => k.id === id);
+                if (idx >= 0) setCurrentKpIndex(idx);
+              }}
+            />
+            ) : (
             <div>
               <Card size="small" style={{ marginBottom: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -876,16 +1055,73 @@ export default function StudentLearning() {
                 ]}
               />
 
+              {/* ⚖️ 案例分析·模拟仲裁入口（设计文档 learning-directory-arbitration-design.html §4.9） */}
+              <Card size="small" style={{ marginTop: 12, borderColor: '#d9adff', background: '#fcfeff' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                  <div>
+                    <Text strong>⚖️ 案例分析·模拟仲裁</Text>
+                    <br />
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      扮演仲裁人，向普通老百姓原/被告提问并作出裁决；课前课后各一次，生成 AI 对比分析报告
+                    </Text>
+                  </div>
+                  <Space wrap>
+                    <Button size="small" icon={<span>📋</span>}
+                      onClick={() => { setArbPhase('PRE'); setArbOpen(true); }}>
+                      {arbStatus?.preAwarded ? '查看课前裁决' : '课前仲裁'}
+                    </Button>
+                    <Button size="small" icon={<span>📚</span>}
+                      onClick={() => { setArbPhase('POST'); setArbOpen(true); }}>
+                      {arbStatus?.postAwarded ? '查看课后裁决' : '课后仲裁'}
+                    </Button>
+                    <Button size="small" type="primary" ghost icon={<span>📊</span>}
+                      disabled={!arbStatus?.reportReady}
+                      onClick={() => { setArbPhase('POST'); setArbOpen(true); }}>
+                      {arbStatus?.report ? '查看分析报告' : '分析报告'}
+                    </Button>
+                  </Space>
+                </div>
+                <div style={{ marginTop: 8, fontSize: 12 }}>
+                  {arbStatus && (
+                    <Space size={8} wrap>
+                      <Tag color={arbStatus.preAwarded ? 'success' : 'default'}>
+                        课前 {arbStatus.preAwarded ? '已裁决 ✓' : '未参与'}
+                      </Tag>
+                      <Tag color={arbStatus.postAwarded ? 'success' : 'default'}>
+                        课后 {arbStatus.postAwarded ? '已裁决 ✓' : '未参与'}
+                      </Tag>
+                      <Tag color={arbStatus.reportReady ? 'gold' : 'default'}>
+                        {arbStatus.report ? '报告已生成' : arbStatus.reportReady ? '可生成报告' : '完成两次裁决后生成报告'}
+                      </Tag>
+                    </Space>
+                  )}
+                </div>
+              </Card>
+
+              <ArbitrationRoom
+                open={arbOpen}
+                onClose={() => setArbOpen(false)}
+                kpId={currentKp?.id}
+                kpName={currentKp?.name}
+                initialPhase={arbPhase}
+                onReportGenerated={() => {
+                  if (currentKp?.id) {
+                    arbitrationApi.getStatus(currentKp.id).then(setArbStatus).catch(() => {});
+                  }
+                }}
+              />
+
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16 }}>
-                <Button icon={<ArrowLeftOutlined />} disabled={currentKpIndex === 0}
+                <Button icon={<ArrowLeftOutlined />} disabled={!hasPrevLeaf}
                   onClick={() => switchKp(currentKpIndex - 1)}>上一课</Button>
                 <Button type="primary" icon={<ArrowRightOutlined />}
-                  disabled={currentKpIndex >= progressInfo.total - 1}
+                  disabled={!hasNextLeaf}
                   onClick={() => switchKp(currentKpIndex + 1)}>下一课</Button>
                 <Button type="dashed" icon={<FormOutlined />}
                   onClick={openCreateQuiz}>出题考核</Button>
               </div>
             </div>
+            )
           ) : (
             <Card><Empty description="该课程暂无知识点内容" /></Card>
           )}

@@ -61,7 +61,11 @@ const ClassroomList: React.FC<ClassroomListProps> = ({
       setLoading(true);
       setError(null);
       const list = await classroomApi.listClassrooms(courseId);
-      setClassrooms(Array.isArray(list) ? list : []);
+      // 智慧课堂 Tab 只展示知识点/聚合知识点课堂；协作课堂由「合作课堂」页展示
+      const filtered = (Array.isArray(list) ? list : []).filter(
+        (c: any) => c.source !== 'collaborative'
+      );
+      setClassrooms(filtered);
     } catch (err: any) {
       console.error('加载课堂列表失败:', err);
       setError(err?.message || '加载课堂列表失败');

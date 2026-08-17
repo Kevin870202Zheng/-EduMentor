@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>同学圈：学生朋友圈 + AI 法律风险提示 — 设计文档</title>
+<style>
+  :root { --primary:#1677ff; --success:#52c41a; --warn:#faad14; --danger:#ff4d4f; --bg:#f6f8fb; --card:#fff; --border:#e5e8ef; --text:#1f2329; --text2:#5a6472; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--text); line-height:1.7; padding:24px; }
+  .container { max-width:1080px; margin:0 auto; }
+  header { background:linear-gradient(135deg,#722ed1,#1677ff); color:#fff; border-radius:16px; padding:32px 40px; margin-bottom:24px; }
+  header h1 { font-size:26px; margin-bottom:8px; }
+  header .meta { opacity:.85; font-size:13px; display:flex; gap:16px; flex-wrap:wrap; }
+  header .version { background:rgba(255,255,255,.2); padding:2px 10px; border-radius:20px; font-size:12px; }
+  section { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:28px 32px; margin-bottom:20px; }
+  h2 { font-size:20px; margin-bottom:16px; padding-left:12px; border-left:4px solid var(--primary); }
+  h3 { font-size:16px; margin:20px 0 10px; color:#722ed1; }
+  table { width:100%; border-collapse:collapse; margin:12px 0 16px; font-size:13px; }
+  th { background:#f0f4fb; text-align:left; padding:9px 12px; border:1px solid var(--border); font-weight:600; }
+  td { padding:8px 12px; border:1px solid var(--border); color:var(--text2); vertical-align:top; }
+  code { background:#f0f4fb; border:1px solid #e2e8f0; border-radius:4px; padding:1px 6px; font-size:12.5px; font-family:"SF Mono",Consolas,monospace; }
+  pre { background:#0f172a; color:#e2e8f0; border-radius:8px; padding:16px 18px; overflow-x:auto; font-size:12.5px; line-height:1.65; margin:10px 0; }
+  .tag { display:inline-block; padding:1px 10px; border-radius:20px; font-size:12px; margin-right:6px; }
+  .tag-blue { background:#e6f4ff; color:#0958d9; }
+  .tag-green { background:#f6ffed; color:#389e0d; }
+  .tag-orange { background:#fff7e6; color:#d46b08; }
+  .tag-red { background:#fff1f0; color:#cf1322; }
+  .tag-purple { background:#f9f0ff; color:#722ed1; }
+  .callout { border-radius:8px; padding:14px 18px; margin:12px 0; font-size:14px; }
+  .callout-info { background:#e6f4ff; border-left:4px solid #1677ff; }
+  .callout-warn { background:#fff7e6; border-left:4px solid #faad14; }
+  .callout-ok { background:#f6ffed; border-left:4px solid #52c41a; }
+  .callout-danger { background:#fff1f0; border-left:4px solid #ff4d4f; }
+  .mock { background:#fafbfd; border:1px dashed #c5d0e0; border-radius:8px; padding:16px 20px; font-size:13px; color:#33415c; white-space:pre; overflow-x:auto; }
+  footer { text-align:center; color:#98a1b3; font-size:12px; margin-top:24px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>👥 同学圈：学生朋友圈 + AI 法律风险提示</h1>
+  <div class="meta">
+    <span class="version">v1.0 · 设计稿</span>
+    <span>EduMentor</span>
+    <span>2026-08-16</span>
+    <span>状态：待评审</span>
+  </div>
+</header>
+
+<!-- ═════════════ 一、需求背景 ═════════════ -->
+<section>
+  <h2>一、需求背景与目标</h2>
+  <div class="callout callout-info">
+    <strong>需求原文（摘要）：</strong>新增「同学圈」入口，放在学生端一级入口。功能与微信朋友圈类似；<strong>核心差异化：AI 法律风险提示</strong>——当学生发的朋友圈涉及法律问题时（如"今天骑车逆行被警察叔叔抓了"），AI 自动定性法律性质（如"行政违法行为"）并给出风险提示（违反《道路交通安全法》第 XX 条，可被处以……），把朋友圈内容当成案例分析题；<strong>涉及法律的都给提示和建议，不涉及的不提示</strong>。
+  </div>
+
+  <h3>目标</h3>
+  <ul>
+    <li>提供微信朋友圈式的学生社交场：发动态、点赞、评论</li>
+    <li><strong>AI 法律风险检测</strong>成为核心差异化能力：将学生真实生活场景转化为普法案例，潜移默化提升法律素养</li>
+    <li>与现有「模拟仲裁」「智慧课堂」形成"生活 → 案例 → 仲裁"的学法闭环</li>
+  </ul>
+</section>
+
+<!-- ═════════════ 二、现状核查 ═════════════ -->
+<section>
+  <h2>二、现状核查</h2>
+  <table>
+    <tr><th style="width:26%">核查项</th><th style="width:14%">结论</th><th>说明</th></tr>
+    <tr>
+      <td>学生端一级菜单</td>
+      <td><span class="tag tag-green">就绪</span></td>
+      <td><code>MainLayout.jsx</code> 的 <code>studentMenuItems</code>（10 项），新增一项即可；路由在 <code>App.jsx</code> 学生路由组注册</td>
+    </tr>
+    <tr>
+      <td>社交/动态模块</td>
+      <td><span class="tag tag-red">无</span></td>
+      <td>代码库中无 moment/feed/community 相关实现，需从零建设（数据模型 + API + 前端）</td>
+    </tr>
+    <tr>
+      <td>学生身份信息</td>
+      <td><span class="tag tag-green">就绪</span></td>
+      <td><code>users</code> 表（display_name/avatar_url）+ <code>student_profiles.stage</code>（学段）可用于展示作者昵称、头像、学段标签</td>
+    </tr>
+    <tr>
+      <td>LLM 结构化输出</td>
+      <td><span class="tag tag-green">就绪</span></td>
+      <td><code>LLMService.askStructured(system, user, Class, schema)</code> 已用于仲裁案例/学习路径等，可直接复用于法律风险检测（可复用 <code>RAG 向量库</code> 提升法条准确度）</td>
+    </tr>
+    <tr>
+      <td>迁移与实体模式</td>
+      <td><span class="tag tag-green">就绪</span></td>
+      <td>Flyway V1~V24 规范清晰，新表按 V25 追加</td>
+    </tr>
+  </table>
+</section>
+
+<!-- ═════════════ 三、功能总览 ═════════════ -->
+<section>
+  <h2>三、功能总览</h2>
+
+  <h3>3.1 信息架构</h3>
+  <p>学生端一级入口新增「👥 同学圈」（建议置于「错题复盘」与「我的课程」之间），路由 <code>/student/moments</code>。</p>
+
+  <h3>3.2 页面布局（微信朋友圈式）</h3>
+  <div class="mock">
+┌─ 学生端 · 同学圈 ─────────────────────────────────────────┐
+│ [📝 这一刻的想法...]                    [发布]            │
+├──────────────────────────────────────────────────────────┤
+│ ┌────────────────────────────────────────────────────┐   │
+│ │ 👤 王小乐  🏫小学   ·   5 分钟前                    │   │
+│ │ 今天骑车逆行被警察叔叔抓了，说我违反交规，罚了20块 😅│   │
+│ │ ⚖️ ── AI 法律风险提示 ──────────────────────────   │   │
+│ │ 定性：行政违法行为（违反交通管理秩序）               │   │
+│ │ 依据：《道路交通安全法》第 89 条，行人、乘车人、非机 │   │
+│ │       动车驾驶人违反道路通行规定的，处警告或 5~50 元 │   │
+│ │       罚款；拒绝接受处罚可扣留非机动车               │   │
+│ │ 风险：逆行易引发交通事故，造成人身/财产损失需担责    │   │
+│ │ 建议：① 非机动车靠右行驶、不逆行；② 发生事故立即报   │   │
+│ │       警并配合处理                                     │   │
+│ │ ❤ 3  💬 2  （评论区：展开）                          │   │
+│ └────────────────────────────────────────────────────┘   │
+│ ┌────────────────────────────────────────────────────┐   │
+│ │ 👤 陈小雨  📖初中   ·  1 小时前                     │   │
+│ │ 今天小组作业完成，大家都辛苦了！🎉                  │   │
+│ │ （无 AI 提示 — 内容不涉及法律问题）                 │   │
+│ │ ❤ 8  💬 5                                           │   │
+│ └────────────────────────────────────────────────────┘   │
+└──────────────────────────────────────────────────────────┘
+  </div>
+
+  <h3>3.3 核心交互</h3>
+  <table>
+    <tr><th style="width:20%">交互</th><th>行为</th></tr>
+    <tr><td>发布动态</td><td>输入文字 → 发布 → <strong>同步触发 AI 法律检测</strong>（约 2~5 秒）→ 卡片上展示检测结果（涉及法律则显示「⚖️ AI 法律风险提示」卡片；不涉及则不显示任何提示）</td></tr>
+    <tr><td>点赞</td><td>点击心形切换点赞/取消；红心+数量，实时更新</td></tr>
+    <tr><td>评论</td><td>点击「💬 评论」展开评论列表，输入框发表评论；显示评论者昵称+学段</td></tr>
+    <tr><td>删除</td><td>作者本人可删除自己的动态（「⋯」菜单）</td></tr>
+    <tr><td>刷新/加载</td><td>下拉或点击「加载更多」分页拉取（每页 10 条）</td></tr>
+  </table>
+</section>
+
+<!-- ═════════════ 四、AI 法律风险检测（核心） ═════════════ -->
+<section>
+  <h2>四、AI 法律风险检测设计（核心差异化）</h2>
+
+  <h3>4.1 检测时机</h3>
+  <div class="callout callout-ok">
+    <strong>方案：发布时同步检测。</strong>内容通常为几十字，单次 LLM 调用约 2~5 秒，反馈即时（发完立刻看到提示，体验最佳）。LLM 超时/失败时降级为「不涉及」，<strong>不阻塞发布</strong>；可在动态详情提供「🔍 重新分析」入口补检。
+  </div>
+
+  <h3>4.2 检测输出（结构化）</h3>
+  <pre><code>// LegalReviewResult（存 moments.ai_review JSONB；involvesLegal=false 时存 null）
+{
+  "involvesLegal": true,          // 是否涉及法律问题
+  "category": "交通安全",          // 问题类别（交通/消费/网络/校园/人身财产/行政…）
+  "legalNature": "行政违法行为",   // 法律性质定性（民事违法/行政违法/刑事违法/一般违规）
+  "legalBasis": "《道路交通安全法》第89条：行人、乘车人、非机动车驾驶人违反道路通行规定的，处警告或者5元以上50元以下罚款……",
+  "riskTips": "非机动车逆行易引发交通事故，造成人身或财产损害的需依法承担赔偿责任。",
+  "suggestions": ["非机动车应靠道路右侧行驶，不得逆行", "发生事故立即报警并配合交警处理", "可参加交通安全教育学习相关法规"],
+  "confidence": "high"             // high/medium/low（不确定时标 low，前端弱化展示）
+}</code></pre>
+
+  <h3>4.3 检测提示词设计</h3>
+  <p>System Prompt 核心约束：</p>
+  <ul>
+    <li><strong>识别范围</strong>：交通违法（逆行/闯红灯/无证驾驶）、未成年人消费维权、网络发言（侮辱/诽谤/人肉）、校园欺凌、侵犯隐私、盗窃/损坏财物、合同纠纷、赌博/诈骗等常见生活法律场景</li>
+    <li><strong>只对"描述自身行为/经历"的内容做定性</strong>；日常学习、生活、情感分享（如"今天作业好多""周末去公园啦"）一律 <code>involvesLegal=false</code></li>
+    <li><strong>定性口径</strong>：区分民事违法 / 行政违法 / 刑事违法 / 一般违规；措辞通俗但准确，面向中小学生</li>
+    <li><strong>法条引用</strong>：优先引用准确条款号（如《道路交通安全法》第 89 条）；不确定时写"依据《XX法》相关规定"而非编造条款号</li>
+    <li><strong>语气</strong>：提示性、教育性、非说教；强调"遇到问题可求助老师/家长/12348 法律援助热线"</li>
+    <li><strong>隐私边界</strong>：不输出学生个人信息，仅分析内容本身</li>
+  </ul>
+
+  <h3>4.4 法条准确度增强（可选，建议二期）</h3>
+  <p>可接入现有 <strong>RAG 向量库</strong>：将《宪法》《民法典》《道路交通安全法》等常用法律条文向量化入库，检测时先检索相关法条片段作为参考上下文，再让 LLM 输出，显著提升法条准确性。一期先依赖模型知识 + 提示词约束，二期接 RAG。</p>
+</section>
+
+<!-- ═════════════ 五、数据模型 ═════════════ -->
+<section>
+  <h2>五、数据模型（V25 迁移）</h2>
+  <pre><code>-- ① 同学圈动态
+CREATE TABLE IF NOT EXISTS moments (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    author_id   UUID NOT NULL REFERENCES users(id),
+    content     TEXT NOT NULL,                    -- 动态正文（限 500 字）
+    ai_review   JSONB,                            -- AI 法律检测结果（LegalReviewResult）；不涉及=null
+    like_count  INTEGER NOT NULL DEFAULT 0,       -- 冗余点赞数（避免实时 count）
+    comment_count INTEGER NOT NULL DEFAULT 0,     -- 冗余评论数
+    is_deleted  BOOLEAN NOT NULL DEFAULT FALSE,   -- 软删除
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_moments_created ON moments (created_at DESC) WHERE is_deleted = FALSE;
+CREATE INDEX idx_moments_author ON moments (author_id);
+
+-- ② 点赞（每人每动态一次）
+CREATE TABLE IF NOT EXISTS moment_likes (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    moment_id   UUID NOT NULL REFERENCES moments(id),
+    user_id     UUID NOT NULL REFERENCES users(id),
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (moment_id, user_id)
+);
+CREATE INDEX idx_ml_moment ON moment_likes (moment_id);
+
+-- ③ 评论
+CREATE TABLE IF NOT EXISTS moment_comments (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    moment_id   UUID NOT NULL REFERENCES moments(id),
+    user_id     UUID NOT NULL REFERENCES users(id),
+    content     TEXT NOT NULL,                    -- 限 200 字
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_mc_moment ON moment_comments (moment_id, created_at);</code></pre>
+</section>
+
+<!-- ═════════════ 六、后端 API ═════════════ -->
+<section>
+  <h2>六、后端 API 设计（/api/moments）</h2>
+  <table>
+    <tr><th style="width:34%">接口</th><th style="width:12%">方法</th><th>说明</th></tr>
+    <tr><td><code>/api/moments</code></td><td>POST</td><td>发布动态（body: <code>{content}</code>）；服务端同步 AI 检测后返回动态（含 aiReview）；检测失败降级 null</td></tr>
+    <tr><td><code>/api/moments?page=&amp;size=</code></td><td>GET</td><td>动态流（分页，10/页）；每项含作者（昵称/头像/学段）、是否本人点赞、评论数；<strong>不含全部评论</strong>（评论按需加载）</td></tr>
+    <tr><td><code>/api/moments/{id}</code></td><td>DELETE</td><td>删除动态（仅作者本人；软删除）</td></tr>
+    <tr><td><code>/api/moments/{id}/like</code></td><td>POST</td><td>点赞/取消（toggle），返回最新 likeCount + liked 状态</td></tr>
+    <tr><td><code>/api/moments/{id}/comments</code></td><td>GET</td><td>评论列表（含评论者昵称/学段）</td></tr>
+    <tr><td><code>/api/moments/{id}/comments</code></td><td>POST</td><td>发表评论（body: <code>{content}</code>）</td></tr>
+    <tr><td><code>/api/moments/{id}/review</code></td><td>POST</td><td>「重新分析」：手动补检 AI 法律风险（LLM 上次失败时用）</td></tr>
+  </table>
+</section>
+
+<!-- ═════════════ 七、前端设计 ═════════════ -->
+<section>
+  <h2>七、前端设计</h2>
+  <table>
+    <tr><th style="width:22%">项</th><th>设计</th></tr>
+    <tr>
+      <td>入口</td>
+      <td><code>MainLayout.jsx</code> studentMenuItems 插入 <code>{ key: '/student/moments', icon: &lt;TeamOutlined/&gt;, label: '同学圈' }</code>（错题复盘与我的课程之间）；<code>App.jsx</code> 注册 <code>&lt;Route path="moments" element={&lt;StudentMoments/&gt;} /&gt;</code></td>
+    </tr>
+    <tr>
+      <td>新页面</td>
+      <td><code>StudentMoments.jsx</code>：发布区（TextArea+字数 500+发布按钮，发布时 loading 提示"AI 正在分析…"）+ 动态流（Card 列表，分页加载更多）</td>
+    </tr>
+    <tr>
+      <td>AI 提示卡</td>
+      <td>动态卡片下方，当 <code>aiReview?.involvesLegal</code> 时渲染紫色渐变「⚖️ AI 法律风险提示」卡片：<strong>定性</strong>（Tag）+ <strong>法律依据</strong>（引用样式）+ <strong>风险提示</strong> + <strong>建议</strong>（有序列表）；<code>confidence=low</code> 时加"AI 分析仅供参考"弱化角标</td>
+    </tr>
+    <tr>
+      <td>点赞/评论</td>
+      <td>点赞：<code>HeartOutlined/HeartFilled</code> 切换 + 数字；评论：展开式（首次展开请求评论列表），评论项显示"昵称(学段)：内容"</td>
+    </tr>
+    <tr>
+      <td>作者信息</td>
+      <td>头像（<code>avatarUrl</code> 或首字母色块）+ <code>displayName</code> + 学段 Tag（小学/初中/高中/大学，取自 student_profiles.stage）+ 相对时间</td>
+    </tr>
+    <tr>
+      <td>API 封装</td>
+      <td><code>frontend/src/api/momentApi.ts</code>（对齐 arbitrationApi 模式）</td>
+    </tr>
+  </table>
+</section>
+
+<!-- ═════════════ 八、实施计划 ═════════════ -->
+<section>
+  <h2>八、实施计划（约 6 人天）</h2>
+  <table>
+    <tr><th style="width:8%">里程碑</th><th style="width:38%">内容</th><th style="width:12%">工时</th><th>验收要点</th></tr>
+    <tr><td><span class="tag tag-blue">M1</span></td><td>数据底座：V25 迁移（moments/moment_likes/moment_comments）+ 实体 + Repository</td><td>0.5 人天</td><td>迁移幂等可重跑；实体编译通过</td></tr>
+    <tr><td><span class="tag tag-blue">M2</span></td><td>AI 法律检测服务：LegalReviewService（提示词 + askStructured + 超时降级 + 重新分析）+ LegalReviewResult DTO</td><td>1.5 人天</td><td>涉法内容输出完整定性/法条/建议；无害内容返回 false</td></tr>
+    <tr><td><span class="tag tag-blue">M3</span></td><td>后端 API：MomentService（发布/列表/删除/点赞/评论）+ MomentController</td><td>1 人天</td><td>接口全通；点赞唯一约束；软删除；作者权限</td></tr>
+    <tr><td><span class="tag tag-blue">M4</span></td><td>前端：momentApi + StudentMoments 页面 + MainLayout 菜单 + AI 提示卡 + 点赞/评论交互</td><td>2 人天</td><td>发布→AI 提示→点赞→评论→删除全链路</td></tr>
+    <tr><td><span class="tag tag-blue">M5</span></td><td>集成验证：后端编译 + 前端构建 + 浏览器全链路回归（含涉法/不涉法两类内容）</td><td>1 人天</td><td>端到端演示通过</td></tr>
+    <tr><td colspan="2" style="text-align:right"><strong>合计</strong></td><td><strong>约 6 人天</strong></td><td></td></tr>
+  </table>
+</section>
+
+<!-- ═════════════ 九、风险与假设 ═════════════ -->
+<section>
+  <h2>九、风险与假设</h2>
+  <table>
+    <tr><th style="width:8%">编号</th><th style="width:18%">类型</th><th>说明与对策</th></tr>
+    <tr><td>R1</td><td>法条准确性</td><td>LLM 可能引用不准确的条款号。对策：提示词强约束"不确定时不写条款号"；二期接入 RAG 法条库</td></tr>
+    <tr><td>R2</td><td>误报/漏报</td><td>检测是概率性的。对策：confidence 分级（low 弱化展示 + "仅供参考"）；提供"重新分析"补检；后续可让学生反馈"提示不准确"</td></tr>
+    <tr><td>R3</td><td>发布阻塞</td><td>同步检测 LLM 超时会影响发布体验。对策：超时/异常降级为 null 不阻塞；前端发布框提示"AI 分析中"但动态已发布</td></tr>
+    <tr><td>R4</td><td>内容安全</td><td>同学圈可能出现不当内容。对策：软删除 + 作者删除；后续可加举报/教师可见（二期）</td></tr>
+    <tr><td>R5</td><td>成本</td><td>每条动态一次 LLM 调用。对策：单次调用成本低（短文本）；高频用户可加节流（二期）</td></tr>
+    <tr><td>H1</td><td>假设</td><td>「同学圈」可见范围默认为<strong>全体学生</strong>（微信朋友圈模式，一期不分区）；如需同学段/同课程可见，加过滤即可</td></tr>
+  </table>
+</section>
+
+<!-- ═════════════ 十、待确认决策 ═════════════ -->
+<section>
+  <h2>十、待确认决策点</h2>
+  <table>
+    <tr><th style="width:6%">#</th><th style="width:28%">决策项</th><th style="width:36%">推荐方案（默认）</th><th>备选</th></tr>
+    <tr><td>1</td><td>AI 检测时机</td><td><strong>发布时同步检测</strong>（2~5 秒，即时反馈）</td><td>异步后台检测</td></tr>
+    <tr><td>2</td><td>可见范围</td><td><strong>全体学生可见</strong></td><td>同学段/同课程优先</td></tr>
+    <tr><td>3</td><td>AI 提示形态</td><td>动态卡片内<strong>直接展开</strong>展示（紫色提示卡，含定性/法条/风险/建议）</td><td>折叠，点击展开</td></tr>
+    <tr><td>4</td><td>是否支持图片</td><td><strong>一期纯文字</strong>（AI 只分析文本；图片二期）</td><td>支持图片上传</td></tr>
+    <tr><td>5</td><td>点赞/评论</td><td><strong>完整实现</strong>（点赞 toggle + 评论列表/发表）</td><td>仅点赞</td></tr>
+    <tr><td>6</td><td>动态删除</td><td>作者本人可删除（软删除）</td><td>管理员可删（加管理入口）</td></tr>
+    <tr><td>7</td><td>菜单位置</td><td>「错题复盘」与「我的课程」之间</td><td>「合作课堂」之后</td></tr>
+  </table>
+  <div class="callout callout-warn">
+    <strong>请确认以上决策点</strong>（尤其 #1 检测时机、#2 可见范围、#3 提示形态），确认后按 M1→M5 实施。
+  </div>
+</section>
+
+<footer>EduMentor · 同学圈功能设计文档 v1.0 · 2026-08-16</footer>
+</div>
+</body>
+</html>

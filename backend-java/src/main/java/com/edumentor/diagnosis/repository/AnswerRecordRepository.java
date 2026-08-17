@@ -18,6 +18,9 @@ public interface AnswerRecordRepository extends JpaRepository<AnswerRecord, UUID
     List<AnswerRecord> findByStudentIdAndKnowledgePointIdAndAttemptedAtBetween(
         UUID studentId, UUID kpId, LocalDateTime start, LocalDateTime end);
 
+    /** 查询某学生对某知识点的全部作答记录（用于仲裁准入：掌握度 ≥ 0.5） */
+    List<AnswerRecord> findByStudentIdAndKnowledgePointId(UUID studentId, UUID kpId);
+
     List<AnswerRecord> findByStudentIdAndAttemptedAtBetween(
         UUID studentId, LocalDateTime start, LocalDateTime end);
 

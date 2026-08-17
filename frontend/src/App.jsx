@@ -13,6 +13,7 @@ const StudentDashboard = lazy(() => import('./pages/StudentDashboard'));
 const LearningPath = lazy(() => import('./pages/LearningPath'));
 const QATutoring = lazy(() => import('./pages/QATutoring'));
 const ErrorReview = lazy(() => import('./pages/ErrorReview'));
+const StudentMoments = lazy(() => import('./pages/StudentMoments'));
 const StudentCourses = lazy(() => import('./pages/StudentCourses'));
 const StudentStageThemes = lazy(() => import('./pages/StudentStageThemes'));
 const StudentProfileEdit = lazy(() => import('./pages/StudentProfileEdit'));
@@ -79,6 +80,7 @@ function App() {
                 <Route path="learning-path" element={<LearningPath />} />
                 <Route path="qa" element={<QATutoring />} />
                 <Route path="error-review" element={<ErrorReview />} />
+                <Route path="moments" element={<StudentMoments />} />
                 <Route path="courses" element={<StudentCourses />} />
                 <Route path="stages" element={<StudentStageThemes />} />
                 <Route path="learning/:courseCode" element={<StudentLearning />} />

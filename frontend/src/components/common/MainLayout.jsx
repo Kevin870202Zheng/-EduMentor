@@ -21,6 +21,7 @@ const studentMenuItems = [
   { key: '/student/collab-classrooms', icon: <ThunderboltOutlined />, label: '合作课堂' },
   { key: '/student/qa', icon: <QuestionCircleOutlined />, label: '智能答疑' },
   { key: '/student/error-review', icon: <FileExclamationOutlined />, label: '错题复盘' },
+  { key: '/student/moments', icon: <TeamOutlined />, label: '同学圈' },
   { key: '/student/courses', icon: <BookOutlined />, label: '我的课程' },
   { key: '/student/profile', icon: <UserOutlined />, label: '个人信息' },
 ];
