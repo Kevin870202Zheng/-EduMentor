@@ -23,7 +23,7 @@ sshpass -p "$SERVER_PASS" ssh -o StrictHostKeyChecking=no "$SERVER_USER@$SERVER_
 
 echo "=== 4. 清理 0 字节坏缓存 ==="
 sshpass -p "$SERVER_PASS" ssh -o StrictHostKeyChecking=no "$SERVER_USER@$SERVER_HOST" \
-  'docker exec edumentor-tts sh -c "BEFORE=$(find /app/audio -type f | wc -l); find /app/audio -type f -size 0 -delete; AFTER=$(find /app/audio -type f | wc -l); echo removed $((BEFORE-AFTER)) bad files, remaining $AFTER"'
+  'docker exec edumentor-tts find /app/audio -type f -size 0 -delete && echo "bad cache cleaned"'
 
 echo "=== 5. 验证 synthesize ==="
 sshpass -p "$SERVER_PASS" ssh -o StrictHostKeyChecking=no "$SERVER_USER@$SERVER_HOST" \
