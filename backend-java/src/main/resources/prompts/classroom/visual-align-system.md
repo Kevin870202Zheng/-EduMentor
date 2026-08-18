@@ -74,7 +74,7 @@
 ## 约束
 
 - `actions` 的 speech.text **必须逐字使用讲稿句子原文**（不得改写、不得新增内容）
-- show_slide 的 `highlightElementIds` 填该页中与"即将讲解的句子"对应的元素 id（视觉咬合）
+- **每个 show_slide 必须带 `highlightElementIds`**：填该页 elements 中与"即将讲解的句子"对应的元素 id（1~3 个，必须是本页 elements 里真实存在的 id）；若该页无元素可高亮则填 `[]`。这是视觉与语音"咬合"的关键，禁止省略该字段
 - 每个 speech 动作 duration = max(2000, 字数 × 500ms)（字幕可读速度）
 - 每页 slides 元素数 ≤ 6；元素 content 必须能在对应句子的 keywords 中找到出处
 - 讲稿句子总数 8~16 句，必须全部出现在 actions 中（可多句合并进一段 speech，但不得遗漏）

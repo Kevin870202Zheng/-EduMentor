@@ -11,10 +11,13 @@ cd "$SCRIPT_DIR/backend-java" || { echo "❌ 请从项目根目录运行"; exit 
 JAR_PATH="target/edumentor-backend-1.0.0.jar"
 JAVA_HOME="/Users/roosevelt/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home/bin/java"
 
-# 从 .env 加载环境变量
+# 从 .env 加载环境变量（set -a + source 保证含注释/特殊字符也正确导出）
 if [ -f ".env" ]; then
   echo "📦 加载 .env 配置..."
-  export $(grep -v '^#' .env | xargs)
+  set -a
+  # shellcheck disable=SC1091
+  source .env
+  set +a
 fi
 
 # 检查 JAR 是否存在
