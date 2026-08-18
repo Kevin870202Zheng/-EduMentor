@@ -41,6 +41,8 @@ public class ActionDTO {
     // 幻灯片专用（show_slide）
     private String layoutId;
     private String speech;
+    /** 句-页联动：当前讲解句对应的高亮元素 ID 列表（M4 视觉咬合） */
+    private java.util.List<String> highlightElementIds;
 
     // 交互组件专用（launch_widget / widget_*）
     private String widgetKey;

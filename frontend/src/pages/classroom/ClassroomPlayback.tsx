@@ -243,6 +243,11 @@ const ClassroomPlayback: React.FC = () => {
               onGotoPage={gotoSlidePage}
               pendingWidgetAction={pendingWidgetAction}
               widgetFrameRef={widgetFrameRef}
+              highlightElementIds={
+                currentAction?.type === 'show_slide'
+                  ? currentAction.highlightElementIds
+                  : undefined
+              }
             />
 
             {/* 字幕条（语音轨） */}

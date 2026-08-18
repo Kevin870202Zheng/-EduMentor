@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Card, Form, Input, Select, Button, message, Spin, Typography, Divider } from 'antd';
-import { UserOutlined } from '@ant-design/icons';
+import { UserOutlined, AudioOutlined } from '@ant-design/icons';
 import { studentAPI } from '../services/api';
+import { apiClient } from '../api/apiClient';
 import { useAuth } from '../context/AuthContext';
 
 const { Title, Text } = Typography;
@@ -17,12 +18,25 @@ const STAGE_OPTIONS = [
 export default function StudentProfileEdit() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [voiceList, setVoiceList] = useState([]);
+  const [ttsVoice, setTtsVoice] = useState(() => localStorage.getItem('ttsVoiceId') || '');
   const { user } = useAuth();
   const [form] = Form.useForm();
 
   useEffect(() => {
     loadProfile();
   }, [user?.id]);
+
+  // 加载 TTS 音色列表
+  useEffect(() => {
+    apiClient
+      .get('/api/tts/voices')
+      .then((res) => {
+        const voices = res?.data?.data?.voices || res?.data?.voices || [];
+        setVoiceList(voices);
+      })
+      .catch(() => setVoiceList([]));
+  }, []);
 
   const loadProfile = async () => {
     if (!user?.id) return;
@@ -81,6 +95,34 @@ export default function StudentProfileEdit() {
 
           <Divider />
           <Title level={5}>学习设置</Title>
+          <Form.Item
+            label="语音音色"
+            tooltip="智慧课堂讲解语音的音色（默认男声云希），选择后立即生效"
+            extra={ttsVoice ? `当前：${voiceList.find((v) => v.voiceId === ttsVoice)?.name || ttsVoice}` : '使用默认男声（云希）'}
+          >
+            <Select
+              allowClear
+              placeholder="选择讲解语音音色"
+              value={ttsVoice || undefined}
+              prefix={<AudioOutlined />}
+              onChange={(val) => {
+                const v = val || '';
+                setTtsVoice(v);
+                if (v) {
+                  localStorage.setItem('ttsVoiceId', v);
+                } else {
+                  localStorage.removeItem('ttsVoiceId');
+                }
+                message.success(v ? '语音音色已切换' : '已恢复默认男声（云希）');
+              }}
+            >
+              {voiceList.map((v) => (
+                <Select.Option key={v.voiceId} value={v.voiceId}>
+                  {v.name}（{v.style}）
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
           <Form.Item label="学习风格" name="learningStyle">
             <Select>
               <Select.Option value="visual">视觉型</Select.Option>

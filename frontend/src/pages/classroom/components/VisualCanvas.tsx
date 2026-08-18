@@ -28,6 +28,8 @@ interface VisualCanvasProps {
   pendingWidgetAction?: ActionDTO | null;
   /** iframe 引用（父层持有，供后续 widget_* 动作复用） */
   widgetFrameRef?: React.MutableRefObject<HTMLIFrameElement | null>;
+  /** 句-页联动：当前讲解句对应的高亮元素 ID（M4） */
+  highlightElementIds?: string[];
 }
 
 /**
@@ -47,6 +49,7 @@ const VisualCanvas: React.FC<VisualCanvasProps> = ({
   onGotoPage,
   pendingWidgetAction,
   widgetFrameRef,
+  highlightElementIds,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [fullscreen, setFullscreen] = useState(false);
@@ -137,7 +140,13 @@ const VisualCanvas: React.FC<VisualCanvasProps> = ({
               }}
             >
               <div style={{ width: '100%', maxWidth: 920 }}>
-                <SlideLayoutRenderer slides={slides} layoutId={slide.layoutId} />
+                <SlideLayoutRenderer
+                  slides={slides}
+                  layoutId={slide.layoutId}
+                  highlightElementIds={highlightElementIds}
+                  pageNumber={currentPage}
+                  totalPages={slidesTotal}
+                />
               </div>
             </div>
           </div>

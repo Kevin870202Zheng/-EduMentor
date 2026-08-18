@@ -42,6 +42,16 @@ public class SceneContentGenerator {
     }
 
     public SceneContent generate(SceneOutline outline, int difficulty, String context, Map<String, String> extraContext) {
+        // slide/review 场景：讲稿优先两阶段生成（视觉反向对齐讲稿；失败自动降级单轮）
+        if (outline.getType() == SceneType.slide || outline.getType() == SceneType.review) {
+            SceneContent twoPhase = generateScriptFirst(outline, difficulty, context, extraContext);
+            if (twoPhase != null) {
+                log.info("Two-phase generation OK for '{}' (type={})", outline.getTitle(), outline.getType());
+                return twoPhase;
+            }
+            log.info("Two-phase generation failed for '{}', fallback to single-pass", outline.getTitle());
+        }
+
         String systemPrompt = promptLoader.loadRaw("content-system.md");
         Map<String, String> vars = new LinkedHashMap<>();
         vars.put("sceneTitle", outline.getTitle() != null ? outline.getTitle() : "");
@@ -76,6 +86,56 @@ public class SceneContentGenerator {
             }
         }
         return createDefaultContent(outline, difficulty, context);
+    }
+
+    /**
+     * 讲稿优先两阶段生成（阶段A 讲解稿 → 阶段B 视觉对齐设计）。
+     *
+     * @return 生成成功的 SceneContent；任何异常/解析失败返回 null（调用方降级单轮）
+     */
+    private SceneContent generateScriptFirst(SceneOutline outline, int difficulty, String context,
+                                             Map<String, String> extraContext) {
+        Map<String, String> vars = new LinkedHashMap<>();
+        vars.put("sceneTitle", outline.getTitle() != null ? outline.getTitle() : "");
+        vars.put("sceneDescription", outline.getDescription() != null ? outline.getDescription() : "");
+        vars.put("keyPoints", outline.getKeyPoints() != null ? String.join("、", outline.getKeyPoints()) : "");
+        vars.put("teachingObjective", outline.getTeachingObjective() != null ? outline.getTeachingObjective() : "");
+        vars.put("knowledgePointName", context != null ? context : "");
+        vars.put("difficulty", String.valueOf(difficulty));
+        vars.put("courseName", extraContext != null && extraContext.containsKey("courseName")
+                ? extraContext.get("courseName") : "");
+        vars.put("knowledgePointContent", extraContext != null && extraContext.containsKey("knowledgePointContent")
+                ? extraContext.get("knowledgePointContent") : "");
+        vars.put("aggregatedContent", extraContext != null && extraContext.containsKey("aggregatedContent")
+                ? extraContext.get("aggregatedContent") : "");
+
+        try {
+            // ── 阶段 A：生成讲解稿（逐句 + 语义标签 + 关键词） ──
+            String scriptSystem = promptLoader.loadRaw("script-first-system.md");
+            String scriptUser = promptLoader.load("script-first-user.md", vars);
+            String scriptRaw = llmService.askStructured(scriptSystem, scriptUser, String.class, "scene-script");
+            JsonNode scriptNode = objectMapper.readTree(scriptRaw);
+            JsonNode sentences = scriptNode.path("script").path("sentences");
+            if (!sentences.isArray() || sentences.isEmpty()) {
+                log.warn("Two-phase: script-first returned no sentences");
+                return null;
+            }
+
+            // ── 阶段 B：基于讲稿设计 slides + actions（视觉对齐） ──
+            String visualSystem = promptLoader.loadRaw("visual-align-system.md");
+            Map<String, String> varsB = new LinkedHashMap<>(vars);
+            varsB.put("scriptSentences", sentences.toString());
+            String visualUser = promptLoader.load("visual-align-user.md", varsB);
+            String raw = llmService.askStructured(visualSystem, visualUser, String.class, "scene-content");
+            SceneContent content = parseSceneContent(raw, outline);
+            if (content != null && content.getActions() != null && !content.getActions().isEmpty()) {
+                return content;
+            }
+            log.warn("Two-phase: visual-align returned no actions");
+        } catch (Exception e) {
+            log.warn("Two-phase generation error for '{}': {}", outline.getTitle(), e.getMessage());
+        }
+        return null;
     }
 
     private SceneContent parseSceneContent(String raw, SceneOutline outline) throws Exception {
@@ -170,6 +230,12 @@ public class SceneContentGenerator {
         if (node.has("target")) b.target(node.get("target").asText());
         if (node.has("state") && node.get("state").isObject()) {
             b.state(objectMapper.convertValue(node.get("state"), Map.class));
+        }
+        // 句-页联动：当前讲解句对应的高亮元素（M4）
+        if (node.has("highlightElementIds") && node.get("highlightElementIds").isArray()) {
+            List<String> hl = new ArrayList<>();
+            for (JsonNode h : node.get("highlightElementIds")) hl.add(h.asText());
+            b.highlightElementIds(hl);
         }
         return b.build();
     }

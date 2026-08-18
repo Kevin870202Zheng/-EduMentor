@@ -140,6 +140,13 @@ websocket:
   max-session-idle-timeout: 1800000
   allowed-origins: http://localhost:5173,http://localhost:3000,http://localhost:3001
 
+# TTS Configuration（edge-tts 微服务代理）
+tts:
+  service-url: ${TTS_SERVICE_URL:http://localhost:5080}
+  cache-dir: ${TTS_CACHE_DIR:./tts-cache}
+  default-voice: ${TTS_DEFAULT_VOICE:zh-CN-YunxiNeural}
+  enabled: true
+
 # Logging
 logging:
   level:

@@ -29,7 +29,7 @@ export interface TTSResponse {
  * 后端需要实现 POST /api/tts/synthesize
  */
 async function synthesizeAPI(request: TTSRequest): Promise<TTSResponse> {
-  const res = await apiClient.post<ApiResponse<TTSResponse>>('/api/tts/synthesize', {
+  const res = await apiClient.post<ApiResponse<TTSResponse>>('/tts/synthesize', {
     text: request.text,
     voiceId: request.voiceId || 'default',
     rate: request.rate ?? 1.0,

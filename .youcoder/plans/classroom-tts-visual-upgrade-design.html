@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智慧课堂体验升级：TTS 语音 + 视觉反向对齐 + PPT 设计大师</title>
+<style>
+  :root { --primary:#1677ff; --bg:#f5f7fa; --card:#fff; --text:#1a1a2e; --sub:#666; --border:#e8e8e8; --accent:#722ed1; --ok:#52c41a; --warn:#fa8c16; --danger:#ff4d4f; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif; background:var(--bg); color:var(--text); line-height:1.7; padding:32px 16px; }
+  .wrap { max-width:1080px; margin:0 auto; }
+  .header { background:linear-gradient(135deg,#1677ff,#722ed1); color:#fff; border-radius:16px; padding:36px 40px; margin-bottom:28px; }
+  .header h1 { font-size:25px; margin-bottom:8px; }
+  .header p { opacity:.9; font-size:14px; }
+  .badges { margin-top:14px; }
+  .badge { display:inline-block; background:rgba(255,255,255,.2); border-radius:20px; padding:4px 14px; font-size:12px; margin-right:8px; }
+  .card { background:var(--card); border-radius:12px; padding:28px 32px; margin-bottom:20px; border:1px solid var(--border); box-shadow:0 1px 3px rgba(0,0,0,.04); }
+  h2 { font-size:20px; margin-bottom:16px; padding-bottom:10px; border-bottom:2px solid #eef0f4; }
+  h2 .num { color:var(--primary); margin-right:8px; }
+  h3 { font-size:16px; margin:18px 0 10px; color:var(--accent); }
+  p { margin-bottom:10px; }
+  .sub { color:var(--sub); font-size:13px; }
+  ul,ol { margin:6px 0 12px 22px; }
+  li { margin-bottom:5px; }
+  code { background:#f0f2f5; border-radius:4px; padding:2px 6px; font-family:'SF Mono',Consolas,Menlo,monospace; font-size:13px; }
+  pre { background:#1e1e2e; color:#cdd6f4; border-radius:8px; padding:16px 20px; overflow-x:auto; font-size:13px; line-height:1.6; margin:10px 0; }
+  pre code { background:none; color:inherit; padding:0; }
+  table { width:100%; border-collapse:collapse; margin:12px 0; font-size:14px; }
+  th,td { border:1px solid var(--border); padding:8px 12px; text-align:left; vertical-align:top; }
+  th { background:#fafafa; font-weight:600; white-space:nowrap; }
+  .tag { display:inline-block; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:500; }
+  .tag-red { background:#fff1f0; color:#cf1322; }
+  .tag-green { background:#f6ffed; color:#389e0d; }
+  .tag-blue { background:#e6f4ff; color:#0958d9; }
+  .tag-purple { background:#f9f0ff; color:#531dab; }
+  .tag-orange { background:#fff7e6; color:#d46b08; }
+  .callout { border-radius:10px; padding:14px 18px; margin:12px 0; font-size:14px; }
+  .callout-danger { background:#fff1f0; border-left:4px solid #ff4d4f; }
+  .callout-warn { background:#fffbe6; border-left:4px solid #faad14; }
+  .callout-info { background:#e6f4ff; border-left:4px solid #1677ff; }
+  .callout-ok { background:#f6ffed; border-left:4px solid #52c41a; }
+  .flow { display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin:12px 0; }
+  .flow .step { background:#e6f4ff; border:1px solid #91caff; color:#0958d9; border-radius:8px; padding:6px 12px; font-size:13px; font-weight:500; }
+  .flow .arrow { color:#999; font-weight:700; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media (max-width:768px){ .grid2 { grid-template-columns:1fr; } .header { padding:24px; } }
+  .compare { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:860px){ .compare { grid-template-columns:1fr; } }
+  .box { border:1px solid var(--border); border-radius:10px; padding:14px 16px; font-size:13px; }
+  .box.good { background:#f6ffed; border-color:#b7eb8f; }
+  .box.bad { background:#fff1f0; border-color:#ffa39e; }
+  .box h4 { font-size:14px; margin-bottom:8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="header">
+  <h1>🗣️ 智慧课堂体验升级：TTS 语音 + 视觉反向对齐 + PPT 设计大师</h1>
+  <p>解决三大痛点：中文语音僵硬 / PPT 与讲解配合粗糙 / 视觉 UI 简陋</p>
+  <div class="badges">
+    <span class="badge">TTS 引擎选型</span>
+    <span class="badge">两阶段生成管线</span>
+    <span class="badge">PPT 设计大师提示词</span>
+    <span class="badge">v1.0</span>
+  </div>
+</div>
+
+<div class="card">
+  <h2><span class="num">1</span>问题根因（已核实代码）</h2>
+  <table>
+    <tr><th>问题</th><th>根因</th><th>代码证据</th></tr>
+    <tr>
+      <td><b>TTS 中文僵硬</b></td>
+      <td>后端<b>从未实现</b> <code>POST /api/tts/synthesize</code>，前端每次请求失败后降级到<b>浏览器原生 SpeechSynthesis</b>（macOS 系统中文语音，机械、无情感）</td>
+      <td><code>ttsService.ts</code> L94-119：API 失败 → <code>synthesizeBrowser()</code>；后端全库 grep <code>tts</code> 无匹配</td>
+    </tr>
+    <tr>
+      <td><b>PPT 与讲解配合粗糙</b></td>
+      <td>slides 与 speech 是<b>同一轮 LLM 输出</b>，无逐句绑定；LLM 自由发挥页内容，页数少（2 页）且不覆盖讲解全程</td>
+      <td><code>content-system.md</code>：单次生成 JSON 含 content.slides + actions</td>
+    </tr>
+    <tr>
+      <td><b>视觉 UI 简陋</b></td>
+      <td>提示词无「设计大师」人设与版式/配色规范；前端渲染器（<code>SlideLayoutRenderer</code>）样式朴素（白底、直角、无主题系统）</td>
+      <td><code>slide-layout-rules.md</code> 仅坐标/元素规则；<code>SlideLayoutRenderer.tsx</code> 纯白色块</td>
+    </tr>
+  </table>
+</div>
+
+<div class="card">
+  <h2><span class="num">2</span>TTS 语音升级（M1，最快见效）</h2>
+
+  <h3>2.1 调研结论：候选方案对比</h3>
+  <table>
+    <tr><th>方案</th><th>音质</th><th>成本</th><th>部署</th><th>评价</th></tr>
+    <tr>
+      <td><b>⭐ edge-tts</b><br>（微软 Edge 神经网络语音）</td>
+      <td>自然度高（晓晓/云希/云健 等中文音色）</td>
+      <td><span class="tag tag-green">免费</span>（1.2万 Star，2026 仍在维护）</td>
+      <td>Python 微服务 / docker 容器，5 分钟可跑</td>
+      <td><b>首选</b>：零成本、音色接近真人、即插即用</td>
+    </tr>
+    <tr>
+      <td>火山引擎豆包 TTS</td>
+      <td>高（支持情感/克隆音色）</td>
+      <td>收费（有免费额度）</td>
+      <td>云 API（需 APP ID + Access Token，与方舟 embedding 的 ARK_KEY 不同套）</td>
+      <td>备选升级：质量上限最高，但需开通+付费</td>
+    </tr>
+    <tr>
+      <td>ChatTTS / CosyVoice</td>
+      <td>高</td>
+      <td>免费开源</td>
+      <td>需 GPU 推理，模型大</td>
+      <td>本地部署成本高，暂不采用</td>
+    </tr>
+    <tr>
+      <td>浏览器原生 SpeechSynthesis</td>
+      <td><span class="tag tag-red">僵硬</span></td>
+      <td>免费</td>
+      <td>无</td>
+      <td>现状 → 降级兜底</td>
+    </tr>
+  </table>
+
+  <h3>2.2 架构：独立 TTS 微服务 + 后端代理</h3>
+  <div class="flow">
+    <span class="step">前端 useTTSPlayer</span>
+    <span class="arrow">→</span>
+    <span class="step">POST /api/tts/synthesize（Spring Boot 新增）</span>
+    <span class="arrow">→</span>
+    <span class="step">Python edge-tts 服务（FastAPI, :5080）</span>
+    <span class="arrow">→</span>
+    <span class="step">返回 mp3 + durationMs</span>
+    <span class="arrow">→</span>
+    <span class="step">播放 + 缓存</span>
+  </div>
+  <ul>
+    <li><b>Python 微服务</b>（<code>tts-service/main.py</code>）：FastAPI + <code>edge-tts</code> 库，接口 <code>POST /synthesize {text, voice, rate}</code> → <code>{audioUrl(本地文件), durationMs}</code>；本地文件缓存（<code>hash(text+voice).mp3</code>）</li>
+    <li><b>Spring Boot</b>：新增 <code>TtsController</code>（<code>POST /api/tts/synthesize</code>）：调用 tts-service（配置 <code>TTS_SERVICE_URL</code>），成功后把音频缓存到本地目录，返回 <code>GET /api/tts/audio/{id}.mp3</code> 可访问 URL；服务不可用时返回 503</li>
+    <li><b>前端</b>：<code>ttsService.ts</code> 无需改（接口契约已就绪），自动从浏览器原生升级到 edge-tts；仍保留浏览器原生为最终兜底</li>
+    <li><b>音色选择</b>：默认 <code>zh-CN-YunxiNeural</code>（云希·男声·适合讲师）或 <code>zh-CN-XiaoxiaoNeural</code>（晓晓·女声），可通过 voiceId 切换；rate 0.9（稍慢更清晰）</li>
+    <li><b>生产部署</b>：docker-compose 增加 <code>tts-service</code> 容器（Python 3.12 slim + edge-tts），backend 通过内部网络访问；腾讯云服务器需确认微软接口可达（edge-tts 一般可直连）</li>
+  </ul>
+
+  <div class="callout callout-warn">
+    <b>风险提示：</b>edge-tts 依赖微软 Edge 在线接口（非官方），偶发限流/不可用 —— 已通过「后端 503 → 前端降级浏览器原生」兜底，不影响课堂播放。若后续追求极致音质/情感，可平滑切换到火山豆包 TTS（接口形态一致，只换实现）。
+  </div>
+</div>
+
+<div class="card">
+  <h2><span class="num">3</span>讲稿优先 → 视觉反向对齐（M2）</h2>
+
+  <h3>3.1 现状 vs 目标</h3>
+  <div class="compare">
+    <div class="box bad">
+      <h4>❌ 现状：一次生成</h4>
+      <p>LLM 一次输出 slides + actions，slides 自由发挥。结果：页少、与讲稿句子无绑定、视觉"配不上"讲解。</p>
+    </div>
+    <div class="box good">
+      <h4>✅ 目标：讲稿优先、视觉反向对齐</h4>
+      <p>先生成完整讲解稿（分句带语义标签），再让 LLM 扮演 PPT 设计师<b>逐句对齐设计</b>视觉：每页引用讲稿具体句子的关键词/数据，show_slide 精准插在对应 speech 前。</p>
+    </div>
+  </div>
+
+  <h3>3.2 两阶段生成管线（后端改造）</h3>
+  <div class="flow">
+    <span class="step">阶段A：生成讲解稿</span>
+    <span class="arrow">→</span>
+    <span class="step">script：按句切分 + 语义标签（概念/数据/对比/流程/举例/设问/结论）</span>
+    <span class="arrow">→</span>
+    <span class="step">阶段B：视觉对齐生成</span>
+    <span class="arrow">→</span>
+    <span class="step">slides（每页=1~3 句，元素引用句中关键词/数据）+ show_slide 插入位置</span>
+  </div>
+
+  <h3>3.3 阶段 A：讲解稿生成（script-first 提示词）</h3>
+  <pre><code>输出：完整教师讲解稿（口语化、直接对学生说话）
+{
+  "script": {
+    "sentences": [
+      { "seq": 1, "text": "我们先看一个真实案例。", "semantic": "引入", "keywords": ["案例"] },
+      { "seq": 2, "text": "这家公司建设的保障房，按规定要建防空地下室，却没有建。", "semantic": "事实", "keywords": ["保障房", "防空地下室"] },
+      { "seq": 3, "text": "人防办要求缴费，公司却想免缴。", "semantic": "冲突", "keywords": ["人防办", "免缴"] },
+      { "seq": 4, "text": "法院怎么判？违法建设不能享受优惠。", "semantic": "结论", "keywords": ["违法建设", "不享受优惠"] }
+    ],
+    "guidingQuestions": ["违法建设为什么不能享受优惠？"]
+  }
+}
+约束：
+- 每句 ≤ 40 字（字幕友好）；一个知识点 1~4 句
+- 语义标签驱动阶段B的视觉选型（数据→图表 / 流程→流程图 / 对比→对照卡）</code></pre>
+
+  <h3>3.4 阶段 B：视觉反向对齐生成（PPT 设计师提示词）</h3>
+  <pre><code>输入：阶段A的 script.sentences（含语义标签+关键词）
+输出：为每句设计视觉呈现，聚类成页
+{
+  "slides": [
+    {
+      "layoutId": "s1",
+      "title": "真实案例：保障房没建防空地下室",   // 由第1~2句提炼
+      "coverSentences": [1, 2],
+      "elements": [
+        { "id": "t1", "kind": "text", "x":60, "y":80, "w":840, "h":76,
+          "content": "保障房 · 防空地下室",         // 必须来自 keywords
+          "fontSize": 30, "bold": true, "align": "center" },
+        { "id": "c1", "kind": "shape", ... }        // 对照卡
+      ]
+    }
+  ],
+  "actions": [
+    { "type": "speech", "text": "我们先看一个真实案例。", "duration": 3000 },
+    { "type": "show_slide", "layoutId": "s1", "speech": "大家看这一页。" },
+    { "type": "speech", "text": "这家公司建设的保障房…", "duration": 5000 }
+  ]
+}
+约束：
+- 每页元素内容必须引用对应句子的 keywords（不允许编造页外内容）
+- show_slide 必须插在对应 speech 之前（视觉先于讲解）
+- 页数 = 句子聚类数（一般 2~4 页），每页覆盖 1~3 句</code></pre>
+
+  <h3>3.5 后端编排改动</h3>
+  <ul>
+    <li><code>SceneContentGenerator</code>：slide 场景改为「两轮 LLM 调用」——先 script 生成，再 visuals 生成；quiz/review/interactive 场景保持单轮（review 的 summaryMap 也可走 script-first 对齐）</li>
+    <li>新增 prompt 文件：<code>prompts/classroom/script-first-system.md</code> + <code>visual-align-system.md</code></li>
+    <li>兼容旧逻辑：LLM 返回失败/超时 → 回退单轮生成（现状）</li>
+  </ul>
+
+  <h3>3.6 前端增强：句-页联动高亮（可选加分项）</h3>
+  <ul>
+    <li>show_slide 动作增加 <code>highlightElementIds</code>（当前讲解句对应的页内元素 ID 列表）</li>
+    <li>前端：<code>VisualCanvas</code> 把高亮 ID 传给 <code>SlideLayoutRenderer</code> → 对应元素加描边/发光动画（视觉与语音"咬合"的直观体验）</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h2><span class="num">4</span>PPT 设计大师（M3，视觉精美度）</h2>
+
+  <h3>4.1 提示词升级：扮演资深 PPT 设计师</h3>
+  <ul>
+    <li><b>人设</b>：你是一名有 10 年经验的 PPT 设计师，擅长把抽象概念做成信息层级清晰、视觉优雅的课件页</li>
+    <li><b>版式模板库</b>（每页必须选型，禁止自由拼贴）：
+      <table>
+        <tr><th>模板</th><th>适用</th><th>布局特征</th></tr>
+        <tr><td>封面页 Cover</td><td>场景开场</td><td>大标题居中 + 副标题 + 装饰色带</td></tr>
+        <tr><td>概念页 Concept</td><td>定义/要点</td><td>左文右图 / 中心词 + 四周解释卡</td></tr>
+        <tr><td>数据页 Data</td><td>占比/趋势</td><td>图表为主体 + 结论条（下侧高亮结论）</td></tr>
+        <tr><td>对比页 Compare</td><td>左右对照</td><td>两栏对照卡 + 中间 VS</td></tr>
+        <tr><td>流程页 Flow</td><td>步骤/流程</td><td>横向/纵向节点 + 箭头连线</td></tr>
+        <tr><td>总结页 Summary</td><td>场景收尾</td><td>要点列表 + 金句条</td></tr>
+      </table>
+    </li>
+    <li><b>配色系统</b>：每场景从 3 套主题色板选 1 套，整套保持一致
+      <ul>
+        <li>🎨 学术蓝：<code>#1677ff</code>/<code>#69b1ff</code>/<code>#e6f4ff</code>（默认）</li>
+        <li>🌿 莫兰迪绿：<code>#52c41a</code>/<code>#95de64</code>/<code>#f6ffed</code></li>
+        <li>🖤 极简黑白金：<code>#1a1a2e</code>/<code>#8c8c8c</code>/<code>#d4b106</code></li>
+      </ul>
+    </li>
+    <li><b>精致度规则</b>：栅格对齐（元素坐标对齐 20px 栅格）、统一圆角（卡片 12px）、统一阴影、标题层级 ≤3 级、每页 1 个视觉焦点、适度留白（≥60px 边距）、装饰元素（页脚圆点/章节序号）</li>
+  </ul>
+
+  <h3>4.2 前端渲染器升级（SlideLayoutRenderer v2）</h3>
+  <ul>
+    <li>新增 <code>theme</code> prop（场景级主题色板，由 content 传入），图表/卡片/连线统一取色</li>
+    <li>卡片样式升级：圆角 12px + 柔和阴影（<code>0 4px 16px rgba(0,0,0,.06)</code>）+ 渐变底</li>
+    <li>标题区：装饰色带 + 章节序号（如 "02 / 06"）</li>
+    <li>图表：统一 echarts 主题（字体、色板、去网格线），图表下方自动生成「数据结论条」</li>
+    <li>流程页：节点卡片 + 箭头自动美化</li>
+    <li>新增 <code>highlightElementIds</code> 支持（句-页联动，M2.6）</li>
+  </ul>
+
+  <h3>4.3 交互组件（widget）精致化</h3>
+  <ul>
+    <li>interactive-widget-rules.md 增加 UI 规范：统一配色（与场景主题一致）、圆角卡片、按钮 hover 态、留白、字体层级</li>
+    <li>前端 <code>InteractiveWidgetRenderer</code>：iframe 外层加主题色边框/标题栏美化</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h2><span class="num">5</span>实施计划（约 5~7 人天）</h2>
+  <table>
+    <tr><th>里程碑</th><th>内容</th><th>工作量</th></tr>
+    <tr><td><b>M1 TTS 升级</b></td><td>Python edge-tts 微服务 + 后端 TtsController + 前端验证（音色/语速）+ docker-compose 加 tts 容器</td><td>1 人天</td></tr>
+    <tr><td><b>M2 讲稿优先管线</b></td><td>script-first 提示词 + 两阶段生成编排（SceneContentGenerator 改造）+ 新课堂生成验证</td><td>2.5 人天</td></tr>
+    <tr><td><b>M3 PPT 设计大师</b></td><td>PPT 设计师提示词（版式模板+配色系统）+ SlideLayoutRenderer v2 + widget 规范</td><td>1.5 人天</td></tr>
+    <tr><td><b>M4 句-页联动（可选）</b></td><td>highlightElementIds + 元素高亮动画</td><td>1 人天</td></tr>
+    <tr><td><b>M5 集成验证</b></td><td>新课堂全链路（讲稿→PPT→TTS 播放）+ 旧课堂回归 + 降级路径验证</td><td>1 人天</td></tr>
+  </table>
+
+  <h3>验收标准</h3>
+  <ol>
+    <li>TTS：新课堂语音自然（晓晓/云希音色），无机械感；TTS 服务宕机时自动降级浏览器原生，不中断课堂</li>
+    <li>讲稿对齐：生成的 slides 每页元素内容能在讲解稿中找到原文/关键词出处；show_slide 在对应 speech 之前</li>
+    <li>PPT 精美度：新课堂页面有明显版式/配色/圆角阴影设计感，非白底色块</li>
+    <li>句-页联动（若做）：讲解到某句时，页上对应元素高亮</li>
+    <li>旧课堂回归：旧数据播放不受影响</li>
+  </ol>
+</div>
+
+<div class="card">
+  <h2><span class="num">6</span>待确认决策点</h2>
+  <table>
+    <tr><th>#</th><th>决策点</th><th>推荐</th><th>备选</th></tr>
+    <tr><td>1</td><td>TTS 引擎</td><td><span class="tag tag-green">edge-tts（免费首选）</span></td><td>火山豆包 TTS（收费，需开通凭证）</td></tr>
+    <tr><td>2</td><td>TTS 部署形态</td><td><span class="tag tag-green">独立 Python 容器</span>（docker-compose 加 tts-service）</td><td>后端内嵌（Java 调 edge-tts 非官方接口，不稳）</td></tr>
+    <tr><td>3</td><td>默认音色</td><td><span class="tag tag-green">云希 Yunxi（男声·讲师感）</span>，rate 0.95</td><td>晓晓 Xiaoxiao（女声）</td></tr>
+    <tr><td>4</td><td>讲稿优先两阶段管线</td><td><span class="tag tag-green">本轮做</span>（M2）</td><td>下期做，先 TTS + PPT 精美度</td></tr>
+    <tr><td>5</td><td>句-页联动高亮（highlightElementIds）</td><td><span class="tag tag-green">本轮做</span>（体验"咬合"感强）</td><td>二期</td></tr>
+    <tr><td>6</td><td>PPT 版式模板 + 配色系统</td><td><span class="tag tag-green">6 模板 + 3 色板</span></td><td>可加动态模板（后期）</td></tr>
+  </table>
+</div>
+
+</div>
+</body>
+</html>
+

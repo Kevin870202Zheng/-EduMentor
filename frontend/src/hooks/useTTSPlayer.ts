@@ -79,10 +79,11 @@ export function useTTSPlayer(options: TTSPlayerOptions = {}) {
       setProgress(0);
 
       try {
-        // 合成语音
+        // 合成语音（音色优先级：options.voiceId > localStorage 学生选择 > 后端默认云希）
+        const effectiveVoiceId = voiceId || localStorage.getItem('ttsVoiceId') || undefined;
         const result = await synthesize({
           text,
-          voiceId,
+          voiceId: effectiveVoiceId,
           rate,
           language: 'zh-CN',
         });

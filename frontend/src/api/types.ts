@@ -40,6 +40,8 @@ export interface ActionDTO {
   // 幻灯片专用（show_slide）
   layoutId?: string;
   speech?: string;
+  /** 句-页联动：当前讲解句对应的高亮元素 ID */
+  highlightElementIds?: string[];
   // 交互组件专用（launch_widget / widget_*）
   widgetKey?: string;
   intro?: string;
@@ -77,6 +79,9 @@ export interface SlideElement {
   themeColors?: string[];
   // latex
   latex?: string;
+  // v2 视觉升级
+  bg?: string;                       // 元素背景色（卡片）
+  variant?: 'card' | 'conclusion' | 'highlight' | 'plain';  // 视觉变体
 }
 
 /** 幻灯片布局（一页） */
@@ -84,6 +89,10 @@ export interface SlideLayout {
   layoutId: string;
   title?: string;
   elements: SlideElement[];
+  // v2 视觉升级（PPT 设计大师）
+  template?: 'cover' | 'concept' | 'data' | 'compare' | 'flow' | 'summary' | string;
+  theme?: 'academic' | 'morandi' | 'minimal' | string;
+  coverSentences?: number[];
 }
 
 /** 交互组件配置 */
