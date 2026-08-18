@@ -78,6 +78,8 @@ public class TtsService {
             JsonNode resp = objectMapper.readTree(respBody);
             String remoteAudioUrl = resp.path("audioUrl").asText();
             int durationMs = resp.path("durationMs").asInt(2000);
+            // 格式透传：edge-tts → mp3；espeak-ng 兜底 → wav
+            String format = "mp3".equals(resp.path("format").asText("mp3")) ? "mp3" : "wav";
 
             // 2. 下载音频字节
             byte[] audio = restClient.get()
@@ -88,16 +90,16 @@ public class TtsService {
                 throw new IllegalStateException("tts-service 音频为空");
             }
 
-            // 3. 本地缓存（md5 命名，幂等）
+            // 3. 本地缓存（md5 命名，幂等；后缀与格式一致）
             String key = md5(finalVoice + "|" + finalRate + "|" + text);
             Path dir = Paths.get(cacheDir);
             Files.createDirectories(dir);
-            Path file = dir.resolve(key + ".mp3");
+            Path file = dir.resolve(key + "." + format);
             if (!Files.exists(file)) {
                 Files.write(file, audio);
             }
 
-            return new TtsResult("/api/tts/audio/" + key + ".mp3", Math.max(durationMs, 500), "mp3");
+            return new TtsResult("/api/tts/audio/" + key + "." + format, Math.max(durationMs, 500), format);
         } catch (IOException e) {
             log.warn("TTS synthesize I/O error: {}", e.getMessage());
             throw new IllegalStateException("语音服务暂不可用（网络异常）");
@@ -135,9 +137,9 @@ public class TtsService {
                 Map.of("voiceId", "zh-CN-XiaohanNeural", "name", "晓涵（女 · 温柔）", "gender", "女", "style", "轻柔舒缓"));
     }
 
-    /** 解析音频文件路径（防路径穿越：仅允许 32 位 hex 的 mp3） */
+    /** 解析音频文件路径（防路径穿越：仅允许 32 位 hex 的 mp3/wav） */
     public Path resolveAudioFile(String fileName) {
-        if (fileName == null || !fileName.matches("[a-f0-9]{32}\\.mp3")) {
+        if (fileName == null || !fileName.matches("[a-f0-9]{32}\\.(mp3|wav)")) {
             throw new IllegalArgumentException("非法音频文件名");
         }
         return Paths.get(cacheDir).resolve(fileName).normalize();

@@ -75,8 +75,10 @@ public class TtsController {
                 return ResponseEntity.notFound().build();
             }
             Resource resource = new FileSystemResource(path);
+            // 按实际格式返回正确 content-type（espeak-ng 兜底为 wav，edge-tts 为 mp3）
+            String contentType = fileName.toLowerCase().endsWith(".wav") ? "audio/wav" : "audio/mpeg";
             return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType("audio/mpeg"))
+                    .contentType(MediaType.parseMediaType(contentType))
                     .header("Cache-Control", "public, max-age=86400")
                     .body(resource);
         } catch (IllegalArgumentException e) {

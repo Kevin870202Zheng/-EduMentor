@@ -45,3 +45,8 @@ logs/
 .youcoder/workspace/artifacts/
 .youcoder/workspace/
 .youcoder/youcoder.md
+
+# TTS 音频缓存（合成产物，不入库）
+tts-service/audio/
+tts-cache/
+backend-java/tts-cache/
