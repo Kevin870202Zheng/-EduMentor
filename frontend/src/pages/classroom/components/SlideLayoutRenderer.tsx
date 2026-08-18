@@ -7,7 +7,7 @@ import type { SlideLayout, SlideElement } from '../../../api/types';
 const CANVAS_W = 960;
 const CANVAS_H = 540;
 
-/** 主题色板（PPT 设计大师：3 套配色系统） */
+/** 主题色板（PPT 设计大师：5 套配色系统，与 slide-layout-rules.md v2 对齐） */
 const THEMES: Record<string, {
   primary: string; secondary: string; light: string; bg: string; text: string;
 }> = {
@@ -25,6 +25,16 @@ const THEMES: Record<string, {
     primary: '#1a1a2e', secondary: '#8c8c8c', light: '#f5f5f5',
     bg: 'linear-gradient(145deg,#ffffff 0%,#fafafa 55%,#f2f2f2 100%)',
     text: '#1a1a2e',
+  },
+  warm: {
+    primary: '#fa8c16', secondary: '#ffc069', light: '#fff7e6',
+    bg: 'linear-gradient(145deg,#fffbf3 0%,#fff3dc 55%,#fff7e6 100%)',
+    text: '#3a2a12',
+  },
+  ocean: {
+    primary: '#13c2c2', secondary: '#5cdbd3', light: '#e6fffb',
+    bg: 'linear-gradient(145deg,#f2fdfd 0%,#e8fbfa 55%,#e6fffb 100%)',
+    text: '#0f2a2a',
   },
 };
 const DEFAULT_THEME = THEMES.academic;

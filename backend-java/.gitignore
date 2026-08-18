@@ -61,5 +61,5 @@ surefire-reports/
 *.ec
 -e 
 # TTS 音频缓存
-backend-java/tts-cache/
+tts-cache/
 tts-service/audio/

@@ -8,8 +8,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 场景内容结构校验器 — 在课堂生成落库前校验 LLM 产出的
@@ -57,6 +59,16 @@ public final class SceneContentValidator {
     /** 校验通过则返回 true（无问题）。 */
     public static boolean isValid(SceneContent scene) {
         return validate(scene).isEmpty();
+    }
+
+    /**
+     * 返回 slides 相关的严重结构问题（越界/文本溢出/图表结构/highlight 引用），
+     * 供生成侧 LLM 携带问题列表自动重试（非结构问题由 sanitize 降级处理即可）。
+     */
+    public static List<String> criticalSlideProblems(SceneContent scene) {
+        return validate(scene).stream()
+                .filter(p -> p.startsWith("[slides]") || p.startsWith("[action] show_slide"))
+                .toList();
     }
 
     /**
@@ -135,6 +147,40 @@ public final class SceneContentValidator {
                     problems.add("[slides] 元素 " + el.path("id").asText("?")
                             + " 超出画布边界 (960x540)");
                 }
+                // 文本溢出检查（规则手册：h ≈ 行数 × 字号 × 1.4）
+                if ("text".equals(el.path("kind").asText())) {
+                    int fontSize = el.path("fontSize").asInt(20);
+                    String content = el.path("content").asText("");
+                    if (!content.isEmpty()) {
+                        int charsPerLine = Math.max(1, (int) (w / (fontSize * 1.0)));
+                        int lines = Math.max(1, (int) Math.ceil(content.length() / (double) charsPerLine));
+                        int neededH = (int) Math.ceil(lines * fontSize * 1.4);
+                        if (h < neededH) {
+                            problems.add("[slides] 文本元素 " + el.path("id").asText("?")
+                                    + " 高度不足：约需 " + neededH + "px（" + lines + " 行 × " + fontSize + "px），实际 " + h);
+                        }
+                    }
+                }
+                // 图表结构检查（labels/series 非空且长度一致）
+                if ("chart".equals(el.path("kind").asText())) {
+                    JsonNode data = el.get("data");
+                    if (data == null || !data.has("labels") || !data.has("series")) {
+                        problems.add("[slides] chart 元素 " + el.path("id").asText("?") + " 缺少 data.labels/series");
+                    } else {
+                        JsonNode labels = data.get("labels");
+                        JsonNode series = data.get("series");
+                        if (!labels.isArray() || labels.isEmpty()) {
+                            problems.add("[slides] chart 元素 " + el.path("id").asText("?") + " data.labels 为空");
+                        } else if (series.isArray() && series.size() > 0) {
+                            for (JsonNode s : series) {
+                                if (s.isArray() && s.size() != labels.size()) {
+                                    problems.add("[slides] chart 元素 " + el.path("id").asText("?")
+                                            + " data.series 长度(" + s.size() + ")与 labels(" + labels.size() + ")不一致");
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -179,6 +225,20 @@ public final class SceneContentValidator {
                         .anyMatch(s -> layoutId != null && layoutId.equals(s.path("layoutId").asText()));
                 if (!found) {
                     problems.add("[action] show_slide 引用了不存在的 layoutId=" + layoutId);
+                } else if (!summaryOk && a.getHighlightElementIds() != null && !a.getHighlightElementIds().isEmpty()) {
+                    // highlightElementIds 必须指向该页真实存在的元素
+                    JsonNode slideNode = slides.stream()
+                            .filter(s -> layoutId != null && layoutId.equals(s.path("layoutId").asText()))
+                            .findFirst().orElse(null);
+                    if (slideNode != null && slideNode.has("elements") && slideNode.get("elements").isArray()) {
+                        Set<String> ids = new HashSet<>();
+                        for (JsonNode e : slideNode.get("elements")) ids.add(e.path("id").asText());
+                        for (String hid : a.getHighlightElementIds()) {
+                            if (!ids.contains(hid)) {
+                                problems.add("[action] show_slide(" + layoutId + ") 的 highlightElementIds 引用了不存在的元素 " + hid);
+                            }
+                        }
+                    }
                 }
             }
             if (a.getType() == ActionType.launch_widget && !hasWidget) {

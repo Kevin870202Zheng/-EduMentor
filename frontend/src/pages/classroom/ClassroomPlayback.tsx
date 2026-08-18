@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   Button,
@@ -8,6 +8,8 @@ import {
   Spin,
   Tag,
   Tooltip,
+  Select,
+  message,
 } from 'antd';
 import {
   PlayCircleOutlined,
@@ -15,7 +17,9 @@ import {
   StepForwardOutlined,
   StepBackwardOutlined,
   BulbOutlined,
+  AudioOutlined,
 } from '@ant-design/icons';
+import { apiClient } from '../../api/apiClient';
 import { usePlayback } from './usePlayback';
 import ActionDispatcher from './components/ActionDispatcher';
 import VisualCanvas from './components/VisualCanvas';
@@ -24,7 +28,6 @@ import TeacherAvatar from './components/TeacherAvatar';
 import { PRESET_TEACHERS } from './components/TeacherAvatar';
 import SceneSidebar from './components/SceneSidebar';
 import type { PlaybackState } from './usePlayback';
-import type { WidgetPayload } from '../../api/types';
 
 const { Text, Title } = Typography;
 
@@ -64,6 +67,32 @@ const ClassroomPlayback: React.FC = () => {
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const widgetFrameRef = useRef<HTMLIFrameElement | null>(null);
+
+  // ── 音色选择（播放器底部控制栏，写入 localStorage 立即生效） ──
+  const [voiceList, setVoiceList] = useState<Array<{ voiceId: string; name: string; style?: string }>>([]);
+  const [ttsVoice, setTtsVoice] = useState(() => localStorage.getItem('ttsVoiceId') || '');
+
+  useEffect(() => {
+    apiClient
+      .get('/tts/voices')
+      .then((res: any) => {
+        // apiClient 拦截器已解包 → res 为 { default, voices: [...] }；兼容未解包结构
+        const voices = res?.voices || res?.data?.voices || [];
+        setVoiceList(voices);
+      })
+      .catch(() => setVoiceList([]));
+  }, []);
+
+  const handleVoiceChange = (value?: string) => {
+    const v = value || '';
+    setTtsVoice(v);
+    if (v) {
+      localStorage.setItem('ttsVoiceId', v);
+    } else {
+      localStorage.removeItem('ttsVoiceId');
+    }
+    message.success(v ? '语音音色已切换，下一条讲解生效' : '已恢复默认男声（云希）');
+  };
 
   // ── 语音轨：字幕条内容（speech / show_slide.speech / widget_*.content） ──
   const subtitleAction = useMemo(() => {
@@ -294,6 +323,21 @@ const ClassroomPlayback: React.FC = () => {
               flexShrink: 0,
             }}>
               <Space size={16}>
+                {/* 音色选择 */}
+                <Select
+                  size="middle"
+                  style={{ width: 168 }}
+                  placeholder="音色"
+                  allowClear
+                  value={ttsVoice || undefined}
+                  onChange={handleVoiceChange}
+                  suffixIcon={<AudioOutlined />}
+                  options={voiceList.map((v) => ({
+                    value: v.voiceId,
+                    label: v.style ? `${v.name}（${v.style}）` : v.name,
+                  }))}
+                />
+
                 <Tooltip title="上一动作">
                   <Button
                     icon={<StepBackwardOutlined />}

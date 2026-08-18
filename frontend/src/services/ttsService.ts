@@ -7,7 +7,6 @@
 //   3. 音频预缓存（进入场景时提前合成所有 speech）
 // ================================================================
 import { apiClient } from '../api/apiClient';
-import type { ApiResponse } from '../api/types';
 
 // ─── 类型定义 ───
 
@@ -29,17 +28,20 @@ export interface TTSResponse {
  * 后端需要实现 POST /api/tts/synthesize
  */
 async function synthesizeAPI(request: TTSRequest): Promise<TTSResponse> {
-  const res = await apiClient.post<ApiResponse<TTSResponse>>('/tts/synthesize', {
+  // 注意：apiClient 响应拦截器成功时已解包，直接返回后端 data（TTSResponse）
+  // 静态类型仍标注为 AxiosResponse，需断言为实际返回的 TTSResponse
+  // 单独设置 10s 超时：tts-service 偶发挂起时快速失败（全局 180s 对播放链不可接受）
+  const data = (await apiClient.post('/tts/synthesize', {
     text: request.text,
     voiceId: request.voiceId || 'default',
     rate: request.rate ?? 1.0,
     language: request.language || 'zh-CN',
-  });
+  }, { timeout: 10000 })) as unknown as TTSResponse;
 
-  if (!res.data?.data) {
+  if (!data || typeof data !== 'object' || !('audioUrl' in data)) {
     throw new Error('TTS API 返回数据异常');
   }
-  return res.data.data;
+  return data;
 }
 
 /**
@@ -89,34 +91,48 @@ const audioCache = new Map<string, { audioUrl: string; durationMs: number }>();
 
 /**
  * 合成语音
- * 先尝试后端 API，失败后自动降级到浏览器原生 TTS
+ * 先尝试后端 API（失败重试 1 次），仍失败时：
+ *   - allowFallback=true（播放链）：降级到浏览器原生 TTS
+ *   - allowFallback=false（预缓存）：直接抛错，不降级出声（避免后台朗读造成双声道）
  */
-export async function synthesize(request: TTSRequest): Promise<TTSResponse> {
-  // 缓存命中
+export async function synthesize(
+  request: TTSRequest,
+  allowFallback = true,
+): Promise<TTSResponse> {
+  // 缓存命中（仅当缓存是真实音频 URL 时才命中；降级空结果不缓存）
   const cacheKey = `${request.voiceId || 'default'}:${request.text.slice(0, 100)}`;
   const cached = audioCache.get(cacheKey);
-  if (cached) {
+  if (cached && cached.audioUrl) {
     return { ...cached, format: 'mp3' };
   }
 
-  // 尝试后端 API
-  try {
-    const result = await synthesizeAPI(request);
-    audioCache.set(cacheKey, {
-      audioUrl: result.audioUrl,
-      durationMs: result.durationMs,
-    });
-    return result;
-  } catch (apiError) {
-    console.warn('[TTS] API 合成失败，降级到浏览器原生 TTS:', apiError);
-    // 降级到浏览器原生 TTS
-    const result = await synthesizeBrowser(request.text, request.rate);
-    audioCache.set(cacheKey, {
-      audioUrl: result.audioUrl,
-      durationMs: result.durationMs,
-    });
-    return result;
+  // 尝试后端 API（失败重试 1 次，后端 md5 幂等缓存可让重试直接命中）
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const result = await synthesizeAPI(request);
+      if (result.audioUrl) {
+        audioCache.set(cacheKey, {
+          audioUrl: result.audioUrl,
+          durationMs: result.durationMs,
+        });
+      }
+      return result;
+    } catch (apiError) {
+      if (attempt === 1) {
+        console.warn('[TTS] API 合成失败，重试一次:', apiError);
+        continue;
+      }
+      if (!allowFallback) {
+        console.warn('[TTS] API 合成失败（预缓存模式，不降级）:', apiError);
+        throw apiError;
+      }
+      console.warn('[TTS] API 合成失败，降级到浏览器原生 TTS:', apiError);
+      // 降级到浏览器原生 TTS（结果不缓存：避免降级结果污染缓存，恢复后自动回到 edge-tts）
+      return synthesizeBrowser(request.text, request.rate);
+    }
   }
+  // unreachable
+  throw new Error('TTS 合成失败');
 }
 
 /**
@@ -138,11 +154,13 @@ export async function prefetchSceneAudios(
   console.log(`[TTS] 预缓存 ${pending.length} 条语音...`);
 
   // 并发预取，但限制并发数为 3 避免 API 限流
+  // 注意：预缓存必须禁用浏览器降级（allowFallback=false），
+  // 否则 API 失败时会触发 speechSynthesis.speak 后台朗读 → 与当前讲解双声道
   const concurrency = 3;
   for (let i = 0; i < pending.length; i += concurrency) {
     const batch = pending.slice(i, i + concurrency);
     await Promise.allSettled(
-      batch.map((text) => synthesize({ text, voiceId }).catch(() => {})),
+      batch.map((text) => synthesize({ text, voiceId }, false).catch(() => {})),
     );
   }
 

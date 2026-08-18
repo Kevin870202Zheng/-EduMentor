@@ -62,11 +62,28 @@ speech(总结引导) → speech(鼓励/过渡)
 - **引入语（introScript）**：引出讨论话题
 - **讨论议题（discussionTopic）**：核心问题
 - **支架性问题（guidingQuestions）**：2-3个引导思考的问题
+- **预设观点（options）**：3~4个可讨论的真实立场（写入 discussion 动作的 options 字段），供学生快捷选择；观点须围绕知识点、相互有分歧、各 10~20 字
+- **讨论时长（duration）**：discussion 动作的 duration 字段，范围 30000~90000ms（默认 60000），学生在该时长内可自由表达
 
 动作序列建议：
 ```
-speech(引入话题) → discussion(发起讨论) → 
+speech(引入话题) → discussion(发起讨论，带 options 预设观点 + duration 讨论时长) → 
 pause_for_thought(思考时间) → speech(总结观点)
+```
+
+discussion 动作示例：
+```json
+{
+  "type": "discussion",
+  "topic": "开发商不建防空地下室，交一笔钱代替，行不行？",
+  "prompt": "如果你是城市规划部门，你会支持还是反对？说说理由。",
+  "options": [
+    "支持缴费代替——开发成本高，缴费更灵活",
+    "反对——防空地下室是战时生命线，不能替代",
+    "折中——按比例配建 + 超标准部分缴费"
+  ],
+  "duration": 60000
+}
 ```
 
 ### 4. 回顾总结 (review)
@@ -117,7 +134,7 @@ widget_annotate(总结规律，content 为讲解) → speech(点评收尾)
 | `widget_annotate` | 在组件目标元素旁弹出标注气泡 | target, content | — |
 | `widget_reveal` | 揭示组件中隐藏内容 | target（CSS selector） | content（讲解） |
 | `quiz` | 出题测验 | question, options[], correctIndex, explanation | — |
-| `discussion` | 发起讨论 | topic, prompt | — |
+| `discussion` | 发起讨论 | topic, prompt | options（3~4个预设观点）, duration（讨论时长ms，30000~90000） |
 | `pause_for_thought` | 暂停让学生思考/操作 | duration(ms) | — |
 
 ### 动作设计原则

@@ -34,6 +34,9 @@ export interface ActionDTO {
   options?: string[];
   correctIndex?: number;
   explanation?: string;
+  // Discussion 专用
+  topic?: string;
+  prompt?: string;
   // 白板专用
   wbContent?: string;
   wbStyle?: string;

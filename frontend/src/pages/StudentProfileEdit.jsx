@@ -30,9 +30,10 @@ export default function StudentProfileEdit() {
   // 加载 TTS 音色列表
   useEffect(() => {
     apiClient
-      .get('/api/tts/voices')
+      .get('/tts/voices')
       .then((res) => {
-        const voices = res?.data?.data?.voices || res?.data?.voices || [];
+        // apiClient 拦截器已解包 → res 为 { default, voices: [...] }；兼容未解包结构
+        const voices = res?.voices || res?.data?.voices || [];
         setVoiceList(voices);
       })
       .catch(() => setVoiceList([]));

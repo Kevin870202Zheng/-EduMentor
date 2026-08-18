@@ -44,6 +44,9 @@ export function useTTSPlayer(options: TTSPlayerOptions = {}) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = useRef<string | null>(null);
   const isCancelledRef = useRef(false);
+  // 播放序号：每次 play 递增，旧 play 的异步回调（synthesize 返回/audio 事件）
+  // 通过序号比对识别「自己已被新 play 取代」，防止旧回调误推进播放链（双推进/双声道）
+  const playSeqRef = useRef(0);
 
   // 清理音频资源
   const cleanupAudio = useCallback(() => {
@@ -66,6 +69,8 @@ export function useTTSPlayer(options: TTSPlayerOptions = {}) {
    */
   const play = useCallback(
     async (text: string, actionId?: string) => {
+      const seq = ++playSeqRef.current;
+
       if (!text?.trim()) {
         setState('completed');
         onComplete?.();
@@ -88,7 +93,8 @@ export function useTTSPlayer(options: TTSPlayerOptions = {}) {
           language: 'zh-CN',
         });
 
-        if (isCancelledRef.current) return;
+        // 过期调用（已被 stop / 被新 play 取代）直接丢弃
+        if (seq !== playSeqRef.current || isCancelledRef.current) return;
 
         // 如果没有音频 URL（浏览器原生 TTS），直接标记完成
         if (!result.audioUrl) {
@@ -104,8 +110,14 @@ export function useTTSPlayer(options: TTSPlayerOptions = {}) {
         audio.playbackRate = rate;
 
         // 事件绑定
+        let playTimeout: ReturnType<typeof setTimeout> | null = null;
+        const clearPlayTimeout = () => {
+          if (playTimeout) { clearTimeout(playTimeout); playTimeout = null; }
+        };
+
         audio.onended = () => {
-          if (isCancelledRef.current) return;
+          if (seq !== playSeqRef.current || isCancelledRef.current) return;
+          clearPlayTimeout();
           setState('completed');
           setProgress(100);
           cleanupAudio();
@@ -113,7 +125,8 @@ export function useTTSPlayer(options: TTSPlayerOptions = {}) {
         };
 
         audio.onerror = (e: Event | string) => {
-          if (isCancelledRef.current) return;
+          if (seq !== playSeqRef.current || isCancelledRef.current) return;
+          clearPlayTimeout();
           const errMsg = `音频播放失败: ${typeof e === 'string' ? e : (e as Event).type || 'unknown'}`;
           console.warn('[TTS]', errMsg);
           setState('error');
@@ -133,18 +146,34 @@ export function useTTSPlayer(options: TTSPlayerOptions = {}) {
           }
         };
 
+        // 播放超时兜底：音频开始播放（onplaying）或结束（onended）后取消；
+        // 若 10s 内仍未开始播放（媒体加载挂起/play Promise 永久 pending），跳过该动作，保证播放链不卡死
+        audio.onplaying = () => clearPlayTimeout();
+        playTimeout = setTimeout(() => {
+          if (seq !== playSeqRef.current || isCancelledRef.current) return;
+          console.warn('[TTS] 播放超时（10s 未开始），跳过该动作');
+          cleanupAudio();
+          onComplete?.();
+        }, 10000);
+
         setState('playing');
-        await audio.play().catch((err) => {
-          // 自动播放被浏览器阻止
-          if (err.name === 'NotAllowedError') {
-            console.warn('[TTS] 浏览器阻止了自动播放，等待用户交互');
-            setState('paused');
+        try {
+          await audio.play();
+        } catch (err) {
+          clearPlayTimeout();
+          const e = err as DOMException;
+          // 自动播放被浏览器阻止 → 用静音播放解锁（Chrome 允许 muted 自动播放），成功后恢复有声
+          if (e.name === 'NotAllowedError') {
+            console.warn('[TTS] 自动播放被阻止，尝试静音解锁播放');
+            audio.muted = true;
+            await audio.play();
+            audio.muted = false;
             return;
           }
           throw err;
-        });
+        }
       } catch (err) {
-        if (isCancelledRef.current) return;
+        if (seq !== playSeqRef.current || isCancelledRef.current) return;
         console.warn('[TTS] 播放失败:', err);
         setState('error');
         // 出错后仍继续播放链
@@ -158,6 +187,8 @@ export function useTTSPlayer(options: TTSPlayerOptions = {}) {
    * 暂停播放
    */
   const pause = useCallback(() => {
+    // 作废进行中的 play（synthesize 可能仍在路上，返回后不得继续播放/推进）
+    playSeqRef.current += 1;
     if (audioRef.current && !audioRef.current.paused) {
       audioRef.current.pause();
       setState('paused');
@@ -180,6 +211,7 @@ export function useTTSPlayer(options: TTSPlayerOptions = {}) {
    */
   const stop = useCallback(() => {
     isCancelledRef.current = true;
+    playSeqRef.current += 1; // 作废进行中的 play
     cleanupAudio();
     setState('idle');
     setCurrentActionId(null);

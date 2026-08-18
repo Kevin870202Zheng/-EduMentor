@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智慧课堂体验优化方案：讨论交互 + 视觉提示词重构</title>
+<style>
+  :root {
+    --primary: #1677ff; --primary-light: #e6f4ff;
+    --success: #52c41a; --warning: #faad14; --danger: #ff4d4f;
+    --text: #1a1a2e; --text-secondary: #6b7280;
+    --bg: #f7f8fa; --card: #ffffff; --border: #e5e7eb;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'PingFang SC','Microsoft YaHei',-apple-system,sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; padding: 32px 20px; }
+  .container { max-width: 1080px; margin: 0 auto; }
+  h1 { font-size: 26px; margin-bottom: 8px; }
+  .subtitle { color: var(--text-secondary); margin-bottom: 28px; font-size: 14px; }
+  h2 { font-size: 20px; margin: 36px 0 14px; padding-left: 12px; border-left: 4px solid var(--primary); }
+  h3 { font-size: 16px; margin: 24px 0 10px; color: #0f2a5f; }
+  p { margin-bottom: 10px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 800px) { .grid-2 { grid-template-columns: 1fr; } }
+  .tag { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-right: 6px; }
+  .tag-p0 { background: #fff1f0; color: var(--danger); }
+  .tag-p1 { background: #fff7e6; color: var(--warning); }
+  .tag-p2 { background: #f0f5ff; color: var(--primary); }
+  .tag-ok { background: #f6ffed; color: var(--success); }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13.5px; }
+  th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; vertical-align: top; }
+  th { background: #f0f5ff; font-weight: 600; }
+  code { background: #f0f2f5; padding: 2px 6px; border-radius: 4px; font-size: 12.5px; font-family: 'SF Mono','Menlo',monospace; }
+  pre { background: #1a1a2e; color: #e6e6f0; padding: 14px 16px; border-radius: 10px; overflow-x: auto; font-size: 12.5px; line-height: 1.6; margin: 10px 0; }
+  pre code { background: none; color: inherit; padding: 0; }
+  .flow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+  .flow .step { background: var(--primary-light); border: 1px solid #bcd7ff; border-radius: 8px; padding: 6px 14px; font-size: 13px; font-weight: 600; }
+  .flow .arrow { color: var(--primary); font-weight: 700; }
+  .warn { background: #fff7e6; border: 1px solid #ffd591; border-radius: 8px; padding: 10px 14px; font-size: 13.5px; margin: 10px 0; }
+  .ok { background: #f6ffed; border: 1px solid #b7eb8f; border-radius: 8px; padding: 10px 14px; font-size: 13.5px; margin: 10px 0; }
+  ul, ol { padding-left: 22px; margin: 8px 0; }
+  li { margin-bottom: 6px; }
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .wrong { background: #fff1f0; border: 1px solid #ffa39e; border-radius: 8px; padding: 10px 14px; }
+  .correct { background: #f6ffed; border: 1px solid #b7eb8f; border-radius: 8px; padding: 10px 14px; }
+  .file { font-family: 'SF Mono',monospace; font-size: 12.5px; background: #eef2f7; border: 1px solid #d6dee8; border-radius: 6px; padding: 1px 8px; }
+  .phase { border-left: 3px solid var(--primary); padding-left: 16px; margin: 18px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>智慧课堂体验优化方案：讨论交互 + 视觉提示词重构</h1>
+<div class="subtitle">版本 v1.0 ｜ 2026-08-17 ｜ 状态：待评审</div>
+
+<div class="card ok">
+✅ <b>前置确认</b>：上一轮语音问题（合成降级 / 双声道 / 音色选择位置）已全部修复并通过验收，本方案不再涉及。
+</div>
+
+<h2>0. 问题回顾</h2>
+<div class="card">
+<table>
+<tr><th style="width:60px">编号</th><th style="width:80px">优先级</th><th>问题描述</th><th style="width:160px">对应方案</th></tr>
+<tr><td>P2-1</td><td><span class="tag tag-p0">P0 功能缺陷</span></td><td>AI同学小E「讨论」阶段永久卡住：无讨论输入/交互窗口、无「继续」按钮、无倒计时，只能点底部「下一动作」或侧边栏切场景才能继续</td><td>方案 A：讨论交互面板</td></tr>
+<tr><td>P2-2</td><td><span class="tag tag-p1">P1 质量</span></td><td>视觉材料（PPT 页）质量不稳定：版式简陋、元素堆砌、对齐/留白/配色欠佳——LLM 生成提示词过于抽象（"美观""精致"），缺乏可校验的硬规则</td><td>方案 B：视觉提示词重构</td></tr>
+</table>
+</div>
+
+<h2>1. 方案 A：讨论场景交互优化（P0）</h2>
+
+<h3>1.1 现状根因</h3>
+<div class="card">
+<p>播放器对 <code>discussion</code> 动作的处置存在「有意等待、无意封死」的结构性矛盾：</p>
+<ul>
+<li><b>等待机制</b>：<span class="file">usePlayback.ts:283-284</span> — <code>if (type === 'quiz' || type === 'discussion') return;</code>，播放链在此悬挂（不启动 TTS、不调度下一动作），等待学生交互；</li>
+<li><b>但交互窗口不存在</b>：<span class="file">DiscussionRenderer.tsx</span>（96 行）是纯只读卡片（小E头像 + 问题文本 + "思考一下"脉冲提示），<b>无输入框、无观点按钮、无提交、无继续</b>；</li>
+<li><b>继续入口也不通</b>：<span class="file">ActionDispatcher.tsx:78-79</span> 渲染 DiscussionRenderer 时<b>未传 <code>onAdvance</code></b>（QuizRenderer 传了），且 usePlayback 的 <code>enterLiveMode</code>（讨论模式）虽已导出但<b>无任何组件调用</b>；</li>
+<li><b>结果</b>：讨论动作 = 永久悬挂，唯一出路是底部「下一动作」按钮（且用户不知道要等多久）。</li>
+</ul>
+</div>
+
+<h3>1.2 交互设计目标</h3>
+<div class="card">
+<ol>
+<li><b>有窗口</b>：讨论场景呈现完整交互面板（观点表达区 + 提交 + AI 回应）；</li>
+<li><b>有出口</b>：任何时候可「继续学习」（手动按钮），且<b>超时自动继续</b>（防无人值守卡死）；</li>
+<li><b>轻量</b>：不引入后端 LLM 讨论 Agent（大投入），第一阶段用「预设观点 + 本地回应」闭环；</li>
+<li><b>不破坏现有双轨模型</b>：讨论仍走覆盖层（isOverlay），视觉轨保持当前页常驻。</li>
+</ol>
+</div>
+
+<h3>1.3 讨论面板交互流程</h3>
+<div class="card">
+<div class="flow">
+<span class="step">① 小E 提问卡</span><span class="arrow">→</span>
+<span class="step">② 观点快捷选择（chips）</span><span class="arrow">→</span>
+<span class="step">③ 自由输入（可选）</span><span class="arrow">→</span>
+<span class="step">④ 提交 → 小E 回应</span><span class="arrow">→</span>
+<span class="step">⑤ 继续学习（手动/倒计时）</span>
+</div>
+
+<table>
+<tr><th>区域</th><th>内容</th><th>交互</th></tr>
+<tr><td><b>提问卡</b>（保留现有）</td><td>小E 头像 + <code>action.prompt/topic</code> 文本</td><td>进入即有弹跳/渐显动画</td></tr>
+<tr><td><b>观点快捷选择</b></td><td>3~4 个预设观点 chips（来自生成侧 <code>options</code> 字段，无则用通用观点模板）</td><td>点击选中（可多选）；选中后可直接提交</td></tr>
+<tr><td><b>自由输入</b></td><td>TextArea（maxLength 200）+ 「发表观点」按钮</td><td>输入即自动取消 chips 选择状态</td></tr>
+<tr><td><b>小E 回应</b></td><td>提交后 0.8s 延迟出现小E 回应气泡（预置回应库轮换，如「这个角度很独特！还有同学补充吗？」）</td><td>回应出现后启用「继续学习」按钮</td></tr>
+<tr><td><b>倒计时</b></td><td>顶部细进度条，时长 = <code>action.duration</code>（默认 60s）</td><td>到 0 自动触发继续（等效点击「继续学习」）</td></tr>
+<tr><td><b>继续学习</b></td><td>主按钮（primary）</td><td>调用 <code>onAdvance</code> → 播放链恢复</td></tr>
+</table>
+
+<div class="warn">⚠️ <b>关键决策</b>：倒计时到 0 必须自动继续——即使学生未输入任何观点（无人值守/挂机场景），讨论不得卡死播放链。这与「手动继续」并列作为双出口。</div>
+</div>
+
+<h3>1.4 技术改动清单</h3>
+<div class="card">
+<table>
+<tr><th style="width:220px">文件</th><th>改动</th></tr>
+<tr><td><span class="file">DiscussionRenderer.tsx</span></td><td>重写为交互面板：内部状态机 <code>thinking → submitting → responded → done</code>；接收 <code>onAdvance</code>、<code>duration</code> props；倒计时用 <code>useEffect + setInterval</code>，组件卸载清理</td></tr>
+<tr><td><span class="file">ActionDispatcher.tsx</span></td><td>L78-79：<code>discussion</code> 分支改为 <code>&lt;DiscussionRenderer action={action} onAdvance={onAdvance} /&gt;</code></td></tr>
+<tr><td><span class="file">usePlayback.ts</span></td><td>无需改播放逻辑（沿用等待机制，出口由面板提供）；可选：discussion 动作解析时透传 <code>duration</code>/<code>options</code> 字段（ActionDTO 已有 content 透传能力）</td></tr>
+<tr><td><span class="file">content-system.md</span>（生成侧）</td><td>discussion 动作规范增强：新增 <code>options</code>（3~4 个预设观点，须为课程知识点相关的可讨论立场）与 <code>duration</code>（30~90s）必填字段</td></tr>
+<tr><td><span class="file">types.ts</span>（前端 DTO）</td><td>ActionDTO 补充可选字段 <code>options?: string[]</code>、<code>duration?: number</code>（向后兼容，缺省用默认值）</td></tr>
+</table>
+</div>
+
+<h3>1.5 生成侧数据契约（discussion 动作）</h3>
+<pre><code>{
+  "type": "discussion",
+  "topic": "开发商不建防空地下室，交一笔钱代替，行不行？",
+  "prompt": "如果你是城市规划部门，你会支持还是反对？说说理由。",
+  "options": [
+    "支持缴费代替——开发成本高，缴费更灵活",
+    "反对——防空地下室是战时生命线，不能替代",
+    "折中——按比例配建 + 超标准部分缴费"
+  ],
+  "duration": 60000
+}</code></pre>
+
+<h3>1.6 可选增强（阶段二，暂不做）</h3>
+<div class="card">
+<ul>
+<li><b>live 讨论模式</b>：激活已有的 <code>enterLiveMode</code>，讨论期间展示学生消息流 + 小E 多轮发言动画（本地脚本驱动）；</li>
+<li><b>AI 讨论 Agent</b>：接入后端 LLM 对小E回应做真实点评（复用智能答疑的 LLM 通道），成本高、延迟敏感，列为 P2 候选。</li>
+</ul>
+</div>
+
+<hr style="border:none;border-top:1px solid var(--border);margin:32px 0">
+
+<h2>2. 方案 B：视觉提示词重构（P1，参考 OpenMAIC）</h2>
+
+<h3>2.1 差距分析：当前 vs OpenMAIC</h3>
+<div class="card">
+<p>OpenMAIC（清华开源多智能体课堂）的核心 PPT 模板 <span class="file">slide-content/system.md</span> 达 937 行，是「工程化视觉约束」的标杆；EduMentor 当前的 <span class="file">slide-layout-rules.md</span>（82 行）+ <span class="file">visual-align-system.md</span>（81 行）仅覆盖了其中约 40% 的约束能力。</p>
+<table>
+<tr><th>维度</th><th>当前 EduMentor</th><th>OpenMAIC 风格</th><th>差距</th></tr>
+<tr><td>设计哲学</td><td>「视觉是辅助不是讲稿」✔</td><td>"Slides are visual aids, NOT lecture scripts" + 每页 1 焦点</td><td>已具备，需强化为硬规则</td></tr>
+<tr><td>文本尺寸约束</td><td>字号层级（标题 28~32/要点 20~24/正文 16~18）</td><td><b>文本高度查表</b>（14~36px × 1~5 行精确 height 表）+ 文本宽度计算</td><td><b>缺查表</b>——文本溢出是视觉粗糙最大来源</td></tr>
+<tr><td>对齐/对称</td><td>坐标对齐 20px 栅格</td><td>对齐误差 &lt;2~5px（"人眼可察觉 5px 差异"）+ 对称用完全相同值</td><td>缺可校验的对齐规则</td></tr>
+<tr><td>间距标准</td><td>边距 ≥ 50/60px、间距 ≥ 20px</td><td>垂直 20~50px、多列 40~60px、图文 25~35px 的<b>分场景间距公式</b></td><td>缺分场景间距</td></tr>
+<tr><td>反例教学</td><td>无</td><td>Wrong/Correct 对照示例（溢出、重叠、错转义等）</td><td><b>缺反例</b>——LLM 对抽象规则理解偏差大</td></tr>
+<tr><td>输出自检</td><td>约束段（非清单式）</td><td><b>P0/P1 分级 Checklist</b>（输出前逐项自查）</td><td><b>缺 checklist</b></td></tr>
+<tr><td>元素类型</td><td>text/shape/line/chart/latex + variant 卡片</td><td>Text/Shape/Line/Chart/Latex/Table/Image</td><td>渲染器已支持前 5 种，可对齐规范</td></tr>
+<tr><td>版式模板</td><td><b>6 个模板库</b>（cover/concept/data/compare/flow/summary）</td><td>无模板库（自由 + 规则）</td><td>模板库是 EduMentor 优势，保留并扩充</td></tr>
+<tr><td>配色</td><td>3 套主题（academic/morandi/minimal）</td><td>背景/元素级规则</td><td>可扩充到 5~6 套 + 使用场景说明</td></tr>
+<tr><td>图表规范</td><td>4 种 chartType + themeColors</td><td>7 种 + 完整 data 结构</td><td>补齐数据结构示例与"数据必须真实"约束</td></tr>
+</table>
+</div>
+
+<h3>2.2 重构策略（三层提示词文件）</h3>
+<div class="card">
+<div class="flow">
+<span class="step">slide-layout-rules.md<br>（版式规则手册 v2）</span><span class="arrow">→</span>
+<span class="step">visual-align-system.md<br>（阶段B 视觉对齐 v2）</span><span class="arrow">→</span>
+<span class="step">content-system.md<br>（单轮管线内嵌规则 v2）</span>
+</div>
+<p><b>三层关系</b>：<span class="file">slide-layout-rules.md</span> 是所有视觉生成共用的「规则手册」（两个管线都 include 它）；<span class="file">visual-align-system.md</span> 是讲稿优先管线阶段 B 的角色/流程/输出约束；<span class="file">content-system.md</span> 内嵌引用规则手册（现有 <code>{{include:rules/slide-layout-rules.md}}</code> 机制保留）。</p>
+</div>
+
+<h3>2.3 slide-layout-rules.md 升级内容（核心）</h3>
+
+<h4>① 文本高度查表（新增，借鉴 OpenMAIC）</h4>
+<div class="card">
+<p>LLM 必须按字号 × 行数查表给出元素的 <code>h</code>，杜绝文字溢出/被裁剪：</p>
+<table>
+<tr><th>字号</th><th>1 行</th><th>2 行</th><th>3 行</th><th>4 行</th><th>5 行</th></tr>
+<tr><td>36px（大标题）</td><td>54</td><td>100</td><td>146</td><td>192</td><td>238</td></tr>
+<tr><td>32px（页标题）</td><td>48</td><td>88</td><td>128</td><td>168</td><td>208</td></tr>
+<tr><td>24px（要点）</td><td>38</td><td>70</td><td>102</td><td>134</td><td>166</td></tr>
+<tr><td>20px（正文）</td><td>32</td><td>60</td><td>88</td><td>116</td><td>144</td></tr>
+<tr><td>16px（注释）</td><td>26</td><td>50</td><td>74</td><td>98</td><td>122</td></tr>
+<tr><td>14px（脚注）</td><td>24</td><td>46</td><td>68</td><td>90</td><td>112</td></tr>
+</table>
+<div class="warn">⚠️ 行高按 1.4 倍计算并向上取整到 2px 栅格；元素 <code>h</code> 不得小于查表值（文字被裁剪 = P0 错误）。</div>
+</div>
+
+<h4>② 对齐与对称规则（新增）</h4>
+<div class="card">
+<ul>
+<li>同组元素左边缘/中心线必须对齐，偏差 ≤ 2px（人眼可察觉 5px 差异）；</li>
+<li>对称布局（左右两栏/上下镜像）必须使用完全相同的坐标与尺寸数值，禁止"大致对称"；</li>
+<li>水平居中：<code>x = (960 - w) / 2</code>；垂直居中同理；</li>
+<li>元素间距：垂直 20~50px、多列之间 40~60px、图与说明文字 25~35px。</li>
+</ul>
+</div>
+
+<h4>③ 反例对照教学（新增）</h4>
+<div class="card">
+<div class="compare">
+<div class="wrong">❌ <b>Wrong</b>：标题元素 <code>{x:60,y:40,w:840,h:60}</code>，字号 32、内容 3 行 → 文字溢出被裁剪（查表 3 行应 h ≥ 128）</div>
+<div class="correct">✅ <b>Correct</b>：<code>{x:60,y:36,w:840,h:128}</code>，字号 32、内容 ≤ 2 行（查表 2 行 h=88，留余量）</div>
+</div>
+<div class="compare" style="margin-top:12px">
+<div class="wrong">❌ <b>Wrong</b>：左右对比卡 x 分别为 70 与 500（视觉错位），卡内文字左右边距不一致</div>
+<div class="correct">✅ <b>Correct</b>：两卡 x=60 与 500（同宽 400、间距 40），卡内 padding 统一 20px</div>
+</div>
+<div class="compare" style="margin-top:12px">
+<div class="wrong">❌ <b>Wrong</b>：chart 数据 6 项全堆一页，label 超长被截断，无结论条</div>
+<div class="correct">✅ <b>Correct</b>：chart 只放 3~5 项关键数据 + 下侧结论条（variant: conclusion）点出结论</div>
+</div>
+</div>
+
+<h4>④ 输出前 P0/P1 自检清单（新增）</h4>
+<div class="card">
+<p><b>🔴 P0（违反即失败，必须全部通过）</b></p>
+<ul>
+<li>每个 text 元素 h ≥ 文本高度查表值（无裁剪）；</li>
+<li>所有元素在画布内：x ≥ 0 且 x+w ≤ 960、y ≥ 0 且 y+h ≤ 540；</li>
+<li>元素两两不重叠（卡片内层叠除外）；</li>
+<li>chart 数据必须来自知识点（禁止编造数字）；</li>
+<li>元素 content 必须能在对应讲稿句的 keywords 中找到出处；</li>
+<li>每页 ≤ 6 个元素、1 个视觉焦点。</li>
+</ul>
+<p><b>🟡 P1（强烈建议，违反需说明理由）</b></p>
+<ul>
+<li>同组元素对齐（左对齐/居中）偏差 ≤ 2px；</li>
+<li>间距符合标准（垂直 20~50 / 多列 40~60）；</li>
+<li>卡片圆角 12px、阴影柔和、整套页面主题一致；</li>
+<li>页边距 ≥ 60px；每页至少 1 个非 text 元素（shape/line/chart）支撑版式。</li>
+</ul>
+</div>
+
+<h4>⑤ 配色系统扩充（3 → 5 套）</h4>
+<div class="card">
+<table>
+<tr><th>主题</th><th>primary</th><th>secondary</th><th>light 浅底</th><th>适用场景</th></tr>
+<tr><td><code>academic</code> 学术蓝</td><td>#1677ff</td><td>#69b1ff</td><td>#e6f4ff</td><td>法律/社科等严谨学科</td></tr>
+<tr><td><code>morandi</code> 莫兰迪绿</td><td>#52c41a</td><td>#95de64</td><td>#f6ffed</td><td>生物/环保/农学</td></tr>
+<tr><td><code>minimal</code> 极简黑白金</td><td>#1a1a2e</td><td>#8c8c8c</td><td>#f5f5f5</td><td>理工/数学/概念抽象</td></tr>
+<tr><td><code>warm</code> 暖橙学术</td><td>#fa8c16</td><td>#ffc069</td><td>#fff7e6</td><td>历史/语文/人文</td></tr>
+<tr><td><code>ocean</code> 深海蓝青</td><td>#13c2c2</td><td>#5cdbd3</td><td>#e6fffb</td><td>地理/经济/数据类</td></tr>
+</table>
+<div class="warn">⚠️ 前端 <span class="file">SlideLayoutRenderer.tsx</span> 的 THEMES 表需同步新增 warm/ocean 两套（当前只有 3 套），保证后端生成与前端渲染一致；生成侧新增主题时前端未匹配的主题必须回退 DEFAULT_THEME（已有逻辑）。</div>
+</div>
+
+<h3>2.4 visual-align-system.md 增强</h3>
+<div class="card">
+<ol>
+<li><b>版式模板库 6 → 10</b>：新增 <code>timeline</code>（时间线：大事记/步骤演进）、<code>cycle</code>（循环：流程闭环）、<code>hierarchy</code>（层级：分类/从属）、<code>definition</code>（定义卡：术语/概念）——每个模板给出布局特征与元素构成建议；</li>
+<li><b>视觉密度控制</b>：每页元素 ≤ 6（保持）、文字总字数 ≤ 60 字、留白 ≥ 30% 页面面积；</li>
+<li><b>焦点引导强化</b>：highlightElementIds 语义明确为「1~3 个与即将讲解句子强相关的元素」，高亮元素应是页面视觉焦点（大字号/主色/居中位），禁止高亮装饰性元素；</li>
+<li><b>示例升级</b>：输出格式示例改为「高质量版本」——含卡片 variant、结论条、图表、时间线的完整 JSON，让 LLM 有具体的质量锚点；</li>
+<li><b>数据真实性硬约束</b>：chart 数据必须来自讲稿 keywords/知识点数据，禁止模型"合理想象"数字；无真实数据时用 concept/flow 模板而非 chart。</li>
+</ol>
+</div>
+
+<h3>2.5 生成校验兜底（后端，可选增强）</h3>
+<div class="card">
+<p>在 <span class="file">SceneContentGenerator</span> 解析产物时增加<b>结构校验</b>，失败自动重试 1 次（换更高温度或裁剪约束重发）：</p>
+<ul>
+<li>元素越界检查：<code>x+w ≤ 960</code>、<code>y+h ≤ 540</code>；</li>
+<li>文本溢出检查：按查表规则估算 h 是否足够；</li>
+<li>chart 结构检查：<code>data.labels/series</code> 非空且长度一致；</li>
+<li>highlightElementIds 引用检查：必须指向本页真实存在的元素 id。</li>
+</ul>
+</div>
+
+<h3>2.6 阶段二（可选，暂不排期）</h3>
+<div class="card">
+<ul>
+<li><b>image 元素启用</b>：SlideLayoutRenderer 增加 <code>kind: image</code> 渲染（背景图/插图，src 为后端静态资源 URL）；生成侧放开 image 元素（当前 v1.1 预留、明确禁止）；</li>
+<li><b>视觉素材生成服务</b>：复用 tts-service 的容器模式，新增「示意图生成」（文生图 API 或图标库兜底），按知识点自动配图。</li>
+</ul>
+</div>
+
+<hr style="border:none;border-top:1px solid var(--border);margin:32px 0">
+
+<h2>3. 实施计划</h2>
+
+<div class="phase">
+<h3>阶段 1：讨论交互（P0，先行）</h3>
+<table>
+<tr><th style="width:40px">#</th><th>任务</th><th>产出</th><th style="width:100px">验收标准</th></tr>
+<tr><td>1.1</td><td>DiscussionRenderer 重写为交互面板（chips + 输入 + 回应 + 倒计时 + 继续按钮）</td><td>DiscussionRenderer.tsx</td><td>讨论页可见输入区与按钮</td></tr>
+<tr><td>1.2</td><td>ActionDispatcher 传 onAdvance；types.ts 补 options/duration 字段</td><td>ActionDispatcher.tsx / types.ts</td><td>「继续学习」可恢复播放链</td></tr>
+<tr><td>1.3</td><td>倒计时自动继续（默认 60s）+ 手动继续双出口</td><td>DiscussionRenderer.tsx</td><td>挂机 60s 自动进入下一动作</td></tr>
+<tr><td>1.4</td><td>生成侧 content-system.md discussion 规范增强（options/duration）</td><td>content-system.md</td><td>新课堂讨论动作带预设观点</td></tr>
+<tr><td>1.5</td><td>回归验证：旧课堂（无 options 字段）走默认观点模板，不报错</td><td>—</td><td>旧课堂讨论正常显示</td></tr>
+</table>
+</div>
+
+<div class="phase">
+<h3>阶段 2：视觉提示词重构（P1）</h3>
+<table>
+<tr><th style="width:40px">#</th><th>任务</th><th>产出</th><th style="width:100px">验收标准</th></tr>
+<tr><td>2.1</td><td>slide-layout-rules.md 升级 v2（高度查表/对齐/间距/反例/P0-P1 清单/配色 5 套）</td><td>slide-layout-rules.md</td><td>规则文件含查表与清单</td></tr>
+<tr><td>2.2</td><td>SlideLayoutRenderer THEMES 同步新增 warm/ocean</td><td>SlideLayoutRenderer.tsx</td><td>5 套主题可渲染</td></tr>
+<tr><td>2.3</td><td>visual-align-system.md 增强（模板 10 个/密度控制/焦点强化/高质量示例）</td><td>visual-align-system.md</td><td>新课堂 slides 元素对齐、无溢出</td></tr>
+<tr><td>2.4</td><td>生成校验兜底（越界/溢出/chart/highlight 引用检查 + 自动重试）</td><td>SceneContentGenerator.java</td><td>非法产物自动重试</td></tr>
+<tr><td>2.5</td><td>新课堂端到端验证：讲稿 → 视觉 → 播放渲染对照验收</td><td>—</td><td>抽样 3 个场景视觉质量达标</td></tr>
+</table>
+</div>
+
+<h3>验收总标准</h3>
+<div class="card">
+<ol>
+<li>讨论场景：学生可表达观点（快捷/自由）、看到小E回应、60s 内必能继续播放，播放链不卡死；</li>
+<li>视觉：新生成课堂的 PPT 页满足 P0 清单（无溢出/无越界/无重叠/数据真实/焦点明确），版式与配色的整体观感显著提升；</li>
+<li>全量回归：旧课堂（旧数据结构）播放不报错、讨论/视觉降级兼容。</li>
+</ol>
+</div>
+
+</div>
+</body>
+</html>

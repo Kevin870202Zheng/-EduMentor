@@ -1,5 +1,5 @@
 import React from 'react';
-import type { ActionDTO, QuizSubmitResponse } from '../../api/types';
+import type { ActionDTO, QuizSubmitResponse } from '../../../api/types';
 import QuizRenderer from './QuizRenderer';
 import DiscussionRenderer from './DiscussionRenderer';
 import SceneTransitionRenderer from './SceneTransitionRenderer';
@@ -76,7 +76,12 @@ const ActionDispatcher: React.FC<ActionDispatcherProps> = ({
       );
 
     case 'discussion':
-      return <DiscussionRenderer action={action} />;
+      return (
+        <DiscussionRenderer
+          action={action}
+          onAdvance={onAdvance}
+        />
+      );
 
     case 'scene_transition':
       return <SceneTransitionRenderer action={action} />;

@@ -77,6 +77,15 @@ public class SceneContentGenerator {
                 String raw = llmService.askStructured(systemPrompt, userPrompt, String.class, "scene-content");
                 SceneContent content = parseSceneContent(raw, outline);
                 if (content != null && content.getActions() != null && !content.getActions().isEmpty()) {
+                    // slides 结构校验：有严重问题（越界/溢出/图表/highlight 引用）则携带问题列表重试
+                    List<String> slideProblems = SceneContentValidator.criticalSlideProblems(content);
+                    if (!slideProblems.isEmpty() && attempt < MAX_RETRIES) {
+                        log.warn("Attempt {}/{}: slides 校验未通过（{} 条），携带问题重试",
+                                attempt + 1, MAX_RETRIES + 1, slideProblems.size());
+                        userPrompt = userPrompt + "\n\n【上次生成的幻灯片未通过质量校验，请修正以下问题后重新输出完整 JSON】\n- "
+                                + String.join("\n- ", slideProblems);
+                        continue;
+                    }
                     return content;
                 }
                 log.warn("Attempt {}/{}: parsed content has no actions", attempt + 1, MAX_RETRIES + 1);
@@ -129,6 +138,18 @@ public class SceneContentGenerator {
             String raw = llmService.askStructured(visualSystem, visualUser, String.class, "scene-content");
             SceneContent content = parseSceneContent(raw, outline);
             if (content != null && content.getActions() != null && !content.getActions().isEmpty()) {
+                // slides 结构校验：有严重问题则携带问题列表重试一次（仍失败则返回原结果，sanitize 兜底）
+                List<String> slideProblems = SceneContentValidator.criticalSlideProblems(content);
+                if (!slideProblems.isEmpty()) {
+                    log.warn("Two-phase: slides 校验未通过（{} 条），重试一次视觉生成", slideProblems.size());
+                    String retryUser = visualUser + "\n\n【上次生成的幻灯片未通过质量校验，请修正以下问题后重新输出完整 JSON】\n- "
+                            + String.join("\n- ", slideProblems);
+                    String retryRaw = llmService.askStructured(visualSystem, retryUser, String.class, "scene-content");
+                    SceneContent retry = parseSceneContent(retryRaw, outline);
+                    if (retry != null && retry.getActions() != null && !retry.getActions().isEmpty()) {
+                        return retry;
+                    }
+                }
                 return content;
             }
             log.warn("Two-phase: visual-align returned no actions");
