@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智慧课堂播放器改造：视觉常驻 + 语音字幕（视觉优先）设计文档</title>
+<style>
+  :root { --primary:#1677ff; --bg:#f5f7fa; --card:#fff; --text:#1a1a2e; --sub:#666; --border:#e8e8e8; --accent:#722ed1; --ok:#52c41a; --warn:#fa8c16; --danger:#ff4d4f; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif; background:var(--bg); color:var(--text); line-height:1.7; padding:32px 16px; }
+  .wrap { max-width:1080px; margin:0 auto; }
+  .header { background:linear-gradient(135deg,#1677ff,#722ed1); color:#fff; border-radius:16px; padding:36px 40px; margin-bottom:28px; }
+  .header h1 { font-size:26px; margin-bottom:8px; }
+  .header p { opacity:.9; font-size:14px; }
+  .badges { margin-top:14px; }
+  .badge { display:inline-block; background:rgba(255,255,255,.2); border-radius:20px; padding:4px 14px; font-size:12px; margin-right:8px; }
+  .card { background:var(--card); border-radius:12px; padding:28px 32px; margin-bottom:20px; border:1px solid var(--border); box-shadow:0 1px 3px rgba(0,0,0,.04); }
+  h2 { font-size:20px; margin-bottom:16px; padding-bottom:10px; border-bottom:2px solid #eef0f4; }
+  h2 .num { color:var(--primary); margin-right:8px; }
+  h3 { font-size:16px; margin:18px 0 10px; color:var(--accent); }
+  p { margin-bottom:10px; }
+  .sub { color:var(--sub); font-size:13px; }
+  ul,ol { margin:6px 0 12px 22px; }
+  li { margin-bottom:5px; }
+  code { background:#f0f2f5; border-radius:4px; padding:2px 6px; font-family:'SF Mono',Consolas,Menlo,monospace; font-size:13px; }
+  pre { background:#1e1e2e; color:#cdd6f4; border-radius:8px; padding:16px 20px; overflow-x:auto; font-size:13px; line-height:1.6; margin:10px 0; }
+  pre code { background:none; color:inherit; padding:0; }
+  table { width:100%; border-collapse:collapse; margin:12px 0; font-size:14px; }
+  th,td { border:1px solid var(--border); padding:8px 12px; text-align:left; vertical-align:top; }
+  th { background:#fafafa; font-weight:600; white-space:nowrap; }
+  .tag { display:inline-block; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:500; }
+  .tag-red { background:#fff1f0; color:#cf1322; }
+  .tag-green { background:#f6ffed; color:#389e0d; }
+  .tag-blue { background:#e6f4ff; color:#0958d9; }
+  .tag-purple { background:#f9f0ff; color:#531dab; }
+  .tag-orange { background:#fff7e6; color:#d46b08; }
+  .callout { border-radius:10px; padding:14px 18px; margin:12px 0; font-size:14px; }
+  .callout-danger { background:#fff1f0; border-left:4px solid #ff4d4f; }
+  .callout-warn { background:#fffbe6; border-left:4px solid #faad14; }
+  .callout-info { background:#e6f4ff; border-left:4px solid #1677ff; }
+  .callout-ok { background:#f6ffed; border-left:4px solid #52c41a; }
+  .flow { display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin:12px 0; }
+  .flow .step { background:#e6f4ff; border:1px solid #91caff; color:#0958d9; border-radius:8px; padding:6px 12px; font-size:13px; font-weight:500; }
+  .flow .arrow { color:#999; font-weight:700; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media (max-width:768px){ .grid2 { grid-template-columns:1fr; } .header { padding:24px; } }
+  .mockup { background:#1e1e2e; border-radius:12px; padding:0; overflow:hidden; margin:14px 0; }
+  .mockup .bar { background:#181825; color:#cdd6f4; padding:8px 16px; font-size:12px; display:flex; justify-content:space-between; }
+  .mockup .body { padding:16px; }
+  .mockup .canvas { background:#11111b; border-radius:8px; height:220px; display:flex; align-items:center; justify-content:center; color:#6c7086; font-size:13px; border:1px dashed #313244; margin-bottom:12px; }
+  .mockup .subtitle { background:#2a2a3d; border-radius:6px; padding:10px 16px; color:#a6adc8; font-size:13px; display:flex; align-items:center; gap:10px; }
+  .mockup .wave { display:flex; align-items:center; gap:2px; }
+  .mockup .wave span { width:3px; border-radius:2px; background:#89b4fa; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="header">
+  <h1>📽️ 智慧课堂播放器改造：视觉常驻 + 语音字幕（视觉优先）</h1>
+  <p>问题：PPT/交互组件"一闪而过"，讲解词独占界面 —— 目标：视觉是主引导、音频如字幕配合视觉</p>
+  <div class="badges">
+    <span class="badge">前端播放器架构改造</span>
+    <span class="badge">提示词模板对齐</span>
+    <span class="badge">v1.0</span>
+  </div>
+</div>
+
+<div class="card">
+  <h2><span class="num">1</span>问题根因（已核实代码）</h2>
+
+  <div class="callout callout-danger">
+    <b>核心根因：播放器是「单动作单视图、线性互斥」模型</b> —— 界面每一时刻只渲染"当前这一个动作"：speech 显示大段文字卡片，show_slide 显示 PPT，两者互斥切换、不共存。
+  </div>
+
+  <table>
+    <tr><th>现状机制</th><th>代码位置</th><th>后果</th></tr>
+    <tr>
+      <td>show_slide 默认停留 <code>4000ms</code> 后自动前进</td>
+      <td><code>usePlayback.ts getActionDelay()</code> L78</td>
+      <td><span class="tag tag-red">PPT 一闪而过</span></td>
+    </tr>
+    <tr>
+      <td>speech 渲染为「大段文字卡片」独占内容区</td>
+      <td><code>SpeechRenderer.tsx</code>（maxWidth 800 卡片 + 多段文本）</td>
+      <td><span class="tag tag-red">显示的是"演讲文档"</span></td>
+    </tr>
+    <tr>
+      <td>动作执行是线性队列，无"视觉层"概念</td>
+      <td><code>usePlayback.ts executeAction()</code> L154-179</td>
+      <td><span class="tag tag-red">视觉与语音永远无法同时呈现</span></td>
+    </tr>
+    <tr>
+      <td>ActionDispatcher 按 type 渲染单一组件</td>
+      <td><code>ActionDispatcher.tsx</code> switch L84-170</td>
+      <td>无"常驻画布"承载视觉状态</td>
+    </tr>
+    <tr>
+      <td>提示词固化线性序列 <code>speech→show_slide→speech→show_slide</code></td>
+      <td><code>prompts/classroom/content-system.md</code> L32-37</td>
+      <td>LLM 默认产出"讲一段、闪一页"的节奏</td>
+    </tr>
+  </table>
+
+  <div class="callout callout-info">
+    <b>用户期望的目标模型：</b>「视觉层（PPT/组件/白板/知识地图）常驻作为主引导，音频讲解像字幕一样配合视觉，讲解一段对应 1~N 个知识点；视觉切换是低频事件，语音是高频事件。」
+  </div>
+</div>
+
+<div class="card">
+  <h2><span class="num">2</span>目标架构：双轨播放模型</h2>
+
+  <p>把播放器从「动作线性互斥」改为「<b>视觉轨（常驻）+ 语音轨（字幕）</b>」双轨并行模型：</p>
+
+  <div class="flow">
+    <span class="step">🎬 视觉轨（常驻）</span>
+    <span class="arrow">←</span>
+    <span class="step">show_slide 切页</span>
+    <span class="arrow">/</span>
+    <span class="step">launch_widget 装载组件</span>
+    <span class="arrow">/</span>
+    <span class="step">wb_draw 白板</span>
+    <span class="arrow">→</span>
+    <span class="step">保持到下次视觉动作</span>
+  </div>
+  <div class="flow">
+    <span class="step">🎙️ 语音轨（字幕）</span>
+    <span class="arrow">←</span>
+    <span class="step">speech 文本 → 字幕条</span>
+    <span class="arrow">→</span>
+    <span class="step">TTS 播放 + 波形</span>
+    <span class="arrow">→</span>
+    <span class="step">播完自动前进</span>
+  </div>
+  <div class="flow">
+    <span class="step">🧩 交互层（覆盖）</span>
+    <span class="arrow">←</span>
+    <span class="step">quiz / discussion 弹出</span>
+    <span class="arrow">→</span>
+    <span class="step">视觉保持、作答后收起</span>
+  </div>
+
+  <h3>动作语义重定义</h3>
+  <table>
+    <tr><th>动作类型</th><th>旧语义</th><th>新语义</th></tr>
+    <tr><td><code>show_slide</code></td><td>闪现一页 PPT</td><td><b>视觉轨：切换/保持当前页</b>（常驻；带 speech 字段则同时进语音轨）</td></tr>
+    <tr><td><code>launch_widget</code></td><td>装载组件（3s 后消失）</td><td><b>视觉轨：装载组件并常驻</b></td></tr>
+    <tr><td><code>widget_*</code></td><td>重渲染组件并停留 5s</td><td><b>驱动消息</b>：发 postMessage 给常驻组件，视觉不变</td></tr>
+    <tr><td><code>wb_draw_*</code></td><td>白板闪现 3s</td><td><b>视觉轨：切换白板内容并常驻</b></td></tr>
+    <tr><td><code>speech</code></td><td>独占内容区的大段文字</td><td><b>语音轨：字幕条文本 + TTS</b>，视觉保持当前</td></tr>
+    <tr><td><code>quiz / discussion</code></td><td>独占界面</td><td><b>交互覆盖层</b>：视觉画布上弹出，答完收起</td></tr>
+    <tr><td><code>pause_for_thought</code></td><td>空白等待</td><td>视觉保持 + 「思考中」轻提示</td></tr>
+    <tr><td><code>scene_transition</code></td><td>场景过渡动画</td><td>场景级视觉切换动画</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h2><span class="num">3</span>前端改造详设</h2>
+
+  <h3>3.1 usePlayback：新增「视觉状态」管理</h3>
+  <ul>
+    <li>新增 <code>visualState</code>（场景级 React state）：<code>{ kind: 'slides'|'widget'|'summaryMap'|'whiteboard'|'none'; pageIndex?: number; payload?: any }</code></li>
+    <li>场景进入时初始化默认视觉：
+      <ul>
+        <li>slide 场景 → <code>kind:'slides'</code> 默认显示第 1 页（<code>pageIndex:0</code>）</li>
+        <li>interactive 场景 → <code>kind:'none'</code>（空画布 + 「即将装载组件」占位）</li>
+        <li>review 场景 → <code>kind:'summaryMap'</code>（知识地图常驻）</li>
+        <li>quiz / discussion / 其他 → <code>kind:'none'</code>（显示场景标题装饰画布）</li>
+      </ul>
+    </li>
+    <li>执行动作时：
+      <ul>
+        <li><code>show_slide</code> → 更新 <code>visualState.pageIndex</code>（或 summaryMap 标记）；若带 <code>speech</code> 文本 → 进语音轨；否则短暂停顿 600ms 后前进</li>
+        <li><code>launch_widget</code> → <code>visualState = {kind:'widget', payload}</code>（常驻）</li>
+        <li><code>wb_draw_*</code> → <code>visualState = {kind:'whiteboard', payload}</code>（常驻）</li>
+        <li><code>speech</code> → 只进语音轨，<b>不改视觉</b></li>
+        <li><code>quiz/discussion/pause_for_thought</code> → 只改交互层，<b>不改视觉</b></li>
+      </ul>
+    </li>
+    <li>场景切换时重置 <code>visualState</code> 为该场景默认视觉</li>
+  </ul>
+
+  <h3>3.2 ClassroomPlayback 布局改造</h3>
+  <div class="mockup">
+    <div class="bar"><span>📽️ 课堂标题 · 场景 x/y</span><span>🧑‍🏫 AI 讲师（说话波形）</span></div>
+    <div class="body">
+      <div style="display:flex;gap:12px;">
+        <div style="width:150px;border-radius:8px;background:#181825;padding:10px;font-size:12px;color:#6c7086;display:flex;flex-direction:column;gap:6px;">
+          <span style="color:#89b4fa">▣ 场景列表</span><span>1. 场景一</span><span>2. 场景二</span><span style="background:#313244;border-radius:4px;padding:2px 6px;color:#a6adc8">3. 场景三</span>
+        </div>
+        <div style="flex:1;">
+          <div class="canvas">🎬 视觉画布（常驻）：PPT 第 2 页 / 交互组件 / 知识地图<br><span style="font-size:11px">← 可手动翻页 · 可全屏 · 不随语音消失</span></div>
+          <div class="subtitle">
+            <span class="wave"><span style="height:14px"></span><span style="height:20px"></span><span style="height:10px"></span><span style="height:16px"></span></span>
+            <span>🎙️ 「大家看这张图——车速从 60 加到 120，刹车距离从 30 米变成了 120 米，整整四倍…」</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <ul>
+    <li>主内容区 = <b>视觉画布</b>（约 72% 高度，常驻渲染 <code>visualState</code>）+ <b>字幕条</b>（底部固定约 88px）+ 控制栏（与字幕条合并为一条底部 Dock）</li>
+    <li>字幕条：半透明深色底、白字、居中两行 max-width，随 TTS 逐句高亮；无语音时隐藏</li>
+    <li>视觉画布右上角：页指示器 + 「上一页/下一页」手动翻页（不打断播放，仅切换 <code>visualState.pageIndex</code>）+ 全屏按钮</li>
+  </ul>
+
+  <h3>3.3 组件拆分</h3>
+  <table>
+    <tr><th>组件</th><th>职责</th><th>说明</th></tr>
+    <tr><td><code>VisualCanvas.tsx</code>（新）</td><td>渲染视觉轨</td><td>按 <code>visualState.kind</code> 分发：slides→SlideLayoutRenderer（指定 pageIndex）、widget→InteractiveWidgetRenderer（常驻，收 widget_* 驱动）、summaryMap→知识地图、whiteboard→WhiteboardRenderer</td></tr>
+    <tr><td><code>SubtitleBar.tsx</code>（新）</td><td>渲染语音轨字幕</td><td>speech 文本 + TTS 波形 + 高亮进度；无 speech 时显示轻提示/隐藏</td></tr>
+    <tr><td><code>ActionDispatcher</code>（重构）</td><td>只处理"非视觉"动作</td><td>quiz/discussion/pause_for_thought 保留为覆盖层；speech/show_slide/launch_widget/wb_draw_* 改为更新轨道状态，不再直接渲染大卡片</td></tr>
+    <tr><td><code>SpeechRenderer</code>（保留兜底）</td><td>无视觉时的讲解兜底</td><td>如 interactive 降级（组件校验失败）时仍显示文字</td></tr>
+  </table>
+
+  <h3>3.4 兼容旧课堂（零迁移）</h3>
+  <div class="callout callout-ok">
+    视觉常驻模型天然兼容旧动作序列：旧课堂的 <code>show_slide</code> 页面会在下一次视觉动作前<b>持续显示</b>，其间的 speech 变成字幕——比旧体验更好；无任何视觉动作的场景自动显示「场景标题 + 讲解字幕」兜底，<b>无需数据迁移、无需重新生成</b>。
+  </div>
+</div>
+
+<div class="card">
+  <h2><span class="num">4</span>提示词模板对齐（后端）</h2>
+
+  <p>更新 <code>prompts/classroom/content-system.md</code> 与两个子规则文件，让 LLM 产出符合「视觉常驻 + 语音字幕」的动作序列：</p>
+
+  <h3>4.1 动作序列建议改写（content-system.md）</h3>
+  <pre><code>### 1. 讲授场景 (slide)
+
+**核心范式：视觉常驻 + 语音配合（重要！）**
+- 幻灯片是课堂的「视觉主引导」，**一经 show_slide 展示就常驻屏幕**，直到下一次换页
+- 讲解词（speech）是「旁白字幕」，**不独占界面**，始终配合当前页讲解
+- 节奏：一页幻灯片支撑 1~2 段讲解（每段讲 1 个知识点或 1 个要点）
+
+动作序列建议：
+show_slide(第1页·开场) → speech(讲开场要点) →
+show_slide(第2页·图表) → speech(讲图表结论) → speech(深入分析) →
+show_slide(第3页·归纳) → speech(小结) → pause_for_thought(思考) →
+speech(收尾)
+
+约束：
+- 每个 slide 场景生成 2~4 页 slides（覆盖讲解全过程，不要只生成 1 页）
+- speech 单段 ≤ 80 字（约 5~8 秒），方便学生读字幕；过长拆成多段
+- show_slide 的 speech 字段只写「该页第一句引导语」（≤ 40 字），完整讲解用后续 speech 动作
+- 严禁把完整讲稿写进 slides 元素（幻灯片只放关键词/图表/公式）</code></pre>
+
+  <h3>4.2 review / interactive 对齐</h3>
+  <pre><code>### 4. 回顾总结 (review)
+show_slide(展示知识地图·常驻) → speech(逐分支回顾) → speech(第二分支) →
+speech(金句收尾)
+（知识地图展示后常驻，讲解字幕配合）
+
+### 5. 动手探索 (interactive)
+launch_widget(装载组件·常驻) → speech(说明操作) →
+widget_set_state(演示状态) → widget_highlight(指向) →
+speech(布置任务) → pause_for_thought(学生操作 8~15s) →
+widget_annotate(总结规律) → speech(点评)
+（组件装载后常驻整个场景，widget_* 只发驱动消息，不重新渲染）</code></pre>
+
+  <h3>4.3 后端生成器</h3>
+  <ul>
+    <li><code>SceneContentGenerator.parseAction</code> 已把 LLM actions 原样落库，无需改序列逻辑</li>
+    <li>仅建议：<code>parseSceneContent</code> 对 slide 场景若 <code>slides.length === 1</code> 且内容较长，不强求改（前端兼容）</li>
+    <li>无需迁移表结构（actions 已存 JSON）</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h2><span class="num">5</span>实施步骤（约 3.5 人天）</h2>
+  <table>
+    <tr><th>步骤</th><th>内容</th><th>工作量</th></tr>
+    <tr><td>M1</td><td>usePlayback 增加 visualState 状态机 + 动作语义重定义（show_slide/launch_widget/wb_draw 改轨道；speech 只进语音轨）</td><td>1 人天</td></tr>
+    <tr><td>M2</td><td>VisualCanvas 组件（slides 分页常驻渲染 / widget 常驻 / summaryMap / whiteboard）+ 手动翻页 + 全屏</td><td>0.8 人天</td></tr>
+    <tr><td>M3</td><td>SubtitleBar 字幕条（含 TTS 波形、逐句高亮）+ ClassroomPlayback 布局改造（画布 72% + 字幕 Dock）</td><td>0.8 人天</td></tr>
+    <tr><td>M4</td><td>提示词对齐（content-system.md + slide-layout-rules + interactive-widget-rules）+ 旧课堂兼容回归</td><td>0.5 人天</td></tr>
+    <tr><td>M5</td><td>本地全链路验证（新生成课堂 + 旧课堂双回归）</td><td>0.4 人天</td></tr>
+  </table>
+
+  <h3>验收标准</h3>
+  <ol>
+    <li>新课堂 slide 场景：PPT 页常驻 ≥ 2 页以上，讲解字幕逐句配合，PPT 不再"一闪而过"</li>
+    <li>interactive 场景：组件装载后常驻整个场景，widget_* 驱动不重渲染、不闪烁</li>
+    <li>quiz 场景：题目弹出时视觉保持（白板/页可见），作答后收起</li>
+    <li>review 场景：知识地图常驻，讲解字幕配合</li>
+    <li>旧课堂：无需重新生成，播放体验自然升级（speech 变字幕、视觉常驻）</li>
+    <li>手动翻页不打断语音、全屏正常</li>
+  </ol>
+
+  <h3>不做的事（本期边界）</h3>
+  <ul>
+    <li>不做视频轨/视频生成（未来视觉轨可扩展 video kind，本期不含）</li>
+    <li>不做字幕逐字卡拉OK（做逐句高亮，精度与 TTS 同步成本高，二期可选）</li>
+    <li>不重新生成存量课堂（兼容升级）</li>
+  </ul>
+</div>
+
+</div>
+</body>
+</html>
+
+<div class="card">
+  <h2><span class="num">6</span>待确认决策点</h2>
+  <table>
+    <tr><th>#</th><th>决策点</th><th>推荐</th><th>备选</th></tr>
+    <tr><td>1</td><td>双轨模型（视觉常驻 + 语音字幕）</td><td><span class="tag tag-green">采用</span></td><td>维持现状（不推荐）</td></tr>
+    <tr><td>2</td><td>字幕条样式</td><td><span class="tag tag-green">底部半透明字幕条</span>（视频网站式）</td><td>左下角讲师气泡</td></tr>
+    <tr><td>3</td><td>旧课堂处理</td><td><span class="tag tag-green">直接兼容升级</span>（不重新生成）</td><td>全部重新生成（成本高）</td></tr>
+    <tr><td>4</td><td>手动翻页（学生自主浏览 PPT）</td><td><span class="tag tag-green">本轮做</span>（不打断播放）</td><td>二期</td></tr>
+    <tr><td>5</td><td>字幕高亮精度</td><td><span class="tag tag-green">逐句高亮</span>（随 TTS 播放状态）</td><td>逐字卡拉OK（二期）</td></tr>
+    <tr><td>6</td><td>speech 单段长度约束</td><td><span class="tag tag-green">≤ 80 字</span>（提示词硬规则）</td><td>≤ 120 字</td></tr>
+  </table>
+
+  <div class="callout callout-info">
+    <b>影响面确认：</b>本改造核心在前端播放器（usePlayback / ClassroomPlayback / 组件），后端仅改提示词文本、不改表结构与生成器逻辑。风险可控，且旧数据零迁移。
+  </div>
+</div>
+
+</div>
+</body>
+</html>

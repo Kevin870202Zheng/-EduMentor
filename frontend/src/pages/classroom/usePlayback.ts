@@ -1,13 +1,35 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import type { ClassroomDetailDto, SceneDetailDto, ActionDTO } from '../../api/types';
+import type { ClassroomDetailDto, SceneDetailDto, ActionDTO, WidgetPayload } from '../../api/types';
 import { classroomApi } from '../../api/classroomApi';
 import { useTTSPlayer } from '../../hooks/useTTSPlayer';
 import type { TTSPlayerState } from '../../hooks/useTTSPlayer';
+import { parseSlides, parseWidget, parseSummaryMap } from './components/ActionDispatcher';
 
 export type PlaybackState = 'idle' | 'playing' | 'paused' | 'live';
 
+/** 视觉轨状态（场景级常驻视觉） */
+export type VisualKind = 'slides' | 'widget' | 'summaryMap' | 'whiteboard' | 'none';
+
+export interface VisualState {
+  kind: VisualKind;
+  /** slides 当前页索引（手动翻页 / show_slide 切换） */
+  pageIndex: number;
+  /** 已装载的交互组件（launch_widget 后常驻） */
+  widget: WidgetPayload | null;
+  /** 白板内容（wb_draw_* 后常驻） */
+  whiteboardContent: string | null;
+  whiteboardPosition?: string;
+}
+
+const EMPTY_VISUAL: VisualState = {
+  kind: 'none',
+  pageIndex: 0,
+  widget: null,
+  whiteboardContent: null,
+};
+
 /**
- * 播放器状态机 hook v3.0 — 彻底重构版
+ * 播放器状态机 hook v4.0 — 双轨播放模型（视觉轨 + 语音轨）
  *
  * 核心设计：
  *   1. 播放索引（sceneIndex / actionIndex）用 ref 维护，
@@ -15,6 +37,12 @@ export type PlaybackState = 'idle' | 'playing' | 'paused' | 'live';
  *   2. advanceAction() 是唯一的前进入口，用 isAdvancingRef 防重入
  *   3. executeAction() 是唯一的执行入口，负责渲染后调度 TTS / 定时器
  *   4. React state 仅用于触发 UI 更新，播放逻辑不依赖 state
+ *
+ * 双轨模型（v4.0 新增）：
+ *   - 视觉轨（visualState）：由 show_slide / launch_widget / wb_draw_* 驱动，
+ *     切换后常驻屏幕，直到下一次视觉动作或场景切换
+ *   - 语音轨（speech）：只播放 TTS + 字幕，不改变视觉
+ *   - 交互层（quiz / discussion / pause_for_thought）：保持视觉，等待交互
  *
  * 播放链：
  *   executeAction → TTS play / setTimeout
@@ -30,6 +58,10 @@ export function usePlayback(classroomId: string) {
   const [currentActionIndex, setCurrentActionIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /** 视觉轨（场景级常驻视觉） */
+  const [visualState, setVisualState] = useState<VisualState>(EMPTY_VISUAL);
+  /** 当前待执行的 widget 驱动动作（widget_* 到达时设置，供常驻组件消费） */
+  const [pendingWidgetAction, setPendingWidgetAction] = useState<ActionDTO | null>(null);
 
   // ── ref 持有播放索引（回调中始终获取最新值） ──
   const sceneIndexRef = useRef(0);
@@ -103,6 +135,85 @@ export function usePlayback(classroomId: string) {
     ttsPlayer.pause();
   }, [clearTimers]);
 
+  // ═══════════════════════════════════════════════════════════════
+  //  视觉轨 — 场景默认视觉初始化
+  // ═══════════════════════════════════════════════════════════════
+  const initSceneVisual = useCallback((scene: SceneDetailDto | null) => {
+    const content = scene?.content;
+    const slides = parseSlides(content);
+    const widget = parseWidget(content);
+    const summary = parseSummaryMap(content);
+    let next: VisualState = { ...EMPTY_VISUAL };
+    if (summary) {
+      next = { ...EMPTY_VISUAL, kind: 'summaryMap' };
+    } else if (slides.length > 0) {
+      next = { ...EMPTY_VISUAL, kind: 'slides', pageIndex: 0 };
+    } else if (widget) {
+      // interactive 场景：等 launch_widget 装载
+      next = { ...EMPTY_VISUAL, kind: 'none' };
+    }
+    setVisualState(next);
+    setPendingWidgetAction(null);
+  }, []);
+
+  // ── 视觉轨动作：show_slide（切页/切知识地图，常驻） ──
+  const applyShowSlide = useCallback((action: ActionDTO) => {
+    const scene = classroomRef.current?.scenes?.[sceneIndexRef.current];
+    const content = scene?.content;
+    const slides = parseSlides(content);
+    const summary = parseSummaryMap(content);
+    if (action.layoutId === 'summary' && summary) {
+      setVisualState((prev) => ({ ...prev, kind: 'summaryMap' }));
+      return;
+    }
+    if (slides.length > 0) {
+      const idx = Math.max(0, slides.findIndex((s) => s.layoutId === action.layoutId));
+      setVisualState((prev) => ({
+        ...prev,
+        kind: 'slides',
+        pageIndex: idx >= 0 ? idx : prev.pageIndex,
+      }));
+    }
+  }, []);
+
+  // ── 视觉轨动作：launch_widget（装载组件，常驻） ──
+  const applyLaunchWidget = useCallback(() => {
+    const scene = classroomRef.current?.scenes?.[sceneIndexRef.current];
+    const widget = parseWidget(scene?.content);
+    if (widget) {
+      setVisualState((prev) => ({ ...prev, kind: 'widget', widget }));
+    }
+  }, []);
+
+  // ── 视觉轨动作：wb_draw_*（切换白板内容，常驻） ──
+  const applyWhiteboard = useCallback((action: ActionDTO) => {
+    setVisualState((prev) => ({
+      ...prev,
+      kind: 'whiteboard',
+      whiteboardContent: action.content || action.wbContent || null,
+      whiteboardPosition: action.position,
+    }));
+  }, []);
+
+  // ── 视觉轨动作：widget_*（驱动常驻组件） ──
+  const applyWidgetAction = useCallback((action: ActionDTO) => {
+    setPendingWidgetAction(action);
+    const content = action.content?.trim();
+    if (content) {
+      ttsPlayer.play(content, action.id || `${action.type}_${actionIndexRef.current}`);
+      return true; // 已走语音轨
+    }
+    return false; // 无讲解，走短停
+  }, []);
+
+  // 当前 action 若是视觉类，同步视觉状态（prevAction 回退时用）
+  const applyActionVisualIfAny = useCallback((action: ActionDTO | null) => {
+    if (!action) return;
+    if (action.type === 'show_slide') applyShowSlide(action);
+    else if (action.type === 'launch_widget') applyLaunchWidget();
+    else if (action.type === 'wb_draw_text' || action.type === 'wb_draw_diagram') applyWhiteboard(action);
+  }, [applyShowSlide, applyLaunchWidget, applyWhiteboard]);
+
   // ================================================================
   //  核心：前进到下一个 Action（唯一的前进入口）
   // ================================================================
@@ -113,6 +224,7 @@ export function usePlayback(classroomId: string) {
     // 停止当前播放
     ttsPlayer.stop();
     clearTimers();
+    setPendingWidgetAction(null);
 
     const c = classroomRef.current;
     if (!c) { isAdvancingRef.current = false; return; }
@@ -128,6 +240,7 @@ export function usePlayback(classroomId: string) {
       // 下一个场景
       sceneIndexRef.current += 1;
       actionIndexRef.current = 0;
+      initSceneVisual(scenes[sceneIndexRef.current] ?? null);
     } else {
       // 课堂结束
       setState('idle');
@@ -146,7 +259,15 @@ export function usePlayback(classroomId: string) {
       executeAction();
       isAdvancingRef.current = false;
     });
-  }, [classroomId, clearTimers]);
+  }, [classroomId, clearTimers, initSceneVisual]);
+
+  // ── 短停调度（视觉动作/无语音动作的过渡） ──
+  const scheduleAdvance = useCallback((delay: number) => {
+    if (actionTimerRef.current) clearTimeout(actionTimerRef.current);
+    actionTimerRef.current = setTimeout(() => {
+      advanceAction();
+    }, Math.max(300, delay));
+  }, [advanceAction]);
 
   // ================================================================
   //  核心：执行当前 Action（唯一的执行入口）
@@ -159,24 +280,65 @@ export function usePlayback(classroomId: string) {
 
     const type = action.type;
 
-    // Quiz / Discussion — 等待用户交互
+    // Quiz / Discussion — 等待用户交互（视觉保持）
     if (type === 'quiz' || type === 'discussion') return;
 
-    // Speech 类型 — TTS 驱动
+    // ── 视觉轨动作：更新视觉状态（常驻），不独占界面 ──
+    if (type === 'show_slide') {
+      applyShowSlide(action);
+      const speech = action.speech?.trim();
+      if (speech) {
+        ttsPlayer.play(speech, action.id || `slide_${actionIndexRef.current}`);
+        return;
+      }
+      scheduleAdvance(600);
+      return;
+    }
+
+    if (type === 'launch_widget') {
+      applyLaunchWidget();
+      scheduleAdvance(600);
+      return;
+    }
+
+    if (type === 'wb_draw_text' || type === 'wb_draw_diagram') {
+      applyWhiteboard(action);
+      scheduleAdvance(600);
+      return;
+    }
+
+    if (type === 'widget_highlight' || type === 'widget_set_state'
+        || type === 'widget_annotate' || type === 'widget_reveal') {
+      const played = applyWidgetAction(action);
+      if (!played) scheduleAdvance(action.duration || 1200);
+      return;
+    }
+
+    if (type === 'scene_transition') {
+      scheduleAdvance(2000);
+      return;
+    }
+
+    if (type === 'pause_for_thought') {
+      scheduleAdvance(action.duration || 1500);
+      return;
+    }
+
+    // ── 语音轨动作：字幕 + TTS（视觉保持当前） ──
     if (isSpeechType(type)) {
       const text = action.text || '';
       if (text.trim()) {
         ttsPlayer.play(text, action.id || `${type}_${actionIndexRef.current}`);
         return;
       }
+      scheduleAdvance(300);
+      return;
     }
 
-    // 非 Speech、非交互类型 — 定时器驱动
-    const delay = getActionDelay(action);
-    actionTimerRef.current = setTimeout(() => {
-      advanceAction();
-    }, delay);
-  }, [state, getCurrentAction, isSpeechType, getActionDelay]);
+    // 兜底
+    scheduleAdvance(getActionDelay(action));
+  }, [state, getCurrentAction, isSpeechType, getActionDelay,
+      applyShowSlide, applyLaunchWidget, applyWhiteboard, applyWidgetAction, scheduleAdvance]);
 
   // ================================================================
   //  TTS 播放器 — onComplete / onError 直接调用 advanceAction
@@ -215,6 +377,7 @@ export function usePlayback(classroomId: string) {
   const prevAction = useCallback(() => {
     ttsPlayer.stop();
     clearTimers();
+    setPendingWidgetAction(null);
     const c = classroomRef.current;
     if (!c) return;
 
@@ -227,10 +390,12 @@ export function usePlayback(classroomId: string) {
     } else {
       return;
     }
+    const targetAction = c.scenes?.[sceneIndexRef.current]?.actions?.[actionIndexRef.current] ?? null;
+    applyActionVisualIfAny(targetAction);
     setCurrentSceneIndex(sceneIndexRef.current);
     setCurrentActionIndex(actionIndexRef.current);
     setState('paused');
-  }, [clearTimers]);
+  }, [clearTimers, applyActionVisualIfAny]);
 
   // ── 跳转到指定场景 ──
   const goToScene = useCallback((index: number) => {
@@ -238,12 +403,25 @@ export function usePlayback(classroomId: string) {
     if (!c || index < 0 || index >= (c.scenes?.length ?? 0)) return;
     ttsPlayer.stop();
     clearTimers();
+    setPendingWidgetAction(null);
     sceneIndexRef.current = index;
     actionIndexRef.current = 0;
+    initSceneVisual(c.scenes[index] ?? null);
     setCurrentSceneIndex(index);
     setCurrentActionIndex(0);
     setState('paused');
-  }, [clearTimers]);
+  }, [clearTimers, initSceneVisual]);
+
+  // ── 手动翻页（不打断播放，仅切换视觉轨页） ──
+  const gotoSlidePage = useCallback((index: number) => {
+    setVisualState((prev) => {
+      const scene = classroomRef.current?.scenes?.[sceneIndexRef.current];
+      const slides = parseSlides(scene?.content);
+      if (!slides.length) return prev;
+      const clamped = Math.max(0, Math.min(slides.length - 1, index));
+      return { ...prev, kind: 'slides', pageIndex: clamped };
+    });
+  }, []);
 
   // ── Quiz 提交 ──
   const submitQuiz = useCallback(async (selectedIndex: number) => {
@@ -284,12 +462,13 @@ export function usePlayback(classroomId: string) {
       const data = await classroomApi.getClassroom(classroomId);
       classroomRef.current = data;
       setClassroom(data);
+      initSceneVisual(data.scenes?.[0] ?? null);
     } catch (err: any) {
       setError(err?.message || '加载课堂失败');
     } finally {
       setLoading(false);
     }
-  }, [classroomId]);
+  }, [classroomId, initSceneVisual]);
 
   // ═══════════════════════════════════════════════════════════════
   //  Effects
@@ -334,6 +513,7 @@ export function usePlayback(classroomId: string) {
     classroom, state, loading, error,
     currentScene, currentSceneIndex, currentAction, currentActionIndex,
     totalScenes, totalActions, scenesCompleted, isLastScene, isLastAction,
+    visualState, pendingWidgetAction, gotoSlidePage,
     ttsState: ttsPlayer.state,
     ttsProgress: ttsPlayer.progress,
     ttsCurrentActionId: ttsPlayer.currentActionId,
@@ -342,3 +522,4 @@ export function usePlayback(classroomId: string) {
     prevAction, goToScene, submitQuiz, loadClassroom,
   };
 }
+

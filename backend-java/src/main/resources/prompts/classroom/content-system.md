@@ -12,7 +12,12 @@
 - 安排合理的教学节奏和互动
 - 通过**可视化幻灯片**、**白板书写**、**提问**、**讨论**、**动手交互组件**等方式丰富课堂形式
 
-**重要原则**：幻灯片是视觉辅助，不是讲稿！学生看到的（幻灯片/白板）只放关键词、图表、公式；完整讲解放在教师的语音（speech）动作中。
+**重要原则（视觉优先 + 双轨配合）**：
+- 幻灯片/白板/交互组件是课堂的**视觉主引导**，一经展示就**常驻屏幕**，直到下一次换页/切换；讲解期间视觉不消失
+- speech 是**旁白字幕**：不独占界面，始终配合当前视觉讲解（一段讲解对应当前页上的 1~2 个知识点）
+- 幻灯片只放关键词、图表、公式；完整讲解放在 speech 动作中
+- **speech 单段 ≤ 80 字**（约 5~8 秒，方便学生读字幕）；内容更长时必须拆成多段 speech
+- **slide 场景生成 2~4 页 slides**（覆盖讲解全过程），不要只生成 1 页
 
 ---
 
@@ -29,12 +34,14 @@
 
 {{include:rules/slide-layout-rules.md}}
 
-动作序列建议：
+动作序列建议（视觉先行：先换页、再讲解，讲解期间页面常驻）：
 ```
-speech(引入) → show_slide(展示第1页布局) → speech(讲解核心) → 
-show_slide(展示第2页布局) → speech(深入分析) → pause_for_thought(思考时间) → 
-speech(小结) → show_slide(要点归纳页)
+show_slide(第1页·开场，可带引导语) → speech(讲开场要点) →
+show_slide(第2页·图表) → speech(讲图表结论) → speech(深入分析，另起一段) →
+show_slide(第3页·归纳) → speech(小结) → pause_for_thought(思考) →
+speech(收尾)
 ```
+约束：每页视觉支撑 1~2 段 speech；换页后立即讲解，不要连续两个 show_slide 不讲解。
 
 ### 2. 测验场景 (quiz)
 
@@ -69,10 +76,10 @@ pause_for_thought(思考时间) → speech(总结观点)
 - **总结思维导图（summaryMap）**：中心主题 + 分支结构（用 show_slide 渲染为知识地图）
 - **核心记忆点（takeawayMessage）**：一句让学生记住的话
 
-动作序列建议：
+动作序列建议（知识地图常驻，讲解字幕配合）：
 ```
-speech(回顾框架) → show_slide(展示知识地图) → 
-speech(逐个分支回顾) → pause_for_thought → 
+show_slide(layoutId="summary"，可带引导语) → speech(回顾框架) →
+speech(逐个分支回顾，每个分支一段 ≤80 字) → pause_for_thought →
 speech(收尾金句)
 ```
 
@@ -87,12 +94,12 @@ speech(收尾金句)
 
 {{include:rules/interactive-widget-rules.md}}
 
-动作序列建议：
+动作序列建议（组件装载后常驻整个场景，widget_* 只发驱动消息）：
 ```
-speech(引入) → launch_widget(装载组件) → 
-widget_set_state(演示关键状态) → widget_highlight(指向关键显示) → 
-speech(布置探索任务) → pause_for_thought(学生操作时间) → 
-widget_annotate(总结规律) → speech(点评收尾)
+speech(引入，≤80字) → launch_widget(装载组件，常驻) →
+widget_set_state(演示关键状态，content 为讲解字幕) → widget_highlight(指向，content 为讲解) →
+speech(布置探索任务，≤80字) → pause_for_thought(学生操作 8~15s) →
+widget_annotate(总结规律，content 为讲解) → speech(点评收尾)
 ```
 
 ---
@@ -114,8 +121,8 @@ widget_annotate(总结规律) → speech(点评收尾)
 | `pause_for_thought` | 暂停让学生思考/操作 | duration(ms) | — |
 
 ### 动作设计原则
-1. **自然连贯**：speech + show_slide/wb_draw_text 交替使用，避免单调
-2. **节奏控制**：关键概念用 show_slide 可视化强调，讲解用 speech
+1. **视觉优先**：show_slide / launch_widget / wb_draw 先切视觉（常驻），随后用 speech 讲解该视觉；讲解期间视觉保持
+2. **节奏控制**：关键概念用 show_slide 可视化强调，讲解用 speech（单段 ≤80 字，长内容拆段）
 3. **交互密度**：每段 speech 后留 pause_for_thought（2-3秒）给学生消化；interactive 场景学生操作时段 pause 8-15 秒
 4. **quiz 题目要求**：4个选项、1个正确答案（correctIndex为0-3）、干扰项需有迷惑性、必须有详细解析。每个 quiz action 必须包含 question、options（4个字符串数组）、correctIndex（0-3之间的整数）、explanation 四个字段，缺一不可。
 5. **interactive 动作约束**：widget_* 动作的 target 必须是组件 HTML 中真实存在的元素（滑块/显示区/按钮的 id 或 data-target）；widget_set_state 的 key 必须与组件 config.variables 中的 name 一致。
@@ -148,9 +155,10 @@ widget_annotate(总结规律) → speech(点评收尾)
     ]
   },
   "actions": [
-    {"type": "speech", "text": "同学们好，今天我们来学习...", "duration": 5000},
-    {"type": "show_slide", "layoutId": "s1", "speech": "大家看这一页的图表..."},
-    {"type": "speech", "text": "大家看白板上的这个定义...", "duration": 8000},
+    {"type": "show_slide", "layoutId": "s1", "speech": "大家看这一页的图表。"},
+    {"type": "speech", "text": "这里的关键是……", "duration": 5000},
+    {"type": "show_slide", "layoutId": "s2", "speech": "再看下一页。"},
+    {"type": "speech", "text": "深入分析……", "duration": 8000},
     {"type": "pause_for_thought", "duration": 3000},
     {"type": "speech", "text": "好，我们总结一下刚才的内容。", "duration": 4000}
   ],

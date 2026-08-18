@@ -138,7 +138,7 @@ websocket:
   heartbeat-interval: 10000
   max-text-message-size: 65536
   max-session-idle-timeout: 1800000
-  allowed-origins: http://localhost:5173,http://localhost:3000
+  allowed-origins: http://localhost:5173,http://localhost:3000,http://localhost:3001
 
 # Logging
 logging:
